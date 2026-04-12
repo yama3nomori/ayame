@@ -169,13 +169,19 @@ class GraphBuilder {
                     )
                     val endIndex = i + yomiStr.length
                     listToken.forEach { token ->
-                        val tango = when (token.nodeId) {
+                        val rawTango = when (token.nodeId) {
                             -2 -> yomiStr
                             -1 -> yomiStr.hiraToKata()
                             else -> tangoTrie.getLetter(
                                 token.nodeId,
                                 succinctBitVector = succinctBitVectorTangoLBS
                             )
+                        }
+                        val (tango, annotation) = if (rawTango.contains('\t')) {
+                            val split = rawTango.split('\t')
+                            split[0] to split.getOrNull(1)
+                        } else {
+                            rawTango to null
                         }
                         val node = Node(
                             l = tokenArray.leftIds[token.posTableIndex.toInt()],
@@ -185,7 +191,8 @@ class GraphBuilder {
                             g = token.wordCost.toInt(),
                             tango = tango,
                             len = yomiStr.length.toShort(),
-                            sPos = i
+                            sPos = i,
+                            annotation = annotation
                         )
                         addOrUpdateNode(graph, endIndex, node)
                     }
@@ -225,10 +232,16 @@ class GraphBuilder {
                         .sortedBy { it.wordCost }
                         .take(5)
                         .forEach { token ->
-                            val tango = when (token.nodeId) {
+                            val rawTango = when (token.nodeId) {
                                 -2 -> yomiStr
                                 -1 -> yomiStr.hiraToKata()
                                 else -> tangoTrie.getLetter(token.nodeId, succinctBitVectorTangoLBS)
+                            }
+                            val (tango, annotation) = if (rawTango.contains('\t')) {
+                                val split = rawTango.split('\t')
+                                split[0] to split.getOrNull(1)
+                            } else {
+                                rawTango to null
                             }
 
                             val cost = token.wordCost.toInt() + penalty
@@ -245,6 +258,7 @@ class GraphBuilder {
                                     tango = tango,
                                     len = yomiStr.length.toShort(),
                                     sPos = i,
+                                    annotation = annotation
                                 )
                             )
                         }
@@ -271,13 +285,19 @@ class GraphBuilder {
                         )
                         val endIndex = i + yomiStr.length
                         listToken.sortedBy { it.wordCost }.take(5).forEach { token ->
-                            val tango = when (token.nodeId) {
+                            val rawTango = when (token.nodeId) {
                                 -2 -> yomiStr
                                 -1 -> yomiStr.hiraToKata()
                                 else -> tangoTrie.getLetter(
                                     token.nodeId,
                                     succinctBitVector = succinctBitVectorTangoLBS
                                 )
+                            }
+                            val (tango, annotation) = if (rawTango.contains('\t')) {
+                                val split = rawTango.split('\t')
+                                split[0] to split.getOrNull(1)
+                            } else {
+                                rawTango to null
                             }
                             val scoreOffset = if (didOmit) OMISSION_SCORE_OFFSET else 0
                             val node = Node(
@@ -288,7 +308,8 @@ class GraphBuilder {
                                 g = token.wordCost.toInt() + scoreOffset,
                                 tango = tango,
                                 len = yomiStr.length.toShort(),
-                                sPos = i
+                                sPos = i,
+                                annotation = annotation
                             )
                             addOrUpdateNode(graph, endIndex, node)
                         }
@@ -317,13 +338,19 @@ class GraphBuilder {
                         )
                         val endIndex = i + yomiStr.length
                         listToken.forEach { token ->
-                            val tango = when (token.nodeId) {
+                            val rawTango = when (token.nodeId) {
                                 -2 -> yomiStr
                                 -1 -> yomiStr.hiraToKata()
                                 else -> wikiTangoTrie.getLetter(
                                     token.nodeId,
                                     succinctBitVector = succinctBitVectorWikiTangoLBS
                                 )
+                            }
+                            val (tango, annotation) = if (rawTango.contains('\t')) {
+                                val split = rawTango.split('\t')
+                                split[0] to split.getOrNull(1)
+                            } else {
+                                rawTango to null
                             }
                             val node = Node(
                                 l = wikiTokenArray.leftIds[token.posTableIndex.toInt()],
@@ -333,7 +360,8 @@ class GraphBuilder {
                                 g = token.wordCost.toInt(),
                                 tango = tango,
                                 len = yomiStr.length.toShort(),
-                                sPos = i
+                                sPos = i,
+                                annotation = annotation
                             )
                             addOrUpdateNode(graph, endIndex, node)
                         }
@@ -362,13 +390,19 @@ class GraphBuilder {
                         )
                         val endIndex = i + yomiStr.length
                         listToken.forEach { token ->
-                            val tango = when (token.nodeId) {
+                            val rawTango = when (token.nodeId) {
                                 -2 -> yomiStr
                                 -1 -> yomiStr.hiraToKata()
                                 else -> webTangoTrie.getLetter(
                                     token.nodeId,
                                     succinctBitVector = succinctBitVectorwebTangoLBS
                                 )
+                            }
+                            val (tango, annotation) = if (rawTango.contains('\t')) {
+                                val split = rawTango.split('\t')
+                                split[0] to split.getOrNull(1)
+                            } else {
+                                rawTango to null
                             }
                             val node = Node(
                                 l = webTokenArray.leftIds[token.posTableIndex.toInt()],
@@ -378,7 +412,8 @@ class GraphBuilder {
                                 g = token.wordCost.toInt(),
                                 tango = tango,
                                 len = yomiStr.length.toShort(),
-                                sPos = i
+                                sPos = i,
+                                annotation = annotation
                             )
                             addOrUpdateNode(graph, endIndex, node)
                         }
@@ -408,13 +443,19 @@ class GraphBuilder {
                         )
                         val endIndex = i + yomiStr.length
                         listToken.forEach { token ->
-                            val tango = when (token.nodeId) {
+                            val rawTango = when (token.nodeId) {
                                 -2 -> yomiStr
                                 -1 -> yomiStr.hiraToKata()
                                 else -> personTangoTrie.getLetter(
                                     token.nodeId,
                                     succinctBitVector = succinctBitVectorpersonTangoLBS
                                 )
+                            }
+                            val (tango, annotation) = if (rawTango.contains('\t')) {
+                                val split = rawTango.split('\t')
+                                split[0] to split.getOrNull(1)
+                            } else {
+                                rawTango to null
                             }
                             val node = Node(
                                 l = personTokenArray.leftIds[token.posTableIndex.toInt()],
@@ -424,7 +465,8 @@ class GraphBuilder {
                                 g = token.wordCost.toInt(),
                                 tango = tango,
                                 len = yomiStr.length.toShort(),
-                                sPos = i
+                                sPos = i,
+                                annotation = annotation
                             )
                             addOrUpdateNode(graph, endIndex, node)
                         }
@@ -454,13 +496,19 @@ class GraphBuilder {
                         )
                         val endIndex = i + yomiStr.length
                         listToken.forEach { token ->
-                            val tango = when (token.nodeId) {
+                            val rawTango = when (token.nodeId) {
                                 -2 -> yomiStr
                                 -1 -> yomiStr.hiraToKata()
                                 else -> neologdTangoTrie.getLetter(
                                     token.nodeId,
                                     succinctBitVector = succinctBitVectorneologdTangoLBS
                                 )
+                            }
+                            val (tango, annotation) = if (rawTango.contains('\t')) {
+                                val split = rawTango.split('\t')
+                                split[0] to split.getOrNull(1)
+                            } else {
+                                rawTango to null
                             }
                             val node = Node(
                                 l = neologdTokenArray.leftIds[token.posTableIndex.toInt()],
@@ -470,7 +518,8 @@ class GraphBuilder {
                                 g = token.wordCost.toInt(),
                                 tango = tango,
                                 len = yomiStr.length.toShort(),
-                                sPos = i
+                                sPos = i,
+                                annotation = annotation
                             )
                             addOrUpdateNode(graph, endIndex, node)
                         }

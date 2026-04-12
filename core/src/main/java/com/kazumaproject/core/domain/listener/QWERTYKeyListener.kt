@@ -38,4 +38,10 @@ interface QWERTYKeyListener {
         qwertyKey: QWERTYKey,
         character: Char
     )
+
+    /**
+     * 削除キーが左フリック/ドラッグされたときに呼び出されます。
+     * 行頭まで削除する処理を実行します。
+     */
+    fun onDeleteLeftFlick()
 }

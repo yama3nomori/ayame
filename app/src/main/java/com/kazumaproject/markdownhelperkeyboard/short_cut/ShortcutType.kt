@@ -8,7 +8,7 @@ enum class ShortcutType(
     SETTINGS("settings", com.kazumaproject.core.R.drawable.baseline_settings_24, "設定"),
     EMOJI("emoji", com.kazumaproject.core.R.drawable.baseline_emoji_emotions_24, "絵文字"),
     TEMPLATE("template", com.kazumaproject.core.R.drawable.book_3_24px, "定型文"),
-    KEYBOARD_PICKER(
+    LAYOUT_SWITCH(
         "keyboard_picker",
         com.kazumaproject.core.R.drawable.language_24dp,
         "キーボード切替"

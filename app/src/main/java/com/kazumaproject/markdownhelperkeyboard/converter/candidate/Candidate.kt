@@ -9,5 +9,6 @@ data class Candidate (
     val length: UByte,
     val score: Int,
     val leftId: Short? = null,
-    val rightId: Short? = null
+    val rightId: Short? = null,
+    val annotation: String? = null
 )

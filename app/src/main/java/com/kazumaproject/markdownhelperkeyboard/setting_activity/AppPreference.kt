@@ -48,13 +48,13 @@ object AppPreference {
     private val QWERTY_SHOW_IME_SWITCH_BUTTON =
         Pair("qwerty_show_switch_ime_button_preference", true)
 
-    private val QWERTY_SHOW_CURSOR_BUTTONS = Pair("qwerty_show_cursor_buttons_preference", false)
+    private val QWERTY_SHOW_CURSOR_BUTTONS = Pair("qwerty_show_cursor_buttons_preference", true)
 
     private val QWERTY_SHOW_KEYMAP_SYMBOLS =
         Pair("qwerty_show_keymap_symbols_romaji_preference", false)
 
     private val QWERTY_SHOW_NUMBER_BUTTONS =
-        Pair("qwerty_show_number_keys_buttons_preference", false)
+        Pair("qwerty_show_number_keys_buttons_preference_v2", true)
 
     private val QWERTY_SHOW_SWITCH_ROMAJI_ENGLISH =
         Pair("qwerty_show_switch_romaji_english_preference", true)
@@ -155,7 +155,7 @@ object AppPreference {
     private val CANDIDATE_TAB_PREFERENCE = Pair("candidate_tab_visibility_preference", false)
 
     private val SHORTCUT_TOOLBAR_VISIBILITY_PREFERENCE =
-        Pair("shortcut_toolbar_visibility_preference", false)
+        Pair("shortcut_toolbar_visibility_preference", true)
 
     private val APP_THEME_SEED_COLOR = Pair("app_theme_seed_color_preference", 0x00000000)
 
@@ -233,11 +233,11 @@ object AppPreference {
     private val ZENZ_MAXIMUM_THREAD_SIZE_PREFERENCE =
         Pair("zenz_maximum_thread_count_preference", 4)
 
-    private val QWERTY_KEY_VERTICAL_MARGIN = Pair("qwerty_key_vertical_margin_preference", 5.0f)
-    private val QWERTY_KEY_HORIZONTAL_GAP = Pair("qwerty_key_horizontal_gap_preference", 2.0f)
-    private val QWERTY_KEY_INDENT_LARGE = Pair("qwerty_key_indent_large_preference", 23.0f)
-    private val QWERTY_KEY_INDENT_SMALL = Pair("qwerty_key_indent_small_preference", 9.0f)
-    private val QWERTY_KEY_SIDE_MARGIN = Pair("qwerty_key_side_margin_preference", 4.0f)
+    private val QWERTY_KEY_VERTICAL_MARGIN = Pair("qwerty_key_vertical_margin_preference", 0.0f)
+    private val QWERTY_KEY_HORIZONTAL_GAP = Pair("qwerty_key_horizontal_gap_preference", 0.0f)
+    private val QWERTY_KEY_INDENT_LARGE = Pair("qwerty_key_indent_large_preference", 0.0f)
+    private val QWERTY_KEY_INDENT_SMALL = Pair("qwerty_key_indent_small_preference", 0.0f)
+    private val QWERTY_KEY_SIDE_MARGIN = Pair("qwerty_key_side_margin_preference", 0.0f)
     private val QWERTY_KEY_TEXT_SIZE = Pair("qwerty_key_text_size_preference", 18.0f)
 
     private val LIQUID_GLASS_ENABLE = Pair("liquid_glass_preference", false)
@@ -313,6 +313,7 @@ object AppPreference {
     private val ENABLE_ZENZ_RIGHT_CONTEXT_PREFERENCE =
         Pair("enable_zenz_right_context_preference", false)
 
+    private val VOLUME_KEY_CURSOR_MOVE = Pair("volume_key_cursor_move_preference", true)
     private val TYPO_CORRECTION_JA_FLICK =
         Pair("enable_typo_correction_japanese_flick_keyboard_preference", false)
 
@@ -374,7 +375,7 @@ object AppPreference {
             QWERTY_SHOW_CURSOR_BUTTONS.first, QWERTY_SHOW_CURSOR_BUTTONS.second
         )
         set(value) = preferences.edit {
-            it.putBoolean(QWERTY_SHOW_CURSOR_BUTTONS.first, value ?: false)
+            it.putBoolean(QWERTY_SHOW_CURSOR_BUTTONS.first, value ?: true)
         }
 
     var qwerty_show_keymap_symbols: Boolean?
@@ -1550,4 +1551,12 @@ object AppPreference {
             }
         }
     }
+    var volume_key_cursor_move: Boolean?
+        get() = preferences.getBoolean(
+            VOLUME_KEY_CURSOR_MOVE.first, VOLUME_KEY_CURSOR_MOVE.second
+        )
+        set(value) = preferences.edit {
+            it.putBoolean(VOLUME_KEY_CURSOR_MOVE.first, value ?: true)
+        }
+
 }

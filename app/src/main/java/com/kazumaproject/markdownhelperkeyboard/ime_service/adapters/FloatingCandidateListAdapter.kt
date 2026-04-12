@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.kazumaproject.core.data.floating_candidate.CandidateItem
 import com.kazumaproject.markdownhelperkeyboard.R
+import com.kazumaproject.markdownhelperkeyboard.repository.TamachiRepository
 import timber.log.Timber
 
 private const val VIEW_TYPE_SUGGESTION = 1
@@ -21,6 +22,8 @@ class FloatingCandidateListAdapter(
     // --- Public Callbacks ---
     var onSuggestionClicked: ((suggestion: CandidateItem) -> Unit)? = null
     var onPagerClicked: (() -> Unit)? = null
+    var isDTalkerTTSActive: Boolean = false
+    var tamachiRepository: TamachiRepository? = null
 
     // --- Highlight State ---
     private var highlightedPosition: Int = RecyclerView.NO_POSITION
@@ -60,8 +63,16 @@ class FloatingCandidateListAdapter(
             }
         }
 
-        fun bind(text: String) {
-            textView.text = text
+        fun bind(item: CandidateItem, position: Int) {
+            textView.text = item.word
+            val positionText = " ${position + 1}の$itemCount"
+            // TalkBackには指定されたエンジンに応じた情報を渡す
+            itemView.contentDescription = if (isDTalkerTTSActive) {
+                getSyosaiYomiSSML(item.word, positionText)
+            } else {
+                val baseReading = tamachiRepository?.getDetailedReading(item.word) ?: item.word
+                "$baseReading $positionText"
+            }
         }
     }
 
@@ -112,7 +123,7 @@ class FloatingCandidateListAdapter(
 
         val currentItem = getItem(position)
         when (holder) {
-            is SuggestionViewHolder -> holder.bind(currentItem.word)
+            is SuggestionViewHolder -> holder.bind(currentItem, position)
             is PagerViewHolder -> holder.bind(currentItem.word)
         }
     }
@@ -148,5 +159,25 @@ class FloatingCandidateListAdapter(
             Timber.d("Highlighted item is a pager. Not triggering onSuggestionClicked.")
             // onPagerClicked?.invoke() などを呼び出すことも可能
         }
+    }
+
+    private fun getSyosaiYomiSSML(word: String, positionText: String): String {
+        val escapedWord = word.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+
+        val sb = StringBuilder()
+        sb.append("<?xml version=\"1.0\"?>")
+        sb.append("<speak version=\"1.0\" xmlns=\"http://www.w3.org/2001/10/synthesis\" ")
+        sb.append("xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" ")
+        sb.append("xsi:schemaLocation=\"http://www.w3.org/2001/10/synthesis ")
+        sb.append("http://www.w3.org/TR/speech-synthesis/synthesis.xsd\" ")
+        sb.append("xml:lang=\"ja\">")
+        sb.append("<say-as interpret-as=\"characters\" format=\"glyphs\">")
+        sb.append(escapedWord)
+        sb.append("</say-as>")
+        sb.append(positionText)
+        sb.append("</speak>")
+        return sb.toString()
     }
 }

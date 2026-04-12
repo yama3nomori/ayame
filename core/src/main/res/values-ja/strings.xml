@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">スミレ 日本語キーボード</string>
+    <string name="app_name">アヤメキーボード</string>
 
     <string name="string_あ">あ</string>
     <string name="string_い">い</string>
@@ -59,9 +59,9 @@
     <string name="string_minus">ー</string>
     <string name="string_touten">、</string>
     <string name="string_kuten">。</string>
-    <string name="string_enter_1">改行</string>
+    <string name="string_enter_1">エンター</string>
     <string name="string_space_1">空白</string>
-    <string name="string_small">\u00A0\u00A0\u00A0゛゜\n小</string>
+    <string name="string_small">小文字</string>
     <string name="string_ten_hatena">､｡?!</string>
 
     <string name="string_key1_english">" @#&amp;_"</string>
@@ -90,12 +90,12 @@
     <string name="string_key11_number">"()[]"</string>
     <string name="string_key12_number">"   .,-/   "</string>
     <string name="md">記</string>
-    <string name="title_activity_main">スミレ 日本語キーボード</string>
+    <string name="title_activity_main">アヤメキーボード</string>
     <string name="title_learn_dictionary">学習</string>
     <string name="title_dashboard">設定</string>
     <string name="title_notifications">Notifications</string>
     <string name="kigou_return">戻る</string>
-    <string name="return_japanese">改行</string>
+    <string name="return_japanese">エンター</string>
     <string name="space_japanese">空白</string>
     <string name="return_english">return</string>
     <string name="space_english">space</string>
@@ -148,14 +148,15 @@
     <string name="v">v</string>
     <string name="comma">,</string>
     <string name="period">.</string>
-    <string name="enter_key">enter_key</string>
-    <string name="left_key">left_key</string>
-    <string name="small_key">small_key</string>
-    <string name="char_previous">char_previous</string>
-    <string name="delete_key">delete_key</string>
-    <string name="space_key">space_key</string>
-    <string name="key_right">key_right</string>
-    <string name="key_switch">key_switch</string>
+    <string name="enter_key">エンター</string>
+    <string name="left_key">左カーソル</string>
+    <string name="small_key">小文字</string>
+    <string name="char_previous">逆順</string>
+    <string name="delete_key">削除</string>
+    <string name="shift_key">シフト</string>
+    <string name="space_key">スペース</string>
+    <string name="key_right">右カーソル</string>
+    <string name="key_switch">キースイッチ</string>
     <string name="question">\?</string>
     <string name="mark">!</string>
     <string name="ten">\'</string>
@@ -175,7 +176,7 @@
     <string name="vibration_default">both</string>
 
     <string name="keyboard_hide_key">キーボードを隠す</string>
-    <string name="keyboard_switch">キーボードの切り替え</string>
+    <string name="keyboard_switch">キーボード切り替え</string>
     <string name="keyboard_symbols">絵文字、顔文字キーボードに切り替え</string>
     <string name="keyboard_japanese">日本語キーボードに切り替え</string>
     <string name="keyboard_english">英語キーボードに切り替え</string>

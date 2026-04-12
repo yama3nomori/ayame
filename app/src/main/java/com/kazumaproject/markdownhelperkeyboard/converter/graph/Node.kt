@@ -11,6 +11,7 @@ data class Node(
     var sPos: Int,
     var prev: Node? = null,
     var next: Node? = null,
+    val annotation: String? = null
 ){
     override fun toString(): String {
         return this.tango

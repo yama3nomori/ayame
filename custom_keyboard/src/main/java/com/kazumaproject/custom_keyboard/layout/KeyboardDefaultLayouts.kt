@@ -9,7 +9,7 @@ import com.kazumaproject.custom_keyboard.data.KeyType
 import com.kazumaproject.custom_keyboard.data.KeyboardInputMode
 import com.kazumaproject.custom_keyboard.data.KeyboardLayout
 import com.kazumaproject.custom_keyboard.data.TfbiFlickNode
-import com.kazumaproject.custom_keyboard.view.TfbiFlickDirection
+import com.kazumaproject.custom_keyboard.controller.TfbiFlickDirection
 
 object KeyboardDefaultLayouts {
     /**

@@ -1,7 +1,7 @@
 package com.kazumaproject.markdownhelperkeyboard.custom_keyboard.data
 
 import androidx.room.TypeConverter
-import com.kazumaproject.custom_keyboard.view.TfbiFlickDirection
+import com.kazumaproject.custom_keyboard.controller.TfbiFlickDirection
 
 class TfbiFlickDirectionConverter {
 

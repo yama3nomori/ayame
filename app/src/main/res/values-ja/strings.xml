@@ -46,7 +46,7 @@
     <string name="category_qwerty_keyboard_title">QWERTY キーボード</string>
     <string name="category_symbol_keyboard_title">記号キーボード</string>
     <string name="category_custom_keyboard_title">カスタムキーボード</string>
-    <string name="category_sumire_input_keyboard_title">スミレ入力キーボード</string>
+    <string name="category_sumire_input_keyboard_title">アヤメキーボード入力</string>
     <string name="category_operation_title">操作</string>
     <string name="category_vibration_title">バイブレーション</string>
     <string name="category_ng_word_title">NG ワード</string>
@@ -209,7 +209,7 @@
     <string name="keyboard_selection_add_new_keyboard_title">キーボードを追加</string>
     <string name="export_title">辞書の書き出し</string>
     <string name="import_title">辞書の読み込み</string>
-    <string name="import_other_dict_title">スミレ以外の辞書の読み込み</string>
+    <string name="import_other_dict_title">アヤメキーボード以外の辞書の読み込み</string>
     <string name="yomi_edit_text_title">よみ：</string>
     <string name="word_edit_text_title">単語：</string>
     <string name="reset_learning_dictionary_dialog_title">辞書の初期化</string>
@@ -338,7 +338,7 @@
     <string name="pref_tablet_layout_summary">タブレットでは五十音（かな）レイアウトを使用します。</string>
     <string name="welcome_title">こんにちは</string>
     <string name="enable_keyboard_description">
-        スミレをご利用いただきありがとうございます。このアプリを使用するには、まず端末のキーボード設定で有効にする必要があります。
+        アヤメキーボードをご利用いただきありがとうございます。このアプリを使用するには、まず端末のキーボード設定で有効にする必要があります。
     </string>
     <string name="enable_keyboard_button">設定に進む</string>
     <string name="greeting_morning">おはようございます</string>
@@ -440,4 +440,6 @@
     <string name="enable_typo_correction_japanese_flick_keyboard_preference_sumary">フリック入力でミスを検知した場合、補正した変換候補を表示します。</string>
     <string name="enable_typo_correction_qwerty_english_keyboard_preference_title">QWERTY（英語）</string>
     <string name="enable_typo_correction_qwerty_english_keyboard_preference_summary">QWERTY入力でミスを検知した場合、補正した候補を表示します。</string>
+    <string name="volume_key_cursor_move_title">ボリュームキーでカーソル移動</string>
+    <string name="volume_key_cursor_move_summary">ボリュームキーを使用してカーソルを左右に移動します</string>
 </resources>

@@ -140,6 +140,15 @@ class CustomAngleFlickController(
                     if (currentDirection != FlickDirection.TAP) {
                         longPressJob?.cancel()
                     }
+
+                    // Voice Guidance
+                    if (keyMaps.isNotEmpty()) {
+                        val currentMap = keyMaps[currentMapIndex]
+                        val text = currentMap[currentDirection]
+                        if (!text.isNullOrEmpty()) {
+                            view.announceForAccessibility(text)
+                        }
+                    }
                 }
 
                 // ★変更: UP_RIGHT方向フリック検知時のマップ切り替えロジック

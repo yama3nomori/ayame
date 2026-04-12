@@ -3,7 +3,7 @@ package com.kazumaproject.markdownhelperkeyboard.custom_keyboard.data
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
-import com.kazumaproject.custom_keyboard.view.TfbiFlickDirection
+import com.kazumaproject.custom_keyboard.controller.TfbiFlickDirection
 
 @Entity(
     tableName = "two_step_flick_mappings",

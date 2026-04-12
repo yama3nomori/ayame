@@ -15,7 +15,7 @@
         android:elevation="@dimen/key_elevation"
         android:scaleType="centerInside"
         android:src="@drawable/undo_24px"
-        app:layout_constraintBottom_toTopOf="@id/key_soft_left"
+        app:layout_constraintBottom_toTopOf="@id/key_switch_key_mode"
         app:layout_constraintEnd_toStartOf="@id/key_1"
         app:layout_constraintHorizontal_chainStyle="spread"
         app:layout_constraintHorizontal_weight="1"
@@ -29,19 +29,20 @@
         style="?android:attr/borderlessButtonStyle"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginVertical="@dimen/key_margin_vertical_size"
         android:layout_marginStart="@dimen/key_margin_start_size"
+        android:layout_marginTop="@dimen/key_margin_vertical_size"
         android:layout_marginEnd="@dimen/key_margin_horizontal_size"
+        android:layout_marginBottom="2dp"
         android:background="@drawable/ten_keys_side_bg"
         android:contentDescription="@string/left_key"
         android:elevation="@dimen/key_elevation"
         android:scaleType="centerInside"
         android:src="@drawable/baseline_arrow_left_24"
-        app:layout_constraintBottom_toTopOf="@id/sideKey_symbol"
-        app:layout_constraintEnd_toStartOf="@id/key_4"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/key_small_letter"
         app:layout_constraintHorizontal_weight="1"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/key_return"
+        app:layout_constraintTop_toBottomOf="@+id/sideKey_symbol"
         app:tint="@color/keyboard_icon_color" />
 
     <androidx.appcompat.widget.AppCompatImageButton
@@ -57,31 +58,30 @@
         android:scaleType="centerInside"
         android:src="@drawable/symbol"
         android:tint="@color/keyboard_icon_color"
-        app:layout_constraintBottom_toTopOf="@id/key_switch_key_mode"
+        app:layout_constraintBottom_toTopOf="@id/key_soft_left"
         app:layout_constraintEnd_toStartOf="@id/key_7"
         app:layout_constraintHorizontal_weight="1"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/key_soft_left" />
+        app:layout_constraintTop_toBottomOf="@+id/key_switch_key_mode" />
 
     <com.kazumaproject.core.ui.input_mode_witch.InputModeSwitch
         android:id="@+id/key_switch_key_mode"
         style="?android:attr/borderlessButtonStyle"
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:layout_marginVertical="@dimen/key_margin_vertical_size"
         android:layout_marginStart="@dimen/key_margin_start_size"
-        android:layout_marginTop="@dimen/key_margin_vertical_size"
         android:layout_marginEnd="@dimen/key_margin_horizontal_size"
-        android:layout_marginBottom="2dp"
         android:background="@drawable/mode_key_bg"
         android:contentDescription="@string/key_switch"
         android:elevation="@dimen/key_elevation"
         android:scaleType="centerInside"
         android:src="@drawable/input_mode_japanese_select"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@id/key_small_letter"
+        app:layout_constraintBottom_toTopOf="@id/sideKey_symbol"
+        app:layout_constraintEnd_toStartOf="@id/key_4"
         app:layout_constraintHorizontal_weight="1"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/sideKey_symbol" />
+        app:layout_constraintTop_toBottomOf="@+id/key_return" />
 
     <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/key_1"
@@ -172,7 +172,7 @@
         app:layout_constraintEnd_toStartOf="@id/key_5"
         app:layout_constraintHorizontal_chainStyle="spread"
         app:layout_constraintHorizontal_weight="1"
-        app:layout_constraintStart_toEndOf="@id/key_soft_left"
+        app:layout_constraintStart_toEndOf="@id/key_switch_key_mode"
         app:layout_constraintTop_toBottomOf="@+id/key_1" />
 
     <androidx.appcompat.widget.AppCompatButton
@@ -215,7 +215,7 @@
         android:textColor="@color/keyboard_icon_color"
         android:textSize="@dimen/key_text_size"
         app:layout_constraintBottom_toTopOf="@id/key_9"
-        app:layout_constraintEnd_toStartOf="@id/key_move_cursor_right"
+        app:layout_constraintEnd_toStartOf="@id/key_enter"
         app:layout_constraintHorizontal_weight="1"
         app:layout_constraintStart_toEndOf="@id/key_5"
         app:layout_constraintTop_toBottomOf="@+id/key_3" />
@@ -307,7 +307,7 @@
         app:layout_constraintEnd_toStartOf="@id/key_11"
         app:layout_constraintHorizontal_chainStyle="spread"
         app:layout_constraintHorizontal_weight="1"
-        app:layout_constraintStart_toEndOf="@id/key_switch_key_mode"
+        app:layout_constraintStart_toEndOf="@id/key_soft_left"
         app:layout_constraintTop_toBottomOf="@+id/key_7"
         app:tint="@color/keyboard_icon_color" />
 
@@ -352,7 +352,7 @@
         android:textColor="@color/keyboard_icon_color"
         android:textSize="@dimen/key_text_size"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@id/key_enter"
+        app:layout_constraintEnd_toStartOf="@id/key_move_cursor_right"
         app:layout_constraintHorizontal_weight="1"
         app:layout_constraintStart_toEndOf="@id/key_11"
         app:layout_constraintTop_toBottomOf="@+id/key_9" />
@@ -370,7 +370,7 @@
         android:elevation="@dimen/key_elevation"
         android:scaleType="centerInside"
         android:src="@drawable/baseline_backspace_24"
-        app:layout_constraintBottom_toTopOf="@id/key_move_cursor_right"
+        app:layout_constraintBottom_toTopOf="@id/key_enter"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_weight="1"
         app:layout_constraintStart_toEndOf="@id/key_3"
@@ -383,19 +383,20 @@
         style="?android:attr/borderlessButtonStyle"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginVertical="@dimen/key_margin_vertical_size"
         android:layout_marginStart="@dimen/key_margin_horizontal_size"
+        android:layout_marginTop="@dimen/key_margin_vertical_size"
         android:layout_marginEnd="@dimen/key_margin_end_size"
+        android:layout_marginBottom="2dp"
         android:background="@drawable/ten_keys_side_bg"
         android:contentDescription="@string/key_right"
         android:elevation="@dimen/key_elevation"
         android:scaleType="centerInside"
         android:src="@drawable/baseline_arrow_right_24"
-        app:layout_constraintBottom_toTopOf="@id/key_space"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_weight="1"
-        app:layout_constraintStart_toEndOf="@+id/key_6"
-        app:layout_constraintTop_toBottomOf="@+id/key_delete"
+        app:layout_constraintStart_toEndOf="@+id/key_12"
+        app:layout_constraintTop_toBottomOf="@+id/key_space"
         app:tint="@color/keyboard_icon_color" />
 
     <androidx.appcompat.widget.AppCompatImageButton
@@ -411,11 +412,11 @@
         android:elevation="@dimen/key_elevation"
         android:scaleType="centerInside"
         android:src="@drawable/baseline_space_bar_24"
-        app:layout_constraintBottom_toTopOf="@id/key_enter"
+        app:layout_constraintBottom_toTopOf="@id/key_move_cursor_right"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_weight="1"
         app:layout_constraintStart_toEndOf="@+id/key_9"
-        app:layout_constraintTop_toBottomOf="@+id/key_move_cursor_right"
+        app:layout_constraintTop_toBottomOf="@+id/key_enter"
         app:tint="@color/keyboard_icon_color" />
 
     <androidx.appcompat.widget.AppCompatImageButton
@@ -423,21 +424,19 @@
         style="?android:attr/borderlessButtonStyle"
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:layout_marginVertical="@dimen/key_margin_vertical_size"
         android:layout_marginStart="@dimen/key_margin_horizontal_size"
-        android:layout_marginTop="@dimen/key_margin_vertical_size"
         android:layout_marginEnd="@dimen/key_margin_end_size"
-        android:layout_marginBottom="2dp"
         android:background="@drawable/enter_key_bg"
         android:contentDescription="@string/enter_key"
         android:elevation="@dimen/key_elevation"
-        android:tint="@color/keyboard_icon_color"
         android:scaleType="centerInside"
         android:src="@drawable/baseline_arrow_right_alt_24"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/key_space"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_weight="1"
-        app:layout_constraintStart_toEndOf="@+id/key_12"
-        app:layout_constraintTop_toBottomOf="@+id/key_space"
+        app:layout_constraintStart_toEndOf="@+id/key_6"
+        app:layout_constraintTop_toBottomOf="@+id/key_delete"
         app:tint="@color/keyboard_icon_color" />
 
 </merge>

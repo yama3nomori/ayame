@@ -1,7 +1,7 @@
-# Sumire (スミレ) — The Privacy-First Japanese Keyboard
+# Ayame Keyboard (アヤメキーボード) — The Privacy-First Japanese Keyboard
 
 <p align="center">
-  <img src="images/demo.gif" width="250" alt="Sumire typing demo"/>
+  <img src="images/demo.gif" width="250" alt="Ayame Keyboard typing demo"/>
 </p>
 <h3 align="center">Your Keys, Your Data, Your Style.</h3>
 <p align="center">あなたの手に、プライバシーと自由を。</p>
@@ -30,11 +30,10 @@
 
 ### 📜 コンセプト
 
-Sumireは、**プライバシーを絶対に妥協しない**
+Ayame Keyboard（アヤメキーボード）は、**プライバシーを絶対に妥協しない**
 という哲学から生まれた日本語入力キーボードです。あなたの思考や会話が、意図せず第三者に渡るべきではありません。すべての変換処理をデバイス内で完結させることで、100%のオフライン動作を実現しました。
 
-オープンソースの`mozc`エンジンを基盤としながら、**強力なユーザー辞書**、**便利な定型文**、そして*
-*自由なキーボード定義**といった高度なパーソナライズ機能を追加し、書くことそのものを、あなただけの体験にすることを目指しています。
+オープンソースの`mozc`エンジンを基盤としながら、**強力なユーザー辞書**、**便利な定型文**、そして**自由なキーボード定義**といった高度なパーソナライズ機能を追加し、書くことそのものを、あなただけの体験にすることを目指しています。
 
 ### ✨ 主な特徴
 
@@ -79,8 +78,8 @@ Sumireは、**プライバシーを絶対に妥協しない**
 1. 上記 **Google Play**
    バッジ、または[リリースページ](https://github.com/KazumaProject/JapaneseKeyboard/releases)
    からインストールします。
-2. Androidの **設定 → システム → 言語と入力 → 画面キーボード** を開き、「**Sumire**」を有効にします。
-3. 文字入力欄を長押し、またはキーボード切替アイコンをタップして「**Sumire**」を選択します。
+2. Androidの **設定 → システム → 言語と入力 → 画面キーボード** を開き、「**Ayame Keyboard**」を有効にします。
+3. 文字入力欄を長押し、またはキーボード切替アイコンをタップして「**Ayame Keyboard**」を選択します。
 
 ### 🛠️ 開発者向け
 
@@ -150,12 +149,12 @@ cd JapaneseKeyboard
 
 ### 📜 Philosophy
 
-Sumire is a Japanese keyboard built on a single, uncompromising philosophy: **absolute privacy**.
+Ayame Keyboard is a Japanese keyboard built on a single, uncompromising philosophy: **absolute privacy**.
 Your thoughts and conversations should never be an asset for third parties. We achieve 100% offline
 functionality by ensuring every process, from keystroke to candidate conversion, happens entirely on
 your device.
 
-Built on the open-source `mozc` engine, Sumire enhances the writing experience with advanced
+Built on the open-source `mozc` engine, Ayame Keyboard enhances the writing experience with advanced
 personalization features like a **powerful user dictionary**, **convenient snippets**, and **fully
 customizable keyboard layouts**, aiming to make typing a truly personal experience.
 
@@ -189,9 +188,8 @@ customizable keyboard layouts**, aiming to make typing a truly personal experien
 
 1. Install from the **Google Play** badge above or from
    the [Releases page](https://github.com/KazumaProject/JapaneseKeyboard/releases).
-2. Open Android **Settings → System → Languages & input → On-screen keyboard** and enable **"Sumire"
-   **.
-3. Long-press any text field or tap the keyboard-switch icon and select **"Sumire"**.
+2. Open Android **Settings → System → Languages & input → On-screen keyboard** and enable **"Ayame Keyboard"**.
+3. Long-press any text field or tap the keyboard-switch icon and select **"Ayame Keyboard"**.
 
 ### 🛠️ For Developers
 

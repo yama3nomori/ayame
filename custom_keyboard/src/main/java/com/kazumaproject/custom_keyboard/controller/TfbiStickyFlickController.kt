@@ -7,9 +7,10 @@ import android.view.GestureDetector
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.view.accessibility.AccessibilityManager
 import android.widget.PopupWindow
 import androidx.core.graphics.drawable.toDrawable
-import com.kazumaproject.custom_keyboard.view.TfbiFlickDirection
+import com.kazumaproject.custom_keyboard.controller.TfbiFlickDirection
 import com.kazumaproject.custom_keyboard.view.TfbiFlickPopupView
 import kotlin.math.abs
 import kotlin.math.atan2
@@ -51,6 +52,11 @@ class TfbiStickyFlickController(
 
     private lateinit var gestureDetector: GestureDetector
 
+    // AccessibilityManager for TalkBack detection
+    private val accessibilityManager: AccessibilityManager by lazy {
+        context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     fun attach(
         view: View,
@@ -63,6 +69,11 @@ class TfbiStickyFlickController(
         gestureDetector =
             GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
                 override fun onLongPress(e: MotionEvent) {
+                    // TalkBack有効時は長押しを無効化（ダブルタップが基本操作のため）
+                    if (accessibilityManager.isEnabled && accessibilityManager.isTouchExplorationEnabled) {
+                        return
+                    }
+                    
                     // 長押しが検知されたら、フリックが開始前であることを確認して
                     // 花びら付きのポップアップを表示する
                     if (flickState == FlickState.NEUTRAL) {

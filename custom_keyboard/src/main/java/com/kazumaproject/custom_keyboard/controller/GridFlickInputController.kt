@@ -144,6 +144,12 @@ class GridFlickInputController(
             return
         }
 
+        // Voice Guidance
+        val textForSpeech = characterMap[direction]
+        if (!textForSpeech.isNullOrEmpty()) {
+            anchorView?.announceForAccessibility(textForSpeech)
+        }
+
         currentVisiblePopup?.dismiss()
         if (isLongPressModeActive) return
 
@@ -262,11 +268,15 @@ class GridFlickInputController(
 
                 showPopupForDirection(FlickDirection.TAP)
 
-                longPressJob = controllerScope.launch {
-                    delay(ViewConfiguration.getLongPressTimeout().toLong())
-                    isLongPressModeActive = true
-                    dismissAllPopups() // 方向ポップアップを消す
-                    showGridPopup()
+                // TalkBack有効時は長押し（グリッド表示）を無効化
+                val am = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? android.view.accessibility.AccessibilityManager
+                if (am?.isTouchExplorationEnabled != true) {
+                    longPressJob = controllerScope.launch {
+                        delay(ViewConfiguration.getLongPressTimeout().toLong())
+                        isLongPressModeActive = true
+                        dismissAllPopups() // 方向ポップアップを消す
+                        showGridPopup()
+                    }
                 }
                 return true
             }
@@ -281,7 +291,14 @@ class GridFlickInputController(
 
                 val direction = calculateDirection(dx, dy)
                 if (isLongPressModeActive) {
-                    (gridPopup.contentView as? FlickGridPopupView)?.highlightKey(direction)
+                    if (direction != currentFlickDirection) {
+                        currentFlickDirection = direction
+                        (gridPopup.contentView as? FlickGridPopupView)?.highlightKey(direction)
+                        val textForSpeech = characterMap[direction]
+                        if (!textForSpeech.isNullOrEmpty()) {
+                            view.announceForAccessibility(textForSpeech)
+                        }
+                    }
                 } else {
                     showPopupForDirection(direction)
                 }

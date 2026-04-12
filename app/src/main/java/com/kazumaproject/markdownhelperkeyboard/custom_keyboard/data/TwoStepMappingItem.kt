@@ -1,6 +1,6 @@
 package com.kazumaproject.markdownhelperkeyboard.custom_keyboard.data
 
-import com.kazumaproject.custom_keyboard.view.TfbiFlickDirection
+import com.kazumaproject.custom_keyboard.controller.TfbiFlickDirection
 import java.util.UUID
 
 data class TwoStepMappingItem(

@@ -44,6 +44,9 @@ class FindPath {
 
                     // ★★★ 改善点：HashSetを使い、高速で効率的な重複チェックを行う
                     if (foundStrings.add(stringFromNode)) {
+                        val firstNode = node.first.next
+                        val isSingleNode = firstNode?.next?.tango == "EOS"
+                        val annotation = if (isSingleNode) firstNode?.annotation else null
                         val candidate = Candidate(
                             string = stringFromNode,
                             type = when {
@@ -54,7 +57,8 @@ class FindPath {
                             length = length.toUByte(),
                             score = if (stringFromNode.any { it.isDigit() }) node.second + 2000 else node.second,
                             leftId = node.first.next?.l,
-                            rightId = node.first.next?.r
+                            rightId = node.first.next?.r,
+                            annotation = annotation
                         )
                         resultFinal.add(candidate)
                     }
@@ -271,6 +275,9 @@ class FindPath {
                             bestBunsetsuPositions = getBunsetsuPositions(node.first)
                         }
 
+                        val firstNode = node.first.next
+                        val isSingleNode = firstNode?.next?.tango == "EOS"
+                        val annotation = if (isSingleNode) firstNode?.annotation else null
                         val candidate = Candidate(
                             string = stringFromNode,
                             type = when {
@@ -281,7 +288,8 @@ class FindPath {
                             length = length.toUByte(),
                             score = if (stringFromNode.any { it.isDigit() }) node.second + 2000 else node.second,
                             leftId = node.first.next?.l,
-                            rightId = node.first.next?.r
+                            rightId = node.first.next?.r,
+                            annotation = annotation
                         )
                         resultFinal.add(candidate)
                     }

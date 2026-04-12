@@ -10,6 +10,8 @@ import android.view.GestureDetector
 import android.view.MotionEvent
 import android.widget.Toast
 import androidx.appcompat.widget.AppCompatButton
+import android.view.accessibility.AccessibilityNodeInfo
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import androidx.core.content.ContextCompat
 
 class QWERTYButton @JvmOverloads constructor(
@@ -47,6 +49,18 @@ class QWERTYButton @JvmOverloads constructor(
 
     init {
         isAllCaps = false
+    }
+
+    override fun onInitializeAccessibilityNodeInfo(info: AccessibilityNodeInfo?) {
+        super.onInitializeAccessibilityNodeInfo(info)
+        info?.let {
+            val infoCompat = AccessibilityNodeInfoCompat.wrap(it)
+            // クラス名を空にし、役割をゼロ幅スペースにすることで「ボタン」の読み上げを完全に排除する
+            infoCompat.className = ""
+            infoCompat.setRoleDescription("\u200B")
+            // ボタンとしての認識を無効化（内部的なクリックは可能）
+            infoCompat.isClickable = false
+        }
     }
 
     @SuppressLint("ClickableViewAccessibility")

@@ -3977,14 +3977,22 @@ class KanaKanjiEngine {
             tokenArray.getListDictionaryByYomiTermIdShortArray(
                 termIdArray, succinctBitVectorTokenArray
             ).map { entry ->
+                val rawString = when (entry.nodeId) {
+                    -2 -> yomi
+                    -1 -> yomi.hiraToKata()
+                    else -> tangoTrie.getLetterShortArray(
+                        entry.nodeId, succinctBitVectorTangoLBS
+                    )
+                }
+                val (string, annotation) = if (rawString.contains('\t')) {
+                    val split = rawString.split('\t')
+                    split[0] to split.getOrNull(1)
+                } else {
+                    rawString to null
+                }
                 Candidate(
-                    string = when (entry.nodeId) {
-                        -2 -> yomi
-                        -1 -> yomi.hiraToKata()
-                        else -> tangoTrie.getLetterShortArray(
-                            entry.nodeId, succinctBitVectorTangoLBS
-                        )
-                    },
+                    string = string,
+                    annotation = annotation,
                     type = type,
                     length = yomi.length.toUByte(),
                     score = entry.wordCost.toInt() + if (yomi.length == input.length) 0
@@ -4018,14 +4026,22 @@ class KanaKanjiEngine {
         tokenArray.getListDictionaryByYomiTermId(
             termId, succinctBitVectorTokenArray
         ).map {
+            val rawString = when (it.nodeId) {
+                -2 -> yomi
+                -1 -> yomi.hiraToKata()
+                else -> tangoTrie.getLetter(
+                    it.nodeId, succinctBitVectorTangoLBS
+                )
+            }
+            val (string, annotation) = if (rawString.contains('\t')) {
+                val split = rawString.split('\t')
+                split[0] to split.getOrNull(1)
+            } else {
+                rawString to null
+            }
             Candidate(
-                string = when (it.nodeId) {
-                    -2 -> yomi
-                    -1 -> yomi.hiraToKata()
-                    else -> tangoTrie.getLetter(
-                        it.nodeId, succinctBitVectorTangoLBS
-                    )
-                },
+                string = string,
+                annotation = annotation,
                 type = type,
                 length = yomi.length.toUByte(),
                 score = if (yomi.length == input.length) it.wordCost.toInt() else it.wordCost.toInt() + 1500 * (yomi.length - input.length),
@@ -4054,14 +4070,22 @@ class KanaKanjiEngine {
         tokenArray.getListDictionaryByYomiTermIdShortArray(
             termId, succinctBitVectorTokenArray
         ).map {
+            val rawString = when (it.nodeId) {
+                -2 -> yomi
+                -1 -> yomi.hiraToKata()
+                else -> tangoTrie.getLetterShortArray(
+                    it.nodeId, succinctBitVectorTangoLBS
+                )
+            }
+            val (string, annotation) = if (rawString.contains('\t')) {
+                val split = rawString.split('\t')
+                split[0] to split.getOrNull(1)
+            } else {
+                rawString to null
+            }
             Candidate(
-                string = when (it.nodeId) {
-                    -2 -> yomi
-                    -1 -> yomi.hiraToKata()
-                    else -> tangoTrie.getLetterShortArray(
-                        it.nodeId, succinctBitVectorTangoLBS
-                    )
-                },
+                string = string,
+                annotation = annotation,
                 type = type,
                 length = yomi.length.toUByte(),
                 score = it.wordCost.toInt(),
@@ -4088,14 +4112,22 @@ class KanaKanjiEngine {
         return tokenArray.getListDictionaryByYomiTermIdShortArray(
             termIdArray, succinctBitVectorTokenArray
         ).map { entry ->
+            val rawString = when (entry.nodeId) {
+                -2 -> input
+                -1 -> input.hiraToKata()
+                else -> tangoTrie.getLetterShortArray(
+                    entry.nodeId, succinctBitVectorTangoLBS
+                )
+            }
+            val (string, annotation) = if (rawString.contains('\t')) {
+                val split = rawString.split('\t')
+                split[0] to split.getOrNull(1)
+            } else {
+                rawString to null
+            }
             Candidate(
-                string = when (entry.nodeId) {
-                    -2 -> input
-                    -1 -> input.hiraToKata()
-                    else -> tangoTrie.getLetterShortArray(
-                        entry.nodeId, succinctBitVectorTangoLBS
-                    )
-                },
+                string = string,
+                annotation = annotation,
                 type = type,
                 length = input.length.toUByte(),
                 score = entry.wordCost.toInt(),

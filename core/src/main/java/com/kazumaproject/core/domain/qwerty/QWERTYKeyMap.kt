@@ -65,14 +65,14 @@ class QWERTYKeyMap : QWERTYKeyMapHolder {
         QWERTYKey.QWERTYKeyTouten to QWERTYKeyInfo.KeyComma,
 
         QWERTYKey.QWERTYKey1 to QWERTYKeyInfo.Key1,
-        QWERTYKey.QWERTYKey2 to QWERTYKeyInfo.Key2,
-        QWERTYKey.QWERTYKey3 to QWERTYKeyInfo.Key3,
-        QWERTYKey.QWERTYKey4 to QWERTYKeyInfo.Key4,
-        QWERTYKey.QWERTYKey5 to QWERTYKeyInfo.Key5,
-        QWERTYKey.QWERTYKey6 to QWERTYKeyInfo.Key6,
-        QWERTYKey.QWERTYKey7 to QWERTYKeyInfo.Key7,
-        QWERTYKey.QWERTYKey8 to QWERTYKeyInfo.Key8,
-        QWERTYKey.QWERTYKey9 to QWERTYKeyInfo.Key9,
+        QWERTYKey.QWERTYKey2 to QWERTYKeyInfo.KeyAtMark,
+        QWERTYKey.QWERTYKey3 to QWERTYKeyInfo.KeyColon,
+        QWERTYKey.QWERTYKey4 to QWERTYKeyInfo.KeyParenOpen,
+        QWERTYKey.QWERTYKey5 to QWERTYKeyInfo.KeyParenClose,
+        QWERTYKey.QWERTYKey6 to QWERTYKeyInfo.KeyMinus,
+        QWERTYKey.QWERTYKey7 to QWERTYKeyInfo.KeyComma,
+        QWERTYKey.QWERTYKey8 to QWERTYKeyInfo.KeyDot,
+        QWERTYKey.QWERTYKey9 to QWERTYKeyInfo.KeySlash,
         QWERTYKey.QWERTYKey0 to QWERTYKeyInfo.Key0,
     )
 
@@ -113,14 +113,14 @@ class QWERTYKeyMap : QWERTYKeyMapHolder {
         QWERTYKey.QWERTYKeyTouten to QWERTYKeyInfo.KeyComma,
 
         QWERTYKey.QWERTYKey1 to QWERTYKeyInfo.Key1,
-        QWERTYKey.QWERTYKey2 to QWERTYKeyInfo.Key2,
-        QWERTYKey.QWERTYKey3 to QWERTYKeyInfo.Key3,
-        QWERTYKey.QWERTYKey4 to QWERTYKeyInfo.Key4,
-        QWERTYKey.QWERTYKey5 to QWERTYKeyInfo.Key5,
-        QWERTYKey.QWERTYKey6 to QWERTYKeyInfo.Key6,
-        QWERTYKey.QWERTYKey7 to QWERTYKeyInfo.Key7,
-        QWERTYKey.QWERTYKey8 to QWERTYKeyInfo.Key8,
-        QWERTYKey.QWERTYKey9 to QWERTYKeyInfo.Key9,
+        QWERTYKey.QWERTYKey2 to QWERTYKeyInfo.KeyAtMark,
+        QWERTYKey.QWERTYKey3 to QWERTYKeyInfo.KeyColon,
+        QWERTYKey.QWERTYKey4 to QWERTYKeyInfo.KeyParenOpen,
+        QWERTYKey.QWERTYKey5 to QWERTYKeyInfo.KeyParenClose,
+        QWERTYKey.QWERTYKey6 to QWERTYKeyInfo.KeyMinus,
+        QWERTYKey.QWERTYKey7 to QWERTYKeyInfo.KeyComma,
+        QWERTYKey.QWERTYKey8 to QWERTYKeyInfo.KeyDot,
+        QWERTYKey.QWERTYKey9 to QWERTYKeyInfo.KeySlash,
         QWERTYKey.QWERTYKey0 to QWERTYKeyInfo.Key0,
     )
 
@@ -209,7 +209,16 @@ class QWERTYKeyMap : QWERTYKeyMapHolder {
         QWERTYKey.QWERTYKeyReturn to QWERTYKeyInfo.KeyReturn,
 
         QWERTYKey.QWERTYKeyKuten to QWERTYKeyInfo.KeyDot,
-        QWERTYKey.QWERTYKeyTouten to QWERTYKeyInfo.KeyComma
+        QWERTYKey.QWERTYKeyTouten to QWERTYKeyInfo.KeyComma,
+
+        QWERTYKey.QWERTYKeySymbol2 to QWERTYKeyInfo.Key2,
+        QWERTYKey.QWERTYKeySymbol3 to QWERTYKeyInfo.Key3,
+        QWERTYKey.QWERTYKeySymbol4 to QWERTYKeyInfo.Key4,
+        QWERTYKey.QWERTYKeySymbol5 to QWERTYKeyInfo.Key5,
+        QWERTYKey.QWERTYKeySymbol6 to QWERTYKeyInfo.Key6,
+        QWERTYKey.QWERTYKeySymbol7 to QWERTYKeyInfo.Key7,
+        QWERTYKey.QWERTYKeySymbol8 to QWERTYKeyInfo.Key8,
+        QWERTYKey.QWERTYKeySymbol9 to QWERTYKeyInfo.Key9
     )
 
     private val listDefaultJP: Map<QWERTYKey, QWERTYKeyInfo> = mapOf(
@@ -251,14 +260,14 @@ class QWERTYKeyMap : QWERTYKeyMapHolder {
         QWERTYKey.QWERTYKeyTouten to QWERTYKeyInfo.KeyCommaJP,
 
         QWERTYKey.QWERTYKey1 to QWERTYKeyInfo.Key1JP,
-        QWERTYKey.QWERTYKey2 to QWERTYKeyInfo.Key2JP,
-        QWERTYKey.QWERTYKey3 to QWERTYKeyInfo.Key3JP,
-        QWERTYKey.QWERTYKey4 to QWERTYKeyInfo.Key4JP,
-        QWERTYKey.QWERTYKey5 to QWERTYKeyInfo.Key5JP,
-        QWERTYKey.QWERTYKey6 to QWERTYKeyInfo.Key6JP,
-        QWERTYKey.QWERTYKey7 to QWERTYKeyInfo.Key7JP,
-        QWERTYKey.QWERTYKey8 to QWERTYKeyInfo.Key8JP,
-        QWERTYKey.QWERTYKey9 to QWERTYKeyInfo.Key9JP,
+        QWERTYKey.QWERTYKey2 to QWERTYKeyInfo.KeyAtMark,
+        QWERTYKey.QWERTYKey3 to QWERTYKeyInfo.KeyColon,
+        QWERTYKey.QWERTYKey4 to QWERTYKeyInfo.KeyParenOpen,
+        QWERTYKey.QWERTYKey5 to QWERTYKeyInfo.KeyParenClose,
+        QWERTYKey.QWERTYKey6 to QWERTYKeyInfo.KeyMinus,
+        QWERTYKey.QWERTYKey7 to QWERTYKeyInfo.KeyComma,
+        QWERTYKey.QWERTYKey8 to QWERTYKeyInfo.KeyDot,
+        QWERTYKey.QWERTYKey9 to QWERTYKeyInfo.KeySlash,
         QWERTYKey.QWERTYKey0 to QWERTYKeyInfo.Key0JP,
     )
 
@@ -347,7 +356,16 @@ class QWERTYKeyMap : QWERTYKeyMapHolder {
         QWERTYKey.QWERTYKeyReturn to QWERTYKeyInfo.KeyReturn,
 
         QWERTYKey.QWERTYKeyKuten to QWERTYKeyInfo.KeyDotJP,
-        QWERTYKey.QWERTYKeyTouten to QWERTYKeyInfo.KeyCommaJP
+        QWERTYKey.QWERTYKeyTouten to QWERTYKeyInfo.KeyCommaJP,
+
+        QWERTYKey.QWERTYKeySymbol2 to QWERTYKeyInfo.Key2,
+        QWERTYKey.QWERTYKeySymbol3 to QWERTYKeyInfo.Key3,
+        QWERTYKey.QWERTYKeySymbol4 to QWERTYKeyInfo.Key4,
+        QWERTYKey.QWERTYKeySymbol5 to QWERTYKeyInfo.Key5,
+        QWERTYKey.QWERTYKeySymbol6 to QWERTYKeyInfo.Key6,
+        QWERTYKey.QWERTYKeySymbol7 to QWERTYKeyInfo.Key7,
+        QWERTYKey.QWERTYKeySymbol8 to QWERTYKeyInfo.Key8,
+        QWERTYKey.QWERTYKeySymbol9 to QWERTYKeyInfo.Key9
     )
 
     private val listDefaultJPWithNumberRow: Map<QWERTYKey, QWERTYKeyInfo> = mapOf(
@@ -389,14 +407,14 @@ class QWERTYKeyMap : QWERTYKeyMapHolder {
         QWERTYKey.QWERTYKeyTouten to QWERTYKeyInfo.KeyCommaJP,
 
         QWERTYKey.QWERTYKey1 to QWERTYKeyInfo.Key1JP,
-        QWERTYKey.QWERTYKey2 to QWERTYKeyInfo.Key2JP,
-        QWERTYKey.QWERTYKey3 to QWERTYKeyInfo.Key3JP,
-        QWERTYKey.QWERTYKey4 to QWERTYKeyInfo.Key4JP,
-        QWERTYKey.QWERTYKey5 to QWERTYKeyInfo.Key5JP,
-        QWERTYKey.QWERTYKey6 to QWERTYKeyInfo.Key6JP,
-        QWERTYKey.QWERTYKey7 to QWERTYKeyInfo.Key7JP,
-        QWERTYKey.QWERTYKey8 to QWERTYKeyInfo.Key8JP,
-        QWERTYKey.QWERTYKey9 to QWERTYKeyInfo.Key9JP,
+        QWERTYKey.QWERTYKey2 to QWERTYKeyInfo.KeyAtMarkJP,
+        QWERTYKey.QWERTYKey3 to QWERTYKeyInfo.KeyColonJP,
+        QWERTYKey.QWERTYKey4 to QWERTYKeyInfo.KeyParenOpenJP,
+        QWERTYKey.QWERTYKey5 to QWERTYKeyInfo.KeyParenCloseJP,
+        QWERTYKey.QWERTYKey6 to QWERTYKeyInfo.KeyMinusJP,
+        QWERTYKey.QWERTYKey7 to QWERTYKeyInfo.KeyCommaJP,
+        QWERTYKey.QWERTYKey8 to QWERTYKeyInfo.KeyDotJP,
+        QWERTYKey.QWERTYKey9 to QWERTYKeyInfo.KeySlashJP,
         QWERTYKey.QWERTYKey0 to QWERTYKeyInfo.Key0JP,
     )
 

@@ -10,6 +10,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.kazumaproject.markdownhelperkeyboard.R
 import com.kazumaproject.markdownhelperkeyboard.short_cut.ShortcutType
+import timber.log.Timber
 
 class ShortcutAdapter : ListAdapter<ShortcutType, ShortcutAdapter.ViewHolder>(DiffCallback) {
 
@@ -48,6 +49,9 @@ class ShortcutAdapter : ListAdapter<ShortcutType, ShortcutAdapter.ViewHolder>(Di
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = getItem(position)
         holder.imageView.setImageResource(item.iconResId) // Enumからアイコン取得
+        holder.imageView.contentDescription = item.description
+        holder.imageView.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+        Timber.d("ShortcutAdapter: Binding item ${item.name}, description: ${item.description}, contentDescription set to: ${holder.imageView.contentDescription}")
 
         // ★追加: 色が設定されていれば適用し、なければ解除する
         iconColor?.let { color ->

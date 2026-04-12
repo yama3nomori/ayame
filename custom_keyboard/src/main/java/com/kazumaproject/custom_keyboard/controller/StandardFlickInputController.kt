@@ -82,12 +82,15 @@ class StandardFlickInputController(context: Context) {
         }
     }
 
+    private var lastDirection: FlickDirection? = null
+
     private fun handleTouchEvent(view: View, event: MotionEvent): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
                 anchorView = view
                 initialTouchX = event.rawX
                 initialTouchY = event.rawY
+                lastDirection = FlickDirection.TAP
                 segmentedDrawable?.highlightDirection = FlickDirection.TAP
                 showPopup(FlickDirection.TAP)
                 return true
@@ -97,6 +100,13 @@ class StandardFlickInputController(context: Context) {
                 val dx = event.rawX - initialTouchX
                 val dy = event.rawY - initialTouchY
                 val direction = calculateDirection(dx, dy)
+                if (direction != lastDirection) {
+                    lastDirection = direction
+                    val text = characterMap[direction]
+                    if (!text.isNullOrEmpty()) {
+                        view.announceForAccessibility(text)
+                    }
+                }
                 segmentedDrawable?.highlightDirection = direction
                 showPopup(direction)
                 return true

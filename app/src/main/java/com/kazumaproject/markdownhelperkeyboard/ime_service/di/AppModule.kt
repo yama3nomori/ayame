@@ -39,6 +39,7 @@ import com.kazumaproject.markdownhelperkeyboard.learning.database.LearnDao
 import com.kazumaproject.markdownhelperkeyboard.learning.multiple.LearnMultiple
 import com.kazumaproject.markdownhelperkeyboard.ng_word.database.NgWordDao
 import com.kazumaproject.markdownhelperkeyboard.repository.RomajiMapRepository
+import com.kazumaproject.markdownhelperkeyboard.repository.TamachiRepository
 import com.kazumaproject.markdownhelperkeyboard.setting_activity.AppPreference
 import com.kazumaproject.markdownhelperkeyboard.short_cut.database.ShortcutDao
 import com.kazumaproject.markdownhelperkeyboard.user_dictionary.database.UserWordDao
@@ -811,5 +812,9 @@ object AppModule {
         Timber.d("provideEnglishSuccinctBitVectorTokenArray: ${englishTokenArray.bitvector.size()}")
         return SuccinctBitVector(englishTokenArray.bitvector)
     }
+
+    @Singleton
+    @Provides
+    fun providesTamachiRepository(): TamachiRepository = TamachiRepository()
 
 }

@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Sumire Japanese Keyboard</string>
+    <string name="app_name">Ayame Keyboard</string>
 
     <string name="string_あ">あ</string>
     <string name="string_い">い</string>
@@ -90,7 +90,7 @@
     <string name="string_key11_number">"()[]"</string>
     <string name="string_key12_number">"   .,-/   "</string>
     <string name="md">記</string>
-    <string name="title_activity_main">Sumire Japanese Keyboard</string>
+    <string name="title_activity_main">Ayame Keyboard</string>
     <string name="title_learn_dictionary">Learning</string>
     <string name="title_dashboard">Settings</string>
     <string name="title_notifications">Notifications</string>
@@ -153,6 +153,7 @@
     <string name="small_key">small_key</string>
     <string name="char_previous">char_previous</string>
     <string name="delete_key">delete_key</string>
+    <string name="shift_key">Shift</string>
     <string name="space_key">space_key</string>
     <string name="key_right">key_right</string>
     <string name="key_switch">key_switch</string>

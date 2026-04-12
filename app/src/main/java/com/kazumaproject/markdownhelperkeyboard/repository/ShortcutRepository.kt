@@ -7,6 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -54,22 +55,28 @@ class ShortcutRepository @Inject constructor(
      * データが空の場合にデフォルトのショートカットを初期化します。
      * Serviceの起動時などに呼び出します。
      */
+
     suspend fun initDefaultShortcutsIfNeeded() {
+        Timber.d("ShortcutRepository: initDefaultShortcutsIfNeeded called")
         withContext(Dispatchers.IO) {
             val currentItems = shortcutDao.getAllShortcuts()
-            if (currentItems.isEmpty()) {
+            val validItems = currentItems.mapNotNull { ShortcutType.fromId(it.typeId) }
+            
+            if (currentItems.isEmpty() || validItems.isEmpty()) {
+                Timber.d("ShortcutRepository: Re-initializing defaults. Raw count: ${currentItems.size}, Valid count: ${validItems.size}")
                 val defaultShortcuts = listOf(
-                    ShortcutType.SETTINGS,
+                    ShortcutType.LAYOUT_SWITCH,
                     ShortcutType.EMOJI,
                     ShortcutType.TEMPLATE,
                     ShortcutType.COPY,
                     ShortcutType.PASTE,
-                    ShortcutType.KEYBOARD_PICKER
+                    ShortcutType.SETTINGS
                 )
                 updateShortcuts(defaultShortcuts)
             }
         }
     }
+
 
     /**
      * 設定画面用：全ての種類のショートカットと、現在の有効/無効状態を取得します。

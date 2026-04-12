@@ -1,4 +1,4 @@
-package com.kazumaproject.custom_keyboard.view
+package com.kazumaproject.custom_keyboard.controller
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -6,8 +6,10 @@ import android.view.GestureDetector
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.view.accessibility.AccessibilityManager
 import android.widget.PopupWindow
 import androidx.core.graphics.drawable.toDrawable
+import com.kazumaproject.custom_keyboard.view.TfbiFlickPopupView
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.hypot
@@ -52,6 +54,11 @@ class TfbiInputController(
 
     private lateinit var gestureDetector: GestureDetector
 
+    // AccessibilityManager for TalkBack detection
+    private val accessibilityManager: AccessibilityManager by lazy {
+        context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+    }
+
     // ▼▼▼ 追加: 色設定保持用の変数 ▼▼▼
     private var popupBackgroundColor: Int? = null
     private var popupHighlightedColor: Int? = null
@@ -74,6 +81,11 @@ class TfbiInputController(
         gestureDetector =
             GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
                 override fun onLongPress(e: MotionEvent) {
+                    // TalkBack有効時は長押しを無効化（ダブルタップが基本操作のため）
+                    if (accessibilityManager.isEnabled && accessibilityManager.isTouchExplorationEnabled) {
+                        return
+                    }
+                    
                     if (flickState == FlickState.NEUTRAL) {
                         popupWindow?.dismiss()
                         showPopup(view, TfbiFlickDirection.TAP, true)
@@ -140,6 +152,12 @@ class TfbiInputController(
                 setupSecondStageUI(firstFlickDirection)
                 popupView?.highlightDirection(determinedDirection)
                 currentSecondFlickDirection = determinedDirection
+
+                // Voice Guidance
+                val textForSpeech = characterMapProvider?.invoke(firstFlickDirection, TfbiFlickDirection.TAP)
+                if (!textForSpeech.isNullOrEmpty()) {
+                    attachedView?.announceForAccessibility(textForSpeech)
+                }
             }
         } else {
             val distanceFromInitial = hypot(
@@ -165,6 +183,12 @@ class TfbiInputController(
             if (highlightTargetDirection != currentSecondFlickDirection) {
                 popupView?.highlightDirection(highlightTargetDirection)
                 currentSecondFlickDirection = highlightTargetDirection
+
+                // Voice Guidance
+                val textForSpeech = characterMapProvider?.invoke(firstFlickDirection, highlightTargetDirection)
+                if (!textForSpeech.isNullOrEmpty()) {
+                    attachedView?.announceForAccessibility(textForSpeech)
+                }
             }
         }
     }

@@ -7,11 +7,12 @@ import android.view.GestureDetector
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.view.accessibility.AccessibilityManager
 import android.widget.PopupWindow
 import androidx.core.graphics.drawable.toDrawable
 import com.kazumaproject.custom_keyboard.data.KeyMode
 import com.kazumaproject.custom_keyboard.data.TfbiFlickNode
-import com.kazumaproject.custom_keyboard.view.TfbiFlickDirection
+import com.kazumaproject.custom_keyboard.controller.TfbiFlickDirection
 import com.kazumaproject.custom_keyboard.view.TfbiFlickPopupView
 import java.util.ArrayDeque
 import kotlin.math.abs
@@ -78,6 +79,11 @@ class TfbiHierarchicalFlickController(
     private var popupWindow: PopupWindow? = null
     private lateinit var gestureDetector: GestureDetector
 
+    // AccessibilityManager for TalkBack detection
+    private val accessibilityManager: AccessibilityManager by lazy {
+        context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+    }
+
     // ▼▼▼ 追加: 色設定保持用の変数 ▼▼▼
     private var popupBackgroundColor: Int? = null
     private var popupHighlightedColor: Int? = null
@@ -109,6 +115,11 @@ class TfbiHierarchicalFlickController(
         gestureDetector =
             GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
                 override fun onLongPress(e: MotionEvent) {
+                    // TalkBack有効時は長押しを無効化（ダブルタップが基本操作のため）
+                    if (accessibilityManager.isEnabled && accessibilityManager.isTouchExplorationEnabled) {
+                        return
+                    }
+                    
                     // 第1階層（スタックサイズが1）でのみ長押しポップアップを許可
                     if (mapStack.size <= 1) {
                         popupWindow?.dismiss()

@@ -1,6 +1,6 @@
 package com.kazumaproject.custom_keyboard.data
 
-import com.kazumaproject.custom_keyboard.view.TfbiFlickDirection
+import com.kazumaproject.custom_keyboard.controller.TfbiFlickDirection
 
 /**
  * ★ 新規追加

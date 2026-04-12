@@ -42,7 +42,7 @@
             android:title="@string/qwerty_show_popup_window_title" />
 
         <SwitchPreferenceCompat
-            android:defaultValue="false"
+            android:defaultValue="true"
             android:key="qwerty_show_cursor_buttons_preference"
             android:summaryOff="@string/qwerty_show_cursor_buttons_summary_off"
             android:summaryOn="@string/qwerty_show_cursor_buttons_summary_on"

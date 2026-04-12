@@ -131,6 +131,23 @@ class CrossFlickInputController(private val context: Context) {
                 val newDirection = calculateDirection(dx, dy)
                 if (newDirection != currentDirection) {
                     currentDirection = newDirection
+
+                    // Voice Guidance
+                    val flickDir = if (currentDirection != CrossDirection.TAP) {
+                        directionMapping[currentDirection]
+                    } else {
+                        FlickDirection.TAP
+                    }
+                    val action = flickActionMap[flickDir]
+                    val text = when (action) {
+                        is FlickAction.Input -> action.char
+                        is FlickAction.Action -> action.label ?: ""
+                        null -> ""
+                    }
+                    if (text.isNotEmpty()) {
+                        view.announceForAccessibility(text)
+                    }
+
                     if (!isLongPressMode) {
                         dismissAllPopups()
                         showPopup(currentDirection)

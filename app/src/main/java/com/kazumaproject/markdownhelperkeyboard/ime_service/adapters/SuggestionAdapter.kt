@@ -23,6 +23,7 @@ import com.kazumaproject.core.domain.extensions.setDrawableSolidColor
 import com.kazumaproject.core.domain.state.TenKeyQWERTYMode
 import com.kazumaproject.markdownhelperkeyboard.R
 import com.kazumaproject.markdownhelperkeyboard.converter.candidate.Candidate
+import com.kazumaproject.markdownhelperkeyboard.repository.TamachiRepository
 import com.kazumaproject.markdownhelperkeyboard.custom_keyboard.data.CustomKeyboardLayout
 import com.kazumaproject.markdownhelperkeyboard.ime_service.extensions.correctReading
 import com.kazumaproject.markdownhelperkeyboard.ime_service.extensions.debugPrintCodePoints
@@ -77,6 +78,9 @@ class SuggestionAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private var candidateEmptyDrawableColor: Int? = null
     private var candidateEmptyDrawableTextColor: Int? = null
+
+    var isDTalkerTTSActive: Boolean = false
+    var tamachiRepository: TamachiRepository? = null
 
     fun setOnItemClickListener(onItemClick: (Candidate, Int) -> Unit) {
         this.onItemClickListener = onItemClick
@@ -253,7 +257,7 @@ class SuggestionAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             if (currentMode is TenKeyQWERTYMode.Custom && customLayouts.isNotEmpty()) {
                 customLayouts.size
             } else {
-                1
+                0
             }
         }
     }
@@ -436,6 +440,24 @@ class SuggestionAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                 .plus(" ".repeat(paddingLength))
         }
 
+        // TalkBackには指定されたエンジンに応じた情報を渡す
+        val positionText = " ${position + 1}の$itemCount"
+        holder.itemView.contentDescription = if (isDTalkerTTSActive) {
+            if (suggestion.type == (15).toByte()) {
+                getSyosaiYomiSSML(readingCorrectionString.first, positionText)
+            } else {
+                getSyosaiYomiSSML(suggestion.string, positionText)
+            }
+        } else {
+            val textToRead = if (suggestion.type == (15).toByte()) {
+                readingCorrectionString.first
+            } else {
+                suggestion.string
+            }
+            val baseReading = tamachiRepository?.getDetailedReading(textToRead) ?: textToRead
+            "$baseReading$positionText"
+        }
+
         holder.text.textSize = candidateTextSize
 
         candidateTextColor?.let { color ->
@@ -534,6 +556,26 @@ class SuggestionAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         holder.itemView.setOnClickListener {
             onCustomLayoutItemClickListener?.invoke(position)
         }
+    }
+
+    private fun getSyosaiYomiSSML(word: String, positionText: String): String {
+        val escapedWord = word.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+
+        val sb = StringBuilder()
+        sb.append("<?xml version=\"1.0\"?>")
+        sb.append("<speak version=\"1.0\" xmlns=\"http://www.w3.org/2001/10/synthesis\" ")
+        sb.append("xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" ")
+        sb.append("xsi:schemaLocation=\"http://www.w3.org/2001/10/synthesis ")
+        sb.append("http://www.w3.org/TR/speech-synthesis/synthesis.xsd\" ")
+        sb.append("xml:lang=\"ja\">")
+        sb.append("<say-as interpret-as=\"characters\" format=\"glyphs\">")
+        sb.append(escapedWord)
+        sb.append("</say-as>")
+        sb.append(positionText)
+        sb.append("</speak>")
+        return sb.toString()
     }
 
     fun updateHighlightPosition(newPosition: Int) {

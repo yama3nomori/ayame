@@ -69,7 +69,7 @@ class CustomSymbolKeyboardView @JvmOverloads constructor(
     private val gridLM = GridLayoutManager(context, 3, RecyclerView.HORIZONTAL, false)
 
     // View References for functional keys
-    private val returnButton: ShapeableImageView
+    private val returnButton: TextView
     private val deleteButton: ShapeableImageView
 
     // Theme Colors (Default values)
@@ -324,7 +324,7 @@ class CustomSymbolKeyboardView @JvmOverloads constructor(
         returnButton.setPadding(p, p, p, p)
         deleteButton.setPadding(p, p, p, p)
 
-        returnButton.setColorFilter(iconColor, PorterDuff.Mode.SRC_IN)
+        returnButton.setTextColor(iconColor)
         deleteButton.setColorFilter(iconColor, PorterDuff.Mode.SRC_IN)
 
         if (currentMode == SymbolMode.CLIPBOARD) {
@@ -604,13 +604,14 @@ class CustomSymbolKeyboardView @JvmOverloads constructor(
 
     private fun buildModeTabs() {
         modeTab.removeAllTabs()
-        listOf(
-            com.kazumaproject.core.R.drawable.mood_24px,
-            com.kazumaproject.core.R.drawable.emoticon_24px,
-            com.kazumaproject.core.R.drawable.star_24px,
-            com.kazumaproject.core.R.drawable.clip_board,
-        ).forEach { res ->
-            modeTab.addTab(modeTab.newTab().setIcon(res))
+        val tabData = listOf(
+            com.kazumaproject.core.R.drawable.mood_24px to "絵文字",
+            com.kazumaproject.core.R.drawable.emoticon_24px to "顔文字",
+            com.kazumaproject.core.R.drawable.star_24px to "記号",
+            com.kazumaproject.core.R.drawable.clip_board to "履歴",
+        )
+        tabData.forEach { (iconRes, text) ->
+            modeTab.addTab(modeTab.newTab().setIcon(iconRes).setText(text))
         }
 
         // ★ テーマ適用フラグが立っている場合、タブ再構築後にテーマを適用
@@ -646,13 +647,26 @@ class CustomSymbolKeyboardView @JvmOverloads constructor(
         when (currentMode) {
             SymbolMode.EMOJI -> {
                 if (historyEmojiList.isNotEmpty()) {
-                    categoryTab.addTab(categoryTab.newTab().setIcon(historyIcon))
+                    categoryTab.addTab(categoryTab.newTab().setIcon(historyIcon).setText("履歴"))
                 }
                 emojiMap.keys.forEach { cat ->
+                    val tabText = when (cat) {
+                        EmojiCategory.EMOTICONS -> "顔"
+                        EmojiCategory.GESTURES -> "手"
+                        EmojiCategory.PEOPLE_BODY -> "人"
+                        EmojiCategory.ANIMALS_NATURE -> "動物"
+                        EmojiCategory.FOOD_DRINK -> "食べ物"
+                        EmojiCategory.TRAVEL_PLACES -> "旅行"
+                        EmojiCategory.ACTIVITIES -> "活動"
+                        EmojiCategory.OBJECTS -> "物"
+                        EmojiCategory.SYMBOLS -> "記号"
+                        EmojiCategory.FLAGS -> "旗"
+                        EmojiCategory.UNKNOWN -> "その他"
+                    }
                     categoryTab.addTab(
-                        categoryTab.newTab().setIcon(
-                            categoryIconRes[cat] ?: com.kazumaproject.core.R.drawable.logo_key
-                        )
+                        categoryTab.newTab()
+                            .setIcon(categoryIconRes[cat] ?: com.kazumaproject.core.R.drawable.logo_key)
+                            .setText(tabText)
                     )
                 }
             }
