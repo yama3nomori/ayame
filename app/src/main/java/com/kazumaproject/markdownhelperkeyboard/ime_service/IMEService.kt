@@ -14,6 +14,8 @@ import android.graphics.drawable.Drawable
 import android.hardware.input.InputManager
 import android.inputmethodservice.InputMethodService
 import android.net.Uri
+import android.media.AudioManager
+import android.media.AudioFocusRequest
 import android.os.Build
 import android.os.Bundle
 import android.os.CombinedVibration
@@ -55,6 +57,7 @@ import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.PopupWindow
 import android.widget.TextView
+import android.widget.Toast
 import androidx.annotation.ColorInt
 import androidx.appcompat.view.ContextThemeWrapper
 import androidx.appcompat.widget.AppCompatImageButton
@@ -104,6 +107,7 @@ import com.kazumaproject.core.domain.physical_shift_key.PhysicalShiftKeyCodeMap
 import com.kazumaproject.core.domain.qwerty.QWERTYKey
 import com.kazumaproject.core.domain.state.GestureType
 import com.kazumaproject.core.domain.state.InputMode
+import com.kazumaproject.core.domain.state.QWERTYMode
 import com.kazumaproject.core.domain.state.TenKeyQWERTYMode
 import com.kazumaproject.core.domain.window.getScreenHeight
 import com.kazumaproject.custom_keyboard.data.FlickDirection
@@ -162,6 +166,7 @@ import com.kazumaproject.markdownhelperkeyboard.repository.LearnRepository
 import com.kazumaproject.markdownhelperkeyboard.repository.NgWordRepository
 import com.kazumaproject.markdownhelperkeyboard.repository.RomajiMapRepository
 import com.kazumaproject.markdownhelperkeyboard.repository.ShortcutRepository
+import com.kazumaproject.markdownhelperkeyboard.repository.TamachiRepository
 import com.kazumaproject.markdownhelperkeyboard.repository.UserDictionaryRepository
 import com.kazumaproject.markdownhelperkeyboard.repository.UserTemplateRepository
 import com.kazumaproject.markdownhelperkeyboard.setting_activity.AppPreference
@@ -176,6 +181,12 @@ import com.kazumaproject.tenkey.extensions.getNextReturnInputChar
 import com.kazumaproject.tenkey.extensions.isHiragana
 import com.kazumaproject.tenkey.extensions.isLatinAlphabet
 import com.kazumaproject.zenz.ZenzEngine
+import android.support.v4.media.session.MediaSessionCompat
+import android.support.v4.media.session.PlaybackStateCompat
+import androidx.media.VolumeProviderCompat
+import android.media.AudioAttributes
+import android.media.AudioFormat
+import android.media.AudioTrack
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -266,6 +277,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     @Inject
     lateinit var clipboardUtil: ClipboardUtil
 
+    @Inject
+    lateinit var tamachiRepository: TamachiRepository
+
     private var zenzEngine: ZenzEngine? = null
 
     private var shortcutAdapter: ShortcutAdapter? = null
@@ -273,6 +287,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private var romajiConverter: RomajiKanaConverter? = null
 
     private lateinit var clipboardManager: ClipboardManager
+    private lateinit var audioManager: AudioManager
+    private var focusRequest: Any? = null // AudioFocusRequest
+    private var silentAudioTrack: AudioTrack? = null
 
     private var isClipboardHistoryFeatureEnabled: Boolean = false
     private val clipboardMutex = Mutex()
@@ -531,6 +548,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private var customKeyBorderWidth: Int? = 1
 
     private var qwertySwitchNumberKeyWithoutNumberPreference: Boolean? = false
+    private var volumeKeyCursorMovePreference: Boolean? = false
 
     private val _ngWordsList = MutableStateFlow<List<NgWord>>(emptyList())
     private val ngWordsList: StateFlow<List<NgWord>> = _ngWordsList
@@ -542,6 +560,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private val keyboardFloatingMode = _keyboardFloatingMode.asStateFlow()
 
     private var keyboardContainer: FrameLayout? = null
+    private var mediaSession: MediaSessionCompat? = null
 
     private var isSpaceKeyLongPressed = false
     private val _selectMode = MutableStateFlow(false)
@@ -721,6 +740,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
     private var currentKeyboardOrder = 0
 
+    var isDTalkerTTS = false
+
     private data class ImeItem(
         val id: String,                 // imeId (InputMethodInfo.getId())
         val packageName: String,
@@ -750,9 +771,30 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         val qwertyMarginEnd: Int,
     )
 
+    private fun announceCandidateHighlight(text: String, index: Int, total: Int) {
+        if (!isDTalkerTTS) {
+            val detailedReading = tamachiRepository.getDetailedReading(text) ?: text
+            val announcement = "$detailedReading ${index + 1}の$total"
+            mainLayoutBinding?.root?.announceForAccessibility(announcement)
+            floatingKeyboardBinding?.root?.announceForAccessibility(announcement)
+        }
+    }
+
+    private fun announceCandidateItemHighlight(item: CandidateItem, index: Int, total: Int) {
+        if (!isDTalkerTTS) {
+            val detailedReading = tamachiRepository.getDetailedReading(item.word) ?: item.word
+            val announcement = "$detailedReading ${index + 1}の$total"
+            mainLayoutBinding?.root?.announceForAccessibility(announcement)
+            floatingKeyboardBinding?.root?.announceForAccessibility(announcement)
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         Timber.d("onCreate")
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        initializeMediaSession()
+
         lifecycleRegistry = LifecycleRegistry(this)
         lifecycleRegistry.currentState = Lifecycle.State.CREATED
 
@@ -782,6 +824,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             pageSize = PAGE_SIZE,
         )
         listAdapter.onSuggestionClicked = { suggestion: CandidateItem ->
+            announceCandidateItemHighlight(suggestion, currentHighlightIndex, listAdapter.currentList.size)
             commitText(suggestion.word, 1)
             finishComposingText()
         }
@@ -789,6 +832,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             goToNextPageForFloatingCandidate()
         }
         ioScope.launch {
+            tamachiRepository.load(applicationContext)
             customLayouts = keyboardRepository.getLayoutsNotFlow()
             shortCurRepository.initDefaultShortcutsIfNeeded()
         }
@@ -870,6 +914,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 startScope(mainView)
             }
         }
+
         return keyboardContainer
     }
 
@@ -963,6 +1008,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             tenkeyEndMarginPreferenceValue = keyboard_margin_end_dp ?: 0
             qwertyStartMarginPreferenceValue = qwerty_keyboard_margin_start_dp ?: 0
             qwertyEndMarginPreferenceValue = qwerty_keyboard_margin_end_dp ?: 0
+            volumeKeyCursorMovePreference = volume_key_cursor_move ?: true
+
 
             tenkeyLandScapeStartMarginPreferenceValue = keyboard_margin_start_dp_landscape
             tenkeyLandScapeEndMarginPreferenceValue = keyboard_margin_end_dp_landscape
@@ -1085,6 +1132,29 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
     override fun onStartInputView(editorInfo: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(editorInfo, restarting)
+        Timber.d("onStartInputView")
+        hijackWindowCallback()
+        startSilentAudio()
+        mediaSession?.isActive = volumeKeyCursorMovePreference == true
+        if (volumeKeyCursorMovePreference == true) {
+            mediaSession?.setPlaybackState(
+                PlaybackStateCompat.Builder()
+                    .setState(PlaybackStateCompat.STATE_PLAYING, 0, 1.0f)
+                    .setActions(PlaybackStateCompat.ACTION_PLAY or PlaybackStateCompat.ACTION_PAUSE or PlaybackStateCompat.ACTION_STOP)
+                    .build()
+            )
+        }
+
+        val ttsEngine = android.provider.Settings.Secure.getString(contentResolver, android.provider.Settings.Secure.TTS_DEFAULT_SYNTH)
+        isDTalkerTTS = ttsEngine?.contains("jp.co.createsystem") == true
+        Timber.d("onStartInputView: TTS Engine: $ttsEngine, isDTalkerTTS: $isDTalkerTTS")
+        suggestionAdapter?.isDTalkerTTSActive = isDTalkerTTS
+        suggestionAdapter?.tamachiRepository = tamachiRepository
+        suggestionAdapterFull?.isDTalkerTTSActive = isDTalkerTTS
+        suggestionAdapterFull?.tamachiRepository = tamachiRepository
+        listAdapter.isDTalkerTTSActive = isDTalkerTTS
+        listAdapter.tamachiRepository = tamachiRepository
+
         keyboardSelectionPopupWindow?.dismiss()
         addUserDictionaryPopup?.dismiss()
         _keyboardSymbolViewState.update { false }
@@ -1498,21 +1568,77 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             )
             floatingModeSwitchWindow?.isTouchable = false
         }
-    }
-
-    override fun onFinishInputView(finishingInput: Boolean) {
-        super.onFinishInputView(finishingInput)
-        Timber.d("onUpdate onFinishInputView")
-        stopVoiceInput()
-        floatingCandidateWindow?.dismiss()
-        floatingDockWindow?.dismiss()
-        floatingModeSwitchWindow?.dismiss()
         floatingKeyboardView?.dismiss()
     }
 
+    override fun onWindowShown() {
+        super.onWindowShown()
+        Timber.d("onWindowShown")
+        // hijackWindowCallback() // Remove potentially conflicting hijacking
+        if (volumeKeyCursorMovePreference == true) {
+            startSilentAudio()
+            requestVolumeControlFocus()
+            mediaSession?.isActive = true
+        }
+    }
+
+    private fun requestVolumeControlFocus() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val playbackAttributes = AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build()
+                val focusRequestObj = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                    .setAudioAttributes(playbackAttributes)
+                    .setAcceptsDelayedFocusGain(true)
+                    .setOnAudioFocusChangeListener { }
+                    .build()
+                focusRequest = focusRequestObj
+                audioManager.requestAudioFocus(focusRequestObj)
+            } else {
+                @Suppress("DEPRECATION")
+                audioManager.requestAudioFocus(
+                    null,
+                    AudioManager.STREAM_MUSIC,
+                    AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
+                )
+            }
+            Timber.d("requestVolumeControlFocus: Success")
+        } catch (e: Exception) {
+            Timber.e(e, "requestVolumeControlFocus: Failed")
+        }
+    }
+
+    override fun onWindowHidden() {
+        super.onWindowHidden()
+        Timber.d("onWindowHidden")
+        stopSilentAudio()
+        abandonVolumeControlFocus()
+        mediaSession?.isActive = false
+    }
+
+    private fun abandonVolumeControlFocus() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                (focusRequest as? AudioFocusRequest)?.let {
+                    audioManager.abandonAudioFocusRequest(it)
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                audioManager.abandonAudioFocus(null)
+            }
+            Timber.d("abandonVolumeControlFocus: Success")
+        } catch (e: Exception) {
+            Timber.e(e, "abandonVolumeControlFocus: Failed")
+        }
+    }
+
+
     override fun onDestroy() {
-        Timber.d("onUpdate onDestroy")
         super.onDestroy()
+        Timber.d("onUpdate onDestroy")
+        releaseMediaSession()
         mainLayoutBinding?.apply {
             keyboardView.cancelTenKeyScope()
             keyboardSymbolView.release()
@@ -2277,7 +2403,35 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
     }
 
+    private fun moveCursorLeft() {
+        sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_LEFT)
+    }
+
+    private fun moveCursorRight() {
+        sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_RIGHT)
+    }
+
+
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+            if (volumeKeyCursorMovePreference == true) {
+                Timber.d("onKeyDown: Volume key detected: $keyCode")
+                // ボリュームキー押下時にセッションを再度アクティブ化して優先権を確保
+                if (mediaSession?.isActive == false) {
+                    mediaSession?.isActive = true
+                }
+
+                if (event?.action == KeyEvent.ACTION_DOWN) {
+                    if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+                        moveCursorRight()
+                    } else if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+                        moveCursorLeft()
+                    }
+                }
+                return true // 常にtrueを返してシステムへの伝播を阻止
+            }
+            return super.onKeyDown(keyCode, event)
+        }
         mainLayoutBinding?.let { mainView ->
             // モードに応じて処理を振り分ける
             return when (mainView.keyboardView.currentInputMode.value) {
@@ -2824,6 +2978,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     }
 
     override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+            if (volumeKeyCursorMovePreference == true) {
+                Timber.d("onKeyUp: Volume key detected: $keyCode")
+                return true // ボリュームキー離上時も消費して、スライダー表示を確実に防ぐ
+            }
+        }
         when (keyCode) {
             KeyEvent.KEYCODE_ENTER -> {
                 Timber.d("onKeyUp KEYCODE_ENTER: ${inputString.value} ${isHenkan.get()}")
@@ -2933,6 +3093,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         insertString: String
     ) {
         val selectedSuggestion = listAdapter.currentList[currentHighlightIndex]
+        announceCandidateItemHighlight(selectedSuggestion, currentHighlightIndex, listAdapter.currentList.size)
         if (insertString.length > selectedSuggestion.length.toInt()) {
             val subString = insertString.substring(selectedSuggestion.length.toInt())
             stringInTail.set(subString)
@@ -4020,11 +4181,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             limitListViewVisibleItems(listView, maxVisible = 5)
 
             // --- 3) PopupWindow ---
+            vibrate()
             keyboardSelectionPopupWindow = PopupWindow(
                 popupView,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
-                true
+                false
             )
 
             // 既存の「内部キーボードの選択状態」を復元（範囲チェック必須）
@@ -4663,6 +4825,16 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 }
             }
             suggestionRecyclerView.isVisible = true
+
+            // TalkBackレイアウト読み上げ
+            val announcement = when (type) {
+                KeyboardType.TENKEY -> "日本語 かな"
+                KeyboardType.QWERTY -> "英語"
+                KeyboardType.ROMAJI -> "ローマ字入力"
+                KeyboardType.SUMIRE -> "スミレ入力"
+                KeyboardType.CUSTOM -> "カスタム"
+            }
+            root.announceForAccessibility(announcement)
         }
     }
 
@@ -7331,6 +7503,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         if (shortcutTollbarVisibility == true) {
             (mainView.shortcutToolbarRecyclerview.layoutParams as? FrameLayout.LayoutParams)?.let { param ->
                 param.bottomMargin = heightPx + mainView.suggestionViewParent.height
+                param.gravity = gravity
                 mainView.shortcutToolbarRecyclerview.layoutParams = param
             }
         }
@@ -7340,12 +7513,13 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             mainView.keyboardView,
             mainView.customLayoutDefault,
             mainView.qwertyView,
-            mainView.candidatesRowView
+            mainView.candidatesRowView,
+            mainView.candidateTabLayout
         ).forEach { view ->
             (view.layoutParams as? FrameLayout.LayoutParams)?.let { params ->
-                if (view != mainView.suggestionViewParent) {
+                if (view != mainView.suggestionViewParent && view != mainView.candidateTabLayout) {
                     params.height = heightPx
-                } else {
+                } else if (view == mainView.suggestionViewParent) {
                     params.bottomMargin = heightPx
                 }
                 params.gravity = gravity
@@ -8439,6 +8613,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     ) {
         suggestionAdapter?.let { adapter ->
             adapter.setOnItemClickListener { candidate, position ->
+                announceCandidateHighlight(candidate.string, position, adapter.itemCount)
                 val insertString = inputString.value
                 val currentInputMode: InputMode =
                     if (isTablet == true) mainView.tabletView.currentInputMode.get() else mainView.keyboardView.currentInputMode.value
@@ -8546,6 +8721,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
         suggestionAdapterFull?.let { adapter ->
             adapter.setOnItemClickListener { candidate, position ->
+                announceCandidateHighlight(candidate.string, position, adapter.itemCount)
                 val insertString = inputString.value
                 val currentInputMode: InputMode =
                     if (isTablet == true) mainView.tabletView.currentInputMode.get() else mainView.keyboardView.currentInputMode.value
@@ -8668,6 +8844,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             layoutManager =
                 LinearLayoutManager(this@IMEService, LinearLayoutManager.HORIZONTAL, false)
             adapter = shortcutAdapter
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+            isFocusable = true
         }
         when (keyboardThemeMode) {
             "custom" -> {
@@ -8695,8 +8873,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     showUserTemplateListPopup()
                 }
 
-                ShortcutType.KEYBOARD_PICKER -> {
-                    showKeyboardPicker()
+                ShortcutType.LAYOUT_SWITCH -> {
+                    Timber.d("ShortcutType.LAYOUT_SWITCH clicked")
+                    vibrate()
+                    switchNextKeyboard()
                 }
 
                 ShortcutType.SELECT_ALL -> {
@@ -8974,7 +9154,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                         }
 
                         QWERTYKey.QWERTYKeySwitchMode -> {
-
+                            val currentMode = mainView.qwertyView.qwertyMode.value
+                            if (currentMode is QWERTYMode.Number) {
+                                mainView.qwertyView.setQwertyMode(QWERTYMode.Default)
+                            } else {
+                                mainView.qwertyView.setQwertyMode(QWERTYMode.Number)
+                            }
                         }
 
                         QWERTYKey.QWERTYKeySpace -> {
@@ -9172,7 +9357,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                                             tap?.let { c ->
                                                 val charToAppend =
                                                     if (isDefaultRomajiHenkanMap && c.isLowerCase()) {
-                                                        c.toZenkaku()
+                                                        if (this@IMEService.qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTYRomaji && qwertyKey in listOf(QWERTYKey.QWERTYKey2, QWERTYKey.QWERTYKey3, QWERTYKey.QWERTYKey4, QWERTYKey.QWERTYKey5, QWERTYKey.QWERTYKey6, QWERTYKey.QWERTYKey7, QWERTYKey.QWERTYKey8, QWERTYKey.QWERTYKey9)) {
+                                                            c
+                                                        } else {
+                                                            c.toZenkaku()
+                                                        }
                                                     } else {
                                                         c
                                                     }
@@ -9226,7 +9415,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                                         romajiConverter?.let { converter ->
                                             val charToAppend =
                                                 if (isDefaultRomajiHenkanMap && !hardKeyboardShiftPressd) {
-                                                    c.toZenkaku()
+                                                    if (this@IMEService.qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTYRomaji && qwertyKey in listOf(QWERTYKey.QWERTYKey2, QWERTYKey.QWERTYKey3, QWERTYKey.QWERTYKey4, QWERTYKey.QWERTYKey5, QWERTYKey.QWERTYKey6, QWERTYKey.QWERTYKey7, QWERTYKey.QWERTYKey8, QWERTYKey.QWERTYKey9)) {
+                                                        c
+                                                    } else {
+                                                        c.toZenkaku()
+                                                    }
                                                 } else {
                                                     c
                                                 }
@@ -9387,6 +9580,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                         suggestionAdapter?.setUndoEnabled(false)
                     }
                     handleTap(character, inputString.value, StringBuilder(), mainView)
+                }
+
+                override fun onDeleteLeftFlick() {
+                    deleteWordOrSymbolsBeforeCursor(inputString.value)
                 }
             })
 
@@ -9770,6 +9967,133 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         scope.cancel()
         ioScope.cancel()
     }
+
+
+    private fun initializeMediaSession() {
+        if (mediaSession == null) {
+            mediaSession = MediaSessionCompat(this, "JapaneseKeyboard").apply {
+                setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS)
+
+                // セッションをダミーの再生状態にする
+                val state = PlaybackStateCompat.Builder()
+                    .setState(PlaybackStateCompat.STATE_PLAYING, 0, 1.0f)
+                    .setActions(PlaybackStateCompat.ACTION_PLAY or PlaybackStateCompat.ACTION_PAUSE)
+                    .build()
+                setPlaybackState(state)
+
+                // メタデータを設定してシステムの優先度を高める（タイトルを空にしてTalkBackのアナウンスを抑制）
+                val metadata = android.support.v4.media.MediaMetadataCompat.Builder()
+                    .putString(
+                        android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE,
+                        ""
+                    )
+                    .putLong(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DURATION, -1L)
+                    .build()
+                setMetadata(metadata)
+
+                setCallback(object : MediaSessionCompat.Callback() {
+                    // 追加のメディアボタン制御（必要な場合）
+                    override fun onMediaButtonEvent(mediaButtonEvent: Intent?): Boolean {
+                        Timber.d("onMediaButtonEvent: ${mediaButtonEvent?.action}")
+                        return true
+                    }
+                }, Handler(mainLooper))
+                // VOLUME_CONTROL_RELATIVE に戻し、中間の値でOSのUI制御を安定化させる
+                setPlaybackToRemote(object : VolumeProviderCompat(
+                    VolumeProviderCompat.VOLUME_CONTROL_RELATIVE, 100, 50
+                ) {
+                    override fun onAdjustVolume(direction: Int) {
+                        Timber.d("onAdjustVolume: direction=$direction")
+                        if (volumeKeyCursorMovePreference == true) {
+                            if (direction > 0) {
+                                moveCursorRight()
+                            } else if (direction < 0) {
+                                moveCursorLeft()
+                            }
+
+                            // 無音再生中に音量を「変更なし」で調整通知し、HUDを消去する
+                            try {
+                                audioManager.adjustStreamVolume(
+                                    AudioManager.STREAM_MUSIC,
+                                    AudioManager.ADJUST_SAME,
+                                    AudioManager.FLAG_REMOVE_SOUND_AND_VIBRATE
+                                )
+                            } catch (e: Exception) {
+                                // ignore
+                            }
+                        }
+                    }
+                })
+            }
+        }
+    }
+
+    private fun hijackWindowCallback() {
+        // Obsolete: Using MediaSession approach for Android 12+
+    }
+
+    private fun startSilentAudio() {
+        try {
+            if (volumeKeyCursorMovePreference != true) return
+            if (silentAudioTrack == null) {
+                val sampleRate = 44100
+                val minSize = AudioTrack.getMinBufferSize(
+                    sampleRate,
+                    AudioFormat.CHANNEL_OUT_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT
+                )
+                silentAudioTrack = AudioTrack.Builder()
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                            .build()
+                    )
+                    .setAudioFormat(
+                        AudioFormat.Builder()
+                            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                            .setSampleRate(sampleRate)
+                            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                            .build()
+                    )
+                    .setBufferSizeInBytes(minSize)
+                    .build()
+
+                // 無音データ（0の配列）を書き込み
+                val silentData = ShortArray(minSize)
+                silentAudioTrack?.write(silentData, 0, silentData.size)
+                silentAudioTrack?.setLoopPoints(0, silentData.size / 2, -1)
+            }
+            if (silentAudioTrack?.playState != AudioTrack.PLAYSTATE_PLAYING) {
+                silentAudioTrack?.play()
+                Timber.d("startSilentAudio: Silent audio started")
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "startSilentAudio: Failed")
+        }
+    }
+
+    private fun stopSilentAudio() {
+        try {
+            silentAudioTrack?.let {
+                if (it.playState == AudioTrack.PLAYSTATE_PLAYING) {
+                    it.stop()
+                    it.release()
+                    silentAudioTrack = null
+                    Timber.d("stopSilentAudio: Silent audio stopped")
+                }
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "stopSilentAudio: Failed")
+        }
+    }
+
+    private fun releaseMediaSession() {
+        mediaSession?.isActive = false
+        mediaSession?.release()
+        mediaSession = null
+    }
+
 
     private fun resetFlagsSuggestionClick() {
         isHenkan.set(false)
@@ -11320,6 +11644,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 (suggestionClickNum - 1 + 2).coerceAtLeast(0).coerceAtMost(suggestions.size - 1)
             )
             suggestionAdapter?.updateHighlightPosition((suggestionClickNum - 1).coerceAtLeast(0))
+            suggestions.getOrNull((suggestionClickNum - 1).coerceAtLeast(0))?.let {
+                announceCandidateHighlight(it.string, (suggestionClickNum - 1).coerceAtLeast(0), suggestions.size)
+            }
         }
         setConvertLetterInJapaneseFromButton(suggestions, true, mainView, insertString)
     }
@@ -11355,6 +11682,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     (suggestionClickNum - 1 + 2).coerceAtLeast(0).coerceAtMost(suggestions.size - 1)
                 )
                 suggestionAdapter?.updateHighlightPosition((suggestionClickNum - 1).coerceAtLeast(0))
+                suggestions.getOrNull((suggestionClickNum - 1).coerceAtLeast(0))?.let {
+                    announceCandidateHighlight(it.string, (suggestionClickNum - 1).coerceAtLeast(0), suggestions.size)
+                }
             }
             setConvertLetterInJapaneseFromButton(suggestions, true, mainView, insertString)
             Timber.d(
@@ -11391,6 +11721,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     (suggestionClickNum - 1 + 2).coerceAtLeast(0).coerceAtMost(suggestions.size - 1)
                 )
                 suggestionAdapter?.updateHighlightPosition((suggestionClickNum - 1).coerceAtLeast(0))
+                suggestions.getOrNull((suggestionClickNum - 1).coerceAtLeast(0))?.let {
+                    announceCandidateHighlight(it.string, (suggestionClickNum - 1).coerceAtLeast(0), suggestions.size)
+                }
             }
             setConvertLetterInJapaneseFromButtonFloating(
                 suggestions,
@@ -11417,6 +11750,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 (suggestionClickNum - 1 + 2).coerceAtLeast(0).coerceAtMost(suggestions.size - 1)
             )
             suggestionAdapter?.updateHighlightPosition((suggestionClickNum - 1).coerceAtLeast(0))
+            suggestions.getOrNull((suggestionClickNum - 1).coerceAtLeast(0))?.let {
+                announceCandidateHighlight(it.string, (suggestionClickNum - 1).coerceAtLeast(0), suggestions.size)
+            }
         }
         setConvertLetterInJapaneseFromButtonFloating(
             suggestions, true, floatingKeyboardLayoutBinding, insertString
@@ -12599,6 +12935,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         if (suggestionClickNum <= 0) suggestionClickNum = 1
 
         val nextSuggestion = suggestions[index]
+        announceCandidateHighlight(nextSuggestion.string, index, suggestions.size)
         val candidateType = nextSuggestion.type.toInt()
         val suggestionText = nextSuggestion.string
         val suggestionLength = nextSuggestion.length.toInt()
@@ -13003,4 +13340,5 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             _physicalKeyboardEnable.emit(false)
         }
     }
+
 }
