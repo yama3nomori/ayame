@@ -23,6 +23,7 @@ sealed class Key {
     data object SideKeyEnter : Key()
     data object SideKeyCursorLeft : Key()
     data object SideKeyCursorRight : Key()
+    data object SideKeyReadAloud : Key()
 
     // Additional keys from TabletKey (not duplicated)
     data object KeyI : Key()

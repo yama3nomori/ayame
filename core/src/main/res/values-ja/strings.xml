@@ -156,7 +156,7 @@
     <string name="shift_key">シフト</string>
     <string name="space_key">スペース</string>
     <string name="key_right">右カーソル</string>
-    <string name="key_switch">キースイッチ</string>
+    <string name="key_switch">モード変更</string>
     <string name="question">\?</string>
     <string name="mark">!</string>
     <string name="ten">\'</string>

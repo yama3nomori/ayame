@@ -1613,6 +1613,7 @@ class TabletKeyboardView @JvmOverloads constructor(
             Key.KeyKutouten -> {}
             Key.SideKeyInputMode -> {}
             Key.SideKeyPreviousChar -> {}
+            Key.SideKeyReadAloud -> {}
         }
     }
 

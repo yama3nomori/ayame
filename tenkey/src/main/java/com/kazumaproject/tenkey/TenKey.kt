@@ -22,7 +22,10 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
 import androidx.core.view.setPadding
+import android.widget.ImageView
+import android.widget.TextView
 import androidx.core.widget.ImageViewCompat
+import androidx.core.widget.TextViewCompat
 import com.google.android.material.textview.MaterialTextView
 import com.kazumaproject.core.domain.extensions.hide
 import com.kazumaproject.core.domain.extensions.layoutXPosition
@@ -91,6 +94,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import android.view.accessibility.AccessibilityManager
+import android.view.accessibility.AccessibilityEvent
+import androidx.core.view.AccessibilityDelegateCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import kotlin.math.abs
 
 @SuppressLint("ClickableViewAccessibility")
@@ -150,6 +158,13 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
     private lateinit var popTextCenter: MaterialTextView
 
     private var isFlickGuideEnabled: Boolean = false
+
+    private val accessibilityManager: AccessibilityManager =
+        context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+
+    private var isCalledFromHoverEvent = false
+    // TalkBack hover tracking: which Key is currently under the user's finger
+    private var currentHoverKey: Key = Key.NotSelected
 
     private val cachedArrowRightDrawable: Drawable? by lazy {
         ContextCompat.getDrawable(
@@ -296,7 +311,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
             Key.KeyWA to binding.key11,
             Key.KeyKutouten to binding.key12,
             Key.KeyDakutenSmall to binding.keySmallLetter,
-            Key.SideKeyPreviousChar to binding.keyReturn,
+            Key.SideKeyReadAloud to binding.sideKeyReadAloud,
             Key.SideKeyCursorLeft to binding.keySoftLeft,
             Key.SideKeyCursorRight to binding.keyMoveCursorRight,
             Key.SideKeySymbol to binding.sideKeySymbol,
@@ -306,8 +321,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
             Key.SideKeyEnter to binding.keyEnter
         )
 
-        // Make all key views non-focusable so touches go directly to onTouch
-        setViewsNotFocusable()
+        // TalkBack support: setup focus and click listeners
+        setupAccessibility()
 
         // Initially display Japanese text on main keys
         setJapaneseTextFor(binding.key12)
@@ -617,7 +632,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
             // サイドキー
             listOf(
-                keyReturn, keySoftLeft, sideKeySymbol,
+                sideKeyReadAloud, keySoftLeft, sideKeySymbol,
                 keyDelete, keyMoveCursorRight, keySpace,
 
                 ).forEach { btn ->
@@ -673,7 +688,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
             val keys = listOf(
                 key1, key2, key3, key4, key5, key6,
                 key7, key8, key9, keySmallLetter, key11, key12,
-                keyReturn, keySoftLeft, sideKeySymbol,
+                sideKeyReadAloud, keySoftLeft, sideKeySymbol,
                 keyDelete, keyMoveCursorRight, keySpace, keyEnter, keySwitchKeyMode
             )
 
@@ -875,7 +890,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
             )
 
             val specialKeys = listOf(
-                keyReturn, keySoftLeft, sideKeySymbol,
+                sideKeyReadAloud, keySoftLeft, sideKeySymbol,
                 keyDelete, keyMoveCursorRight, keySpace, keyEnter,
                 keySwitchKeyMode
             )
@@ -919,7 +934,12 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                 } else {
                     view.background = specialDrawableState?.newDrawable()?.mutate()
                 }
-                ImageViewCompat.setImageTintList(view, specialColorStateList)
+                if (view is ImageView) {
+                    ImageViewCompat.setImageTintList(view, specialColorStateList)
+                } else if (view is TextView) {
+                    view.setTextColor(specialColorStateList)
+                    TextViewCompat.setCompoundDrawableTintList(view, specialColorStateList)
+                }
                 view.setDrawableAlpha(liquidGlassKeyAlphaEnable)
             }
         }
@@ -1045,7 +1065,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
             )
 
             val specialKeys = listOf(
-                keyReturn, keySoftLeft, sideKeySymbol,
+                sideKeyReadAloud, keySoftLeft, sideKeySymbol,
                 keyDelete, keyMoveCursorRight, keySpace, keyEnter,
                 keySwitchKeyMode
             )
@@ -1167,12 +1187,93 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
     /** Intercept all touch events so we can handle them manually in onTouch **/
     override fun onInterceptTouchEvent(event: MotionEvent?): Boolean {
+        if (accessibilityManager.isTouchExplorationEnabled) {
+            return true
+        }
         return true
+    }
+
+    override fun onInterceptHoverEvent(event: MotionEvent): Boolean {
+        if (accessibilityManager.isTouchExplorationEnabled) {
+            return true
+        }
+        return super.onInterceptHoverEvent(event)
+    }
+
+    override fun onHoverEvent(event: MotionEvent): Boolean {
+        if (!accessibilityManager.isTouchExplorationEnabled || event.pointerCount != 1) {
+            return super.onHoverEvent(event)
+        }
+
+        // Hover event x/y are view-relative; convert to screen-absolute for key detection
+        val location = IntArray(2)
+        this.getLocationOnScreen(location)
+        val screenX = event.x + location[0]
+        val screenY = event.y + location[1]
+        val key = pressedKeyByScreenCoordinates(screenX, screenY)
+
+        when (event.action) {
+            MotionEvent.ACTION_HOVER_ENTER, MotionEvent.ACTION_HOVER_MOVE -> {
+                if (key != currentHoverKey) {
+                    currentHoverKey = key
+                    // Announce the newly-entered key to TalkBack
+                    val targetView = getButtonFromKey(key)
+                    if (targetView is View) {
+                        targetView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+                    }
+                }
+            }
+            MotionEvent.ACTION_HOVER_EXIT -> {
+                // "Confirm on lift": fire the key input when the finger leaves
+                if (currentHoverKey != Key.NotSelected) {
+                    performKeyInput(currentHoverKey)
+                }
+                currentHoverKey = Key.NotSelected
+            }
+        }
+        return true
+    }
+
+    /** Find which Key is at the given screen-absolute coordinates **/
+    private fun pressedKeyByScreenCoordinates(x: Float, y: Float): Key {
+        val keyRects = listOf(
+            KeyRect(Key.SideKeyReadAloud, binding.sideKeyReadAloud.layoutXPosition(), binding.sideKeyReadAloud.layoutYPosition(), binding.sideKeyReadAloud.layoutXPosition() + binding.sideKeyReadAloud.width, binding.sideKeyReadAloud.layoutYPosition() + binding.sideKeyReadAloud.height),
+            KeyRect(Key.KeyA, binding.key1.layoutXPosition(), binding.key1.layoutYPosition(), binding.key1.layoutXPosition() + binding.key1.width, binding.key1.layoutYPosition() + binding.key1.height),
+            KeyRect(Key.KeyKA, binding.key2.layoutXPosition(), binding.key2.layoutYPosition(), binding.key2.layoutXPosition() + binding.key2.width, binding.key2.layoutYPosition() + binding.key2.height),
+            KeyRect(Key.KeySA, binding.key3.layoutXPosition(), binding.key3.layoutYPosition(), binding.key3.layoutXPosition() + binding.key3.width, binding.key3.layoutYPosition() + binding.key3.height),
+            KeyRect(Key.SideKeyDelete, binding.keyDelete.layoutXPosition(), binding.keyDelete.layoutYPosition(), binding.keyDelete.layoutXPosition() + binding.keyDelete.width, binding.keyDelete.layoutYPosition() + binding.keyDelete.height),
+            KeyRect(Key.SideKeyCursorLeft, binding.keySoftLeft.layoutXPosition(), binding.keySoftLeft.layoutYPosition(), binding.keySoftLeft.layoutXPosition() + binding.keySoftLeft.width, binding.keySoftLeft.layoutYPosition() + binding.keySoftLeft.height),
+            KeyRect(Key.KeyTA, binding.key4.layoutXPosition(), binding.key4.layoutYPosition(), binding.key4.layoutXPosition() + binding.key4.width, binding.key4.layoutYPosition() + binding.key4.height),
+            KeyRect(Key.KeyNA, binding.key5.layoutXPosition(), binding.key5.layoutYPosition(), binding.key5.layoutXPosition() + binding.key5.width, binding.key5.layoutYPosition() + binding.key5.height),
+            KeyRect(Key.KeyHA, binding.key6.layoutXPosition(), binding.key6.layoutYPosition(), binding.key6.layoutXPosition() + binding.key6.width, binding.key6.layoutYPosition() + binding.key6.height),
+            KeyRect(Key.SideKeyCursorRight, binding.keyMoveCursorRight.layoutXPosition(), binding.keyMoveCursorRight.layoutYPosition(), binding.keyMoveCursorRight.layoutXPosition() + binding.keyMoveCursorRight.width, binding.keyMoveCursorRight.layoutYPosition() + binding.keyMoveCursorRight.height),
+            KeyRect(Key.SideKeySymbol, binding.sideKeySymbol.layoutXPosition(), binding.sideKeySymbol.layoutYPosition(), binding.sideKeySymbol.layoutXPosition() + binding.sideKeySymbol.width, binding.sideKeySymbol.layoutYPosition() + binding.sideKeySymbol.height),
+            KeyRect(Key.KeyMA, binding.key7.layoutXPosition(), binding.key7.layoutYPosition(), binding.key7.layoutXPosition() + binding.key7.width, binding.key7.layoutYPosition() + binding.key7.height),
+            KeyRect(Key.KeyYA, binding.key8.layoutXPosition(), binding.key8.layoutYPosition(), binding.key8.layoutXPosition() + binding.key8.width, binding.key8.layoutYPosition() + binding.key8.height),
+            KeyRect(Key.KeyRA, binding.key9.layoutXPosition(), binding.key9.layoutYPosition(), binding.key9.layoutXPosition() + binding.key9.width, binding.key9.layoutYPosition() + binding.key9.height),
+            KeyRect(Key.SideKeySpace, binding.keySpace.layoutXPosition(), binding.keySpace.layoutYPosition(), binding.keySpace.layoutXPosition() + binding.keySpace.width, binding.keySpace.layoutYPosition() + binding.keySpace.height),
+            KeyRect(Key.SideKeyInputMode, binding.keySwitchKeyMode.layoutXPosition(), binding.keySwitchKeyMode.layoutYPosition(), binding.keySwitchKeyMode.layoutXPosition() + binding.keySwitchKeyMode.width, binding.keySwitchKeyMode.layoutYPosition() + binding.keySwitchKeyMode.height),
+            KeyRect(Key.KeyDakutenSmall, binding.keySmallLetter.layoutXPosition(), binding.keySmallLetter.layoutYPosition(), binding.keySmallLetter.layoutXPosition() + binding.keySmallLetter.width, binding.keySmallLetter.layoutYPosition() + binding.keySmallLetter.height),
+            KeyRect(Key.KeyWA, binding.key11.layoutXPosition(), binding.key11.layoutYPosition(), binding.key11.layoutXPosition() + binding.key11.width, binding.key11.layoutYPosition() + binding.key11.height),
+            KeyRect(Key.KeyKutouten, binding.key12.layoutXPosition(), binding.key12.layoutYPosition(), binding.key12.layoutXPosition() + binding.key12.width, binding.key12.layoutYPosition() + binding.key12.height),
+            KeyRect(Key.SideKeyEnter, binding.keyEnter.layoutXPosition(), binding.keyEnter.layoutYPosition(), binding.keyEnter.layoutXPosition() + binding.keyEnter.width, binding.keyEnter.layoutYPosition() + binding.keyEnter.height)
+        )
+        keyRects.forEach { rect ->
+            if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) return rect.key
+        }
+        return keyRects.minByOrNull { rect ->
+            val cx = (rect.left + rect.right) / 2
+            val cy = (rect.top + rect.bottom) / 2
+            (x - cx) * (x - cx) + (y - cy) * (y - cy)
+        }?.key ?: Key.NotSelected
     }
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouch(view: View?, event: MotionEvent?): Boolean {
         if (view != null && event != null) {
+            if (accessibilityManager.isTouchExplorationEnabled && !isCalledFromHoverEvent) {
+                return true
+            }
             if (view.visibility != View.VISIBLE) {
                 return false
             }
@@ -1292,7 +1393,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     val button = getButtonFromKey(pressedKey.key)
                     button?.let {
                         if (it is AppCompatButton) {
-                            if (it == binding.sideKeySymbol) return false
+                            if (it == binding.sideKeySymbol || it == binding.sideKeyReadAloud) return false
+                            if (it.id == R.id.key_switch_key_mode) return false
                             // ← UPDATE: use state flow's value to set text after finger-up
                             when (currentInputMode.value) {
 
@@ -1442,7 +1544,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                     val button = getButtonFromKey(pressedKey.key)
                                     button?.let {
                                         if (it is AppCompatButton) {
-                                            if (it == binding.sideKeySymbol) return false
+                                            if (it == binding.sideKeySymbol || it == binding.sideKeyReadAloud) return false
                                             when (currentInputMode.value) {
                                                 InputMode.ModeJapanese -> setJapaneseTextFor(
                                                     it
@@ -1575,7 +1677,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             val button = getButtonFromKey(pressedKey.key)
                             button?.let {
                                 if (it is AppCompatButton) {
-                                    if (it == binding.sideKeySymbol) return false
+                                    if (it == binding.sideKeySymbol || it == binding.sideKeyReadAloud) return false
                                     it.isPressed = false
                                     when (currentInputMode.value) {
                                         InputMode.ModeJapanese -> setJapaneseTextFor(
@@ -1645,11 +1747,11 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
         val keyRects = listOf(
             KeyRect(
-                Key.SideKeyPreviousChar,
-                binding.keyReturn.layoutXPosition(),
-                binding.keyReturn.layoutYPosition(),
-                binding.keyReturn.layoutXPosition() + binding.keyReturn.width,
-                binding.keyReturn.layoutYPosition() + binding.keyReturn.height
+                Key.SideKeyReadAloud,
+                binding.sideKeyReadAloud.layoutXPosition(),
+                binding.sideKeyReadAloud.layoutYPosition(),
+                binding.sideKeyReadAloud.layoutXPosition() + binding.sideKeyReadAloud.width,
+                binding.sideKeyReadAloud.layoutYPosition() + binding.sideKeyReadAloud.height
             ), KeyRect(
                 Key.KeyA,
                 binding.key1.layoutXPosition(),
@@ -1889,7 +1991,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
         val button = getButtonFromKey(pressedKey.key)
         button?.let {
             if (it is AppCompatButton) {
-                if (it == binding.sideKeySymbol) return
+                if (it == binding.sideKeySymbol || it == binding.sideKeyReadAloud) return
 
                 when (currentInputMode.value) {
                     InputMode.ModeJapanese -> {
@@ -1961,7 +2063,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
         val button = getButtonFromKey(pressedKey.key)
         button?.let {
             if (it is AppCompatButton) {
-                if (it == binding.sideKeySymbol) return
+                if (it == binding.sideKeySymbol || it == binding.sideKeyReadAloud) return
                 it.isPressed = true
                 when (currentInputMode.value) {
                     InputMode.ModeJapanese -> {
@@ -2003,7 +2105,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
         val button = getButtonFromKey(pressedKey.key)
         button?.let {
             if (it is AppCompatButton) {
-                if (it == binding.sideKeySymbol) return
+                if (it == binding.sideKeySymbol || it == binding.sideKeyReadAloud) return
                 it.isPressed = true
                 if (!isLongPressed) it.text = ""
                 when (gestureType) {
@@ -2203,7 +2305,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
             val button = getButtonFromKey(pressedKey.key)
             button?.let {
                 if (it is AppCompatButton) {
-                    if (it == binding.sideKeySymbol) return
+                    if (it == binding.sideKeySymbol || it == binding.sideKeyReadAloud) return
                     when (currentInputMode.value) {
                         InputMode.ModeJapanese -> setJapaneseTextFor(
                             it
@@ -2268,12 +2370,12 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
     /** Enable/disable the “previous character” key **/
     fun setSideKeyPreviousState(state: Boolean) {
-        binding.keyReturn.isEnabled = state
+        binding.sideKeyReadAloud.isEnabled = state
     }
 
     /** Enable/disable the “previous character” key **/
     fun setSideKeyPreviousDrawable(drawable: Drawable?) {
-        binding.keyReturn.setImageDrawable(drawable)
+        binding.sideKeyReadAloud.setCompoundDrawablesWithIntrinsicBounds(null, drawable, null, null)
     }
 
     /** Cycle through input modes when the switch key is clicked **/
@@ -2314,8 +2416,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
             key11.text = ""
             key12.text = ""
             keySmallLetter.setImageDrawable(null)
-            keyReturn.setImageDrawable(null)
-            sideKeySymbol.setImageDrawable(null)
+            sideKeyReadAloud.setCompoundDrawablesWithIntrinsicBounds(null, null, null, null)
+            sideKeySymbol.setCompoundDrawablesWithIntrinsicBounds(null, null, null, null)
             keySpace.setImageDrawable(null)
             keyMoveCursorRight.setImageDrawable(null)
             keySoftLeft.setImageDrawable(null)
@@ -2399,8 +2501,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
             key12.visibility = View.INVISIBLE
             keySmallLetter.visibility = View.INVISIBLE
 
-            keyReturn.setImageDrawable(null)
-            sideKeySymbol.setImageDrawable(null)
+            sideKeyReadAloud.setCompoundDrawablesWithIntrinsicBounds(null, null, null, null)
+            sideKeySymbol.setCompoundDrawablesWithIntrinsicBounds(null, null, null, null)
             keySpace.setImageDrawable(
                 cachedUndoDrawable
             )
@@ -2611,16 +2713,22 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
     private fun resetFromSelectMode(binding: KeyboardLayoutBinding) {
         binding.apply {
-            keyReturn.apply {
+            sideKeyReadAloud.apply {
                 visibility = View.VISIBLE
-                setImageDrawable(
-                    cachedUndoDrawable
+                setCompoundDrawablesWithIntrinsicBounds(
+                    null,
+                    cachedUndoDrawable,
+                    null,
+                    null
                 )
             }
             sideKeySymbol.apply {
                 visibility = View.VISIBLE
-                setImageDrawable(
-                    cachedSymbolDrawable
+                setCompoundDrawablesWithIntrinsicBounds(
+                    null,
+                    cachedSymbolDrawable,
+                    null,
+                    null
                 )
             }
             keySpace.apply {
@@ -2638,51 +2746,80 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
     }
 
     /** Mark all key Views as non‐focusable so touches go directly to onTouch **/
-    private fun setViewsNotFocusable() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            binding.key1.focusable = View.NOT_FOCUSABLE
-            binding.key2.focusable = View.NOT_FOCUSABLE
-            binding.key3.focusable = View.NOT_FOCUSABLE
-            binding.key4.focusable = View.NOT_FOCUSABLE
-            binding.key5.focusable = View.NOT_FOCUSABLE
-            binding.key6.focusable = View.NOT_FOCUSABLE
-            binding.key7.focusable = View.NOT_FOCUSABLE
-            binding.key8.focusable = View.NOT_FOCUSABLE
-            binding.key9.focusable = View.NOT_FOCUSABLE
-            binding.key11.focusable = View.NOT_FOCUSABLE
-            binding.key12.focusable = View.NOT_FOCUSABLE
-            binding.keySmallLetter.focusable = View.NOT_FOCUSABLE
+    private fun setupAccessibility() {
+        listKeys.forEach { (key, view) ->
+            if (view is View) {
+                view.isClickable = true
+                view.isFocusable = true
+                view.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+                view.setOnClickListener {
+                    if (accessibilityManager.isTouchExplorationEnabled) {
+                        performKeyInput(key)
+                    }
+                }
+                ViewCompat.setAccessibilityDelegate(view, object : AccessibilityDelegateCompat() {
+                    override fun onInitializeAccessibilityNodeInfo(
+                        host: View,
+                        info: AccessibilityNodeInfoCompat
+                    ) {
+                        super.onInitializeAccessibilityNodeInfo(host, info)
+                        val description = host.contentDescription ?: (host as? TextView)?.text
 
-            binding.keyReturn.focusable = View.NOT_FOCUSABLE
-            binding.keySoftLeft.focusable = View.NOT_FOCUSABLE
-            binding.sideKeySymbol.focusable = View.NOT_FOCUSABLE
-            binding.keySwitchKeyMode.focusable = View.NOT_FOCUSABLE
-            binding.keyDelete.focusable = View.NOT_FOCUSABLE
-            binding.keyMoveCursorRight.focusable = View.NOT_FOCUSABLE
-            binding.keySpace.focusable = View.NOT_FOCUSABLE
-            binding.keyEnter.focusable = View.NOT_FOCUSABLE
-        } else {
-            binding.key1.isFocusable = false
-            binding.key2.isFocusable = false
-            binding.key3.isFocusable = false
-            binding.key4.isFocusable = false
-            binding.key5.isFocusable = false
-            binding.key6.isFocusable = false
-            binding.key7.isFocusable = false
-            binding.key8.isFocusable = false
-            binding.key9.isFocusable = false
-            binding.key11.isFocusable = false
-            binding.key12.isFocusable = false
-            binding.keySmallLetter.isFocusable = false
-
-            binding.keyReturn.isFocusable = false
-            binding.keySoftLeft.isFocusable = false
-            binding.sideKeySymbol.isFocusable = false
-            binding.keySwitchKeyMode.isFocusable = false
-            binding.keyDelete.isFocusable = false
-            binding.keyMoveCursorRight.isFocusable = false
-            binding.keySpace.isFocusable = false
-            binding.keyEnter.isFocusable = false
+                        if (!description.isNullOrEmpty()) {
+                            info.text = description
+                            info.contentDescription = description
+                        } else {
+                            // Fallback for Read Aloud if somehow cleared
+                            if (host == binding.sideKeyReadAloud) {
+                                val fallback = host.context.getString(com.kazumaproject.core.R.string.read_aloud)
+                                info.text = fallback
+                                info.contentDescription = fallback
+                            } else if (host == binding.sideKeySymbol) {
+                                val fallback = host.context.getString(com.kazumaproject.core.R.string.symbol)
+                                info.text = fallback
+                                info.contentDescription = fallback
+                            }
+                        }
+                        // クラス名を空にし、役割記述をゼロ幅スペースにすることで「ボタン」の読み込みを完全に阻止する
+                        info.className = ""
+                        info.roleDescription = "\u200B"
+                        // OS側で「ボタン」としての挙動を認識させない（QWERTYと同様）
+                        info.isClickable = false
+                    }
+                })
+            }
         }
+    }
+
+    private fun performKeyInput(key: Key) {
+        val keyInfo = currentInputMode.value
+            .next(keyMap = keyMap, key = key, isTablet = false)
+
+        if (keyInfo == KeyInfo.Null) {
+            flickListener?.onFlick(
+                gestureType = GestureType.Tap, key = key, char = null
+            )
+            if (key == Key.SideKeyInputMode) {
+                handleClickInputModeSwitch()
+            }
+        } else if (keyInfo is KeyInfo.KeyTapFlickInfo) {
+            flickListener?.onFlick(
+                gestureType = GestureType.Tap,
+                key = key,
+                char = keyInfo.tap
+            )
+        }
+        // Reset hover state after input
+        currentHoverKey = Key.NotSelected
+        isCalledFromHoverEvent = false
+    }
+
+    private fun announceKey(key: Key) {
+        val targetView = getButtonFromKey(key) as? View ?: return
+        targetView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+    }
+
+    private fun setViewsNotFocusable() {
+        // No-op or removed in favor of setupAccessibility
     }
 }

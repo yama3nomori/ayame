@@ -300,6 +300,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
 
         // 全てのキーラベルを更新
         qwertyButtonMap.forEach { (view, key) ->
+            if (key == QWERTYKey.QWERTYKeyReadAloud) return@forEach
             if (view is TextView) {
                 val info = when (mode) {
                     is QWERTYMode.Default -> if (romajiMode) qwertyKeyMap.getKeyInfoDefaultJP(key) else qwertyKeyMap.getKeyInfoDefault(key)

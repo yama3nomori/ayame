@@ -156,7 +156,7 @@
     <string name="shift_key">Shift</string>
     <string name="space_key">space_key</string>
     <string name="key_right">key_right</string>
-    <string name="key_switch">key_switch</string>
+    <string name="key_switch">モード変更</string>
     <string name="question">\?</string>
     <string name="mark">!</string>
     <string name="ten">\'</string>
@@ -181,6 +181,8 @@
     <string name="keyboard_japanese">日本語キーボードに切り替え</string>
     <string name="keyboard_english">英語キーボードに切り替え</string>
     <string name="keyboard_kigou">記号キーボードに切り替え</string>
+    <string name="read_aloud">読み上げ</string>
+    <string name="symbol">記号</string>
     <string name="string_quotation">「」</string>
     <string name="caps_lock_icon">&#x21EA;</string>
     <string name="shift_symbol">&#x21E7;</string>

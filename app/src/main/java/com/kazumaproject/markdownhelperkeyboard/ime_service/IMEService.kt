@@ -20,6 +20,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.CombinedVibration
 import android.os.Handler
+import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -40,6 +41,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
+import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityManager
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.inputmethod.CompletionInfo
 import android.view.inputmethod.CorrectionInfo
@@ -227,6 +230,8 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import java.util.regex.Pattern
 import javax.inject.Inject
@@ -713,6 +718,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private var suppressSuggestions: Boolean = false
 
     private var countToggleKatakana = 0
+    private val volumeKeyLongPressCounter = AtomicInteger(0)
+    private val isVolumeKeyLongPressTriggered = AtomicBoolean(false)
+    private val lastVolumeAdjustTime = AtomicLong(0L)
+    private val lastVolumeKeyDownTime = AtomicLong(0L)
+    private val volumeLongPressHandler = Handler(Looper.getMainLooper())
+    private var volumeLongPressRunnable: Runnable? = null
 
     private var hardKeyboardShiftPressd = false
 
@@ -775,6 +786,35 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         if (!isDTalkerTTS) {
             val detailedReading = tamachiRepository.getDetailedReading(text) ?: text
             val announcement = "$detailedReading ${index + 1}の$total"
+            mainLayoutBinding?.root?.announceForAccessibility(announcement)
+            floatingKeyboardBinding?.root?.announceForAccessibility(announcement)
+        }
+    }
+
+    private fun readAloudCurrentText() {
+        val ic = currentInputConnection ?: return
+        val composing = _inputString.value
+        if (composing.isNotEmpty()) {
+            interruptTalkBack()
+            mainLayoutBinding?.root?.announceForAccessibility(composing)
+            floatingKeyboardBinding?.root?.announceForAccessibility(composing)
+        } else {
+            // Get text around cursor
+            val textBefore = ic.getTextBeforeCursor(10000, 0) ?: ""
+            val textAfter = ic.getTextAfterCursor(1000, 0) ?: ""
+
+            // Calculate line number (best effort up to 10000 chars)
+            val lineNumber = textBefore.count { it == '\n' } + 1
+
+            // Extract current line
+            val lineStart = textBefore.lastIndexOf('\n').let { if (it == -1) 0 else it + 1 }
+            val lineEnd = textAfter.indexOf('\n').let { if (it == -1) textAfter.length else it }
+            val lineText = (textBefore.substring(lineStart) + textAfter.substring(0, lineEnd)).trim()
+
+            val content = if (lineText.isEmpty()) "空行" else lineText
+            val announcement = "${lineNumber}行目、${content}"
+
+            interruptTalkBack()
             mainLayoutBinding?.root?.announceForAccessibility(announcement)
             floatingKeyboardBinding?.root?.announceForAccessibility(announcement)
         }
@@ -2403,29 +2443,120 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
     }
 
+    private fun interruptTalkBack() {
+        try {
+            val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager
+            if (am != null && am.isEnabled) {
+                am.interrupt()
+                // 送信中のアナウンスを打ち消すための空のアナウンスイベントを送信
+                val event = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT)
+                event.text.add("\u200B") // ゼロ幅スペース（音声なし）
+                event.packageName = packageName
+                // View 経由でイベントを送信して TalkBack のキューを更新させる
+                mainLayoutBinding?.root?.sendAccessibilityEvent(AccessibilityEvent.TYPE_ANNOUNCEMENT)
+                // 操作ヒントなどを遮断するためのダミーイベント
+                mainLayoutBinding?.root?.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_CLICKED)
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to interrupt TalkBack")
+        }
+    }
+
     private fun moveCursorLeft() {
+        interruptTalkBack()
         sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_LEFT)
     }
 
     private fun moveCursorRight() {
+        interruptTalkBack()
         sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_RIGHT)
+    }
+
+    private fun moveCursorToStartOfLine() {
+        interruptTalkBack()
+        val ic = currentInputConnection ?: return
+        Timber.d("moveCursorToStartOfLine: start")
+        Toast.makeText(this, "行頭", Toast.LENGTH_SHORT).show()
+        val before = ic.getTextBeforeCursor(2048, 0)
+        if (before != null) {
+            val lastNewLine = before.lastIndexOf('\n')
+            val jumpDist = if (lastNewLine == -1) before.length else before.length - lastNewLine - 1
+            if (jumpDist > 0) {
+                val req = ExtractedTextRequest()
+                val et = ic.getExtractedText(req, 0)
+                if (et != null) {
+                    val newPos = (et.selectionStart - jumpDist).coerceAtLeast(0)
+                    ic.setSelection(newPos, newPos)
+                    Timber.d("moveCursorToStartOfLine: jump to $newPos (dist $jumpDist)")
+                    return
+                }
+            }
+        }
+        // Fallback to key event if context reading fails
+        Timber.d("moveCursorToStartOfLine: fallback to KEYCODE_MOVE_HOME")
+        ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MOVE_HOME))
+        ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MOVE_HOME))
+    }
+
+    private fun moveCursorToEndOfLine() {
+        interruptTalkBack()
+        val ic = currentInputConnection ?: return
+        Timber.d("moveCursorToEndOfLine: start")
+        Toast.makeText(this, "行末", Toast.LENGTH_SHORT).show()
+        val after = ic.getTextAfterCursor(2048, 0)
+        if (after != null) {
+            val nextNewLine = after.indexOf('\n')
+            val jumpDist = if (nextNewLine == -1) after.length else nextNewLine
+            if (jumpDist > 0) {
+                val req = ExtractedTextRequest()
+                val et = ic.getExtractedText(req, 0)
+                if (et != null) {
+                    val newPos = et.selectionStart + jumpDist
+                    ic.setSelection(newPos, newPos)
+                    Timber.d("moveCursorToEndOfLine: jump to $newPos (dist $jumpDist)")
+                    return
+                }
+            }
+        }
+        // Fallback to key event
+        Timber.d("moveCursorToEndOfLine: fallback to KEYCODE_MOVE_END")
+        ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MOVE_END))
+        ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MOVE_END))
     }
 
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
-            if (volumeKeyCursorMovePreference == true) {
-                Timber.d("onKeyDown: Volume key detected: $keyCode")
-                // ボリュームキー押下時にセッションを再度アクティブ化して優先権を確保
-                if (mediaSession?.isActive == false) {
-                    mediaSession?.isActive = true
-                }
+            if (volumeKeyCursorMovePreference == true && isInputViewShown()) {
+                Timber.d("onKeyDown: Volume key detected: $keyCode repeatCount=${event?.repeatCount}")
 
                 if (event?.action == KeyEvent.ACTION_DOWN) {
-                    if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
-                        moveCursorRight()
-                    } else if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
-                        moveCursorLeft()
+                    if (event.repeatCount == 0) {
+                        // すでにタイマーが動いている（リピートイベントが ACTION_DOWN(0) として届いている）場合は無視
+                        if (volumeLongPressRunnable != null) return true
+
+                        Timber.d("onKeyDown: Volume key first press")
+                        isVolumeKeyLongPressTriggered.set(false)
+
+                        // Setup long press timer
+                        val runnable = Runnable {
+                            Timber.d("onKeyDown: Timer triggered - jumping")
+                            if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+                                moveCursorToEndOfLine()
+                            } else if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+                                moveCursorToStartOfLine()
+                            }
+                            isVolumeKeyLongPressTriggered.set(true)
+                        }
+                        volumeLongPressRunnable = runnable
+                        volumeLongPressHandler.postDelayed(runnable, 200)
+
+                        // Move 1 char immediately
+                        if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+                            moveCursorRight()
+                        } else if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+                            moveCursorLeft()
+                        }
                     }
                 }
                 return true // 常にtrueを返してシステムへの伝播を阻止
@@ -2980,7 +3111,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
         if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
             if (volumeKeyCursorMovePreference == true) {
-                Timber.d("onKeyUp: Volume key detected: $keyCode")
+                Timber.d("onKeyUp: Volume key released")
+                volumeLongPressRunnable?.let { volumeLongPressHandler.removeCallbacks(it) }
+                volumeLongPressRunnable = null
                 return true // ボリュームキー離上時も消費して、スライダー表示を確実に防ぐ
             }
         }
@@ -3528,15 +3661,20 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 setTenkeyIconsInHenkan(insertString, mainView)
             }
 
+            Key.SideKeyReadAloud -> {
+                readAloudCurrentText()
+            }
+
             Key.SideKeyPreviousChar -> {
-                mainView.keyboardView.let {
-                    when (it.currentInputMode.value) {
-                        is InputMode.ModeNumber -> {
-
-                        }
-
-                        else -> {
-                            if (!isFlick) setNextReturnInputCharacter(insertString)
+                if (isTablet == true) {
+                    if (!isFlick) setNextReturnInputCharacter(insertString)
+                } else {
+                    mainLayoutBinding?.keyboardView?.let {
+                        when (it.currentInputMode.value) {
+                            is InputMode.ModeNumber -> {}
+                            else -> {
+                                if (!isFlick) setNextReturnInputCharacter(insertString)
+                            }
                         }
                     }
                 }
@@ -3722,15 +3860,20 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 setTenkeyIconsInHenkanFloating(insertString, floatingKeyboardLayoutBinding)
             }
 
+            Key.SideKeyReadAloud -> {
+                readAloudCurrentText()
+            }
+
             Key.SideKeyPreviousChar -> {
-                floatingKeyboardLayoutBinding.keyboardViewFloating.let {
-                    when (it.currentInputMode.value) {
-                        is InputMode.ModeNumber -> {
-
-                        }
-
-                        else -> {
-                            if (!isFlick) setNextReturnInputCharacter(insertString)
+                if (isTablet == true) {
+                    if (!isFlick) setNextReturnInputCharacter(insertString)
+                } else {
+                    floatingKeyboardLayoutBinding.keyboardViewFloating.let {
+                        when (it.currentInputMode.value) {
+                            is InputMode.ModeNumber -> {}
+                            else -> {
+                                if (!isFlick) setNextReturnInputCharacter(insertString)
+                            }
                         }
                     }
                 }
@@ -3975,7 +4118,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             }
 
             Key.SideKeyInputMode -> {}
-            Key.SideKeyPreviousChar -> {}
+            Key.SideKeyReadAloud -> {}
             Key.SideKeySpace -> {
                 handleSpaceLongAction()
             }
@@ -4024,7 +4167,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             }
 
             Key.SideKeyInputMode -> {}
-            Key.SideKeyPreviousChar -> {}
+            Key.SideKeyReadAloud -> {}
             Key.SideKeySpace -> {
                 handleSpaceLongActionFloating()
             }
@@ -9170,6 +9313,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                             isSpaceKeyLongPressed = false
                         }
 
+                        QWERTYKey.QWERTYKeyReadAloud -> {
+                            readAloudCurrentText()
+                        }
+
                         QWERTYKey.QWERTYKeyReturn -> {
                             if (insertString.isNotEmpty()) {
                                 handleNonEmptyInputEnterKey(suggestionList, mainView, insertString)
@@ -10003,15 +10150,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     VolumeProviderCompat.VOLUME_CONTROL_RELATIVE, 100, 50
                 ) {
                     override fun onAdjustVolume(direction: Int) {
-                        Timber.d("onAdjustVolume: direction=$direction")
+                        if (!isInputViewShown()) return
+                        // MediaSessionを通じて音量ボタンをジャックし、システムUIを抑制する
+                        // カーソル移動自体はより確実な onKeyDown/onKeyUp (Handler) 方式に任せるため、
+                        // ここではHUD消去のシグナル送信のみを行う
                         if (volumeKeyCursorMovePreference == true) {
-                            if (direction > 0) {
-                                moveCursorRight()
-                            } else if (direction < 0) {
-                                moveCursorLeft()
-                            }
-
-                            // 無音再生中に音量を「変更なし」で調整通知し、HUDを消去する
                             try {
                                 audioManager.adjustStreamVolume(
                                     AudioManager.STREAM_MUSIC,
