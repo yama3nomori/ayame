@@ -2448,19 +2448,45 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager
             if (am != null && am.isEnabled) {
                 am.interrupt()
-                // 送信中のアナウンスを打ち消すための空のアナウンスイベントを送信
-                val event = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT)
-                event.text.add("\u200B") // ゼロ幅スペース（音声なし）
-                event.packageName = packageName
-                // View 経由でイベントを送信して TalkBack のキューを更新させる
-                mainLayoutBinding?.root?.sendAccessibilityEvent(AccessibilityEvent.TYPE_ANNOUNCEMENT)
-                // 操作ヒントなどを遮断するためのダミーイベント
-                mainLayoutBinding?.root?.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_CLICKED)
             }
         } catch (e: Exception) {
             Timber.e(e, "Failed to interrupt TalkBack")
         }
     }
+
+    private fun announceChar(char: Char?) {
+        if (char == null) return
+        val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager ?: return
+        if (am.isEnabled) {
+            val announcement = char.toString()
+            val targetView = if (isKeyboardFloatingMode == true) {
+                floatingKeyboardBinding?.root
+            } else {
+                mainLayoutBinding?.root
+            }
+            targetView?.let { view ->
+                // 強力に割り込みをかける
+                am.interrupt()
+
+                // TYPE_ANNOUNCEMENTを直接送信
+                val event = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT)
+                event.text.add(announcement)
+                event.packageName = packageName
+                event.className = javaClass.name
+                event.isEnabled = true
+                
+                // ディレイを10msに微増させ、システムの自動読み上げが完全に開始された瞬間を叩く
+                view.postDelayed({
+                    try {
+                        view.sendAccessibilityEventUnchecked(event)
+                    } catch (e: Exception) {
+                        Timber.e(e, "Failed to send accessibility announcement")
+                    }
+                }, 10)
+            }
+        }
+    }
+
 
     private fun moveCursorLeft() {
         interruptTalkBack()
@@ -3977,19 +4003,23 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     sendCharFlick(
                         charToSend = it, insertString = "", sb = sb
                     )
+                    announceChar(it)
                 }
                 isContinuousTapInputEnabled.set(true)
+
                 lastFlickConvertedNextHiragana.set(true)
             }
         } else {
-            char?.let {
-                sendCharFlick(
-                    charToSend = it, insertString = insertString, sb = sb
-                )
-            }
+                char?.let {
+                    sendCharFlick(
+                        charToSend = it, insertString = insertString, sb = sb
+                    )
+                    announceChar(it)
+                }
             isContinuousTapInputEnabled.set(true)
             lastFlickConvertedNextHiragana.set(true)
         }
+
     }
 
     private fun handleFlickFloating(
@@ -4009,8 +4039,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     sendCharFlick(
                         charToSend = it, insertString = "", sb = sb
                     )
+                    announceChar(it)
                 }
                 isContinuousTapInputEnabled.set(true)
+
                 lastFlickConvertedNextHiragana.set(true)
             }
         } else {
@@ -4018,10 +4050,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 sendCharFlick(
                     charToSend = it, insertString = insertString, sb = sb
                 )
+                announceChar(it)
             }
             isContinuousTapInputEnabled.set(true)
             lastFlickConvertedNextHiragana.set(true)
         }
+
     }
 
     private fun handleTap(
@@ -4038,13 +4072,16 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     sendCharTap(
                         charToSend = it, insertString = "", sb = sb
                     )
+                    announceChar(it)
                 }
+
             }
         } else {
             char?.let {
                 sendCharTap(
                     charToSend = it, insertString = insertString, sb = sb
                 )
+                announceChar(it)
             }
         }
     }
@@ -4066,13 +4103,16 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     sendCharTap(
                         charToSend = it, insertString = "", sb = sb
                     )
+                    announceChar(it)
                 }
+
             }
         } else {
             char?.let {
                 sendCharTap(
                     charToSend = it, insertString = insertString, sb = sb
                 )
+                announceChar(it)
             }
         }
     }
@@ -6227,7 +6267,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 _inputString.update {
                     sb.toString()
                 }
+
             }
+
         }
 
     }
@@ -8205,6 +8247,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private suspend fun handleDefaultInput(string: String) {
         val spannable = createSpannableWithTail(string)
         if (!(isLiveConversionEnable == true && isFlickOnlyMode == true)) {
+            beginBatchEdit()
             setComposingTextPreEdit(
                 inputString = string,
                 spannableString = spannable,
@@ -8216,6 +8259,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 },
                 textColor = if (customComposingTextPreference == true) inputCompositionTextColor else null
             )
+            endBatchEdit()
         }
         _suggestionFlag.emit(CandidateShowFlag.Updating)
         val timeToDelay = delayTime?.toLong() ?: DEFAULT_DELAY_MS
@@ -8232,6 +8276,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             if (shouldCommitOriginalText) {
                 isContinuousTapInputEnabled.set(true)
                 lastFlickConvertedNextHiragana.set(true)
+                beginBatchEdit()
                 setComposingTextAfterEdit(
                     inputString = string,
                     spannableString = spannable,
@@ -8247,6 +8292,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                         null
                     }
                 )
+                endBatchEdit()
             }
         }
     }
@@ -12418,7 +12464,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         isContinuousTapInputEnabled.set(true)
         suggestionClickNum = 0
         if (stringInTail.get().isNotEmpty()) {
-            _inputString.update { insertString + stringInTail.get().first() }
+            val nextChar = stringInTail.get().first()
+            _inputString.update { insertString + nextChar }
+            announceChar(nextChar)
             stringInTail.set(stringInTail.get().drop(1))
         }
     }
@@ -12430,10 +12478,13 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         isContinuousTapInputEnabled.set(true)
         suggestionClickNum = 0
         if (stringInTail.get().isNotEmpty()) {
-            _inputString.update { insertString + stringInTail.get()[0] }
+            val nextChar = stringInTail.get()[0]
+            _inputString.update { insertString + nextChar }
+            announceChar(nextChar)
             stringInTail.set(stringInTail.get().substring(1))
         }
     }
+
 
     private fun appendCharToStringBuilder(
         char: Char, insertString: String, stringBuilder: StringBuilder
@@ -12598,12 +12649,15 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             _inputString.update {
                 sb.toString()
             }
+            announceChar(inputChar)
         } else {
             sb.append(insertString).deleteAt(insertString.length - 1).append(inputChar)
             _inputString.update {
                 sb.toString()
             }
+            announceChar(inputChar)
         }
+
     }
 
     private fun dakutenSmallLetter(
@@ -13168,6 +13222,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     appendCharToStringBuilder(
                         charForReturn, insertString, sb
                     )
+                    announceChar(charForReturn)
                 }
             }
         }

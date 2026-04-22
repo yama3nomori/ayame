@@ -281,4 +281,7 @@
     <string name="import_romaji_maps">Import</string>
     <string name="title_settings">Settings</string>
     <string name="enable_romaji_input">Enable Romaji Input</string>
+    <string name="tenkey_hiragana">テンキーひらがな</string>
+    <string name="tenkey_alphabet">英数モード</string>
+    <string name="tenkey_number">数字モード</string>
 </resources>

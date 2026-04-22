@@ -166,6 +166,11 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
     // TalkBack hover tracking: which Key is currently under the user's finger
     private var currentHoverKey: Key = Key.NotSelected
 
+    // Cache for key coordinates to avoid expensive lookups during hover
+    private var cachedKeyRects: List<KeyRect>? = null
+    private var lastWidth: Int = 0
+    private var lastHeight: Int = 0
+
     private val cachedArrowRightDrawable: Drawable? by lazy {
         ContextCompat.getDrawable(
             context,
@@ -1216,9 +1221,23 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
             MotionEvent.ACTION_HOVER_ENTER, MotionEvent.ACTION_HOVER_MOVE -> {
                 if (key != currentHoverKey) {
                     currentHoverKey = key
-                    // Announce the newly-entered key to TalkBack
+                    // Announce the newly-entered key to TalkBack immediately
                     val targetView = getButtonFromKey(key)
                     if (targetView is View) {
+                        // 強制的にこれまでの読み上げを中断し、新しいキーをアナウンスする
+                        if (accessibilityManager.isTouchExplorationEnabled) {
+                            accessibilityManager.interrupt()
+                            val description = targetView.contentDescription ?: (targetView as? TextView)?.text
+                            if (!description.isNullOrEmpty()) {
+                                val announceEvent = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT)
+                                announceEvent.text.add(description)
+                                announceEvent.packageName = context.packageName
+                                announceEvent.isEnabled = true
+                                // 送信
+                                targetView.sendAccessibilityEventUnchecked(announceEvent)
+                            }
+                        }
+                        // TalkBackのフォーカス移動を維持
                         targetView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
                     }
                 }
@@ -1236,7 +1255,27 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
     /** Find which Key is at the given screen-absolute coordinates **/
     private fun pressedKeyByScreenCoordinates(x: Float, y: Float): Key {
-        val keyRects = listOf(
+        // キャッシュがない、またはサイズが変わった場合にのみリフレッシュする
+        if (cachedKeyRects == null || width != lastWidth || height != lastHeight) {
+            lastWidth = width
+            lastHeight = height
+            refreshKeyRects()
+        }
+
+        val keyRects = cachedKeyRects ?: return Key.NotSelected
+
+        keyRects.forEach { rect ->
+            if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) return rect.key
+        }
+        return keyRects.minByOrNull { rect ->
+            val cx = (rect.left + rect.right) / 2
+            val cy = (rect.top + rect.bottom) / 2
+            (x - cx) * (x - cx) + (y - cy) * (y - cy)
+        }?.key ?: Key.NotSelected
+    }
+
+    private fun refreshKeyRects() {
+        cachedKeyRects = listOf(
             KeyRect(Key.SideKeyReadAloud, binding.sideKeyReadAloud.layoutXPosition(), binding.sideKeyReadAloud.layoutYPosition(), binding.sideKeyReadAloud.layoutXPosition() + binding.sideKeyReadAloud.width, binding.sideKeyReadAloud.layoutYPosition() + binding.sideKeyReadAloud.height),
             KeyRect(Key.KeyA, binding.key1.layoutXPosition(), binding.key1.layoutYPosition(), binding.key1.layoutXPosition() + binding.key1.width, binding.key1.layoutYPosition() + binding.key1.height),
             KeyRect(Key.KeyKA, binding.key2.layoutXPosition(), binding.key2.layoutYPosition(), binding.key2.layoutXPosition() + binding.key2.width, binding.key2.layoutYPosition() + binding.key2.height),
@@ -1258,14 +1297,6 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
             KeyRect(Key.KeyKutouten, binding.key12.layoutXPosition(), binding.key12.layoutYPosition(), binding.key12.layoutXPosition() + binding.key12.width, binding.key12.layoutYPosition() + binding.key12.height),
             KeyRect(Key.SideKeyEnter, binding.keyEnter.layoutXPosition(), binding.keyEnter.layoutYPosition(), binding.keyEnter.layoutXPosition() + binding.keyEnter.width, binding.keyEnter.layoutYPosition() + binding.keyEnter.height)
         )
-        keyRects.forEach { rect ->
-            if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) return rect.key
-        }
-        return keyRects.minByOrNull { rect ->
-            val cx = (rect.left + rect.right) / 2
-            val cy = (rect.top + rect.bottom) / 2
-            (x - cx) * (x - cx) + (y - cy) * (y - cy)
-        }?.key ?: Key.NotSelected
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -2396,9 +2427,18 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
     /** Sync UI to a specified input mode (called from collector) **/
     private fun handleCurrentInputModeSwitch(inputMode: InputMode) {
         when (inputMode) {
-            InputMode.ModeJapanese -> setKeysInJapaneseText()
-            InputMode.ModeEnglish -> setKeysInEnglishText()
-            InputMode.ModeNumber -> setKeysInNumberText()
+            InputMode.ModeJapanese -> {
+                setKeysInJapaneseText()
+                announceForAccessibility(context.getString(com.kazumaproject.core.R.string.tenkey_hiragana))
+            }
+            InputMode.ModeEnglish -> {
+                setKeysInEnglishText()
+                announceForAccessibility(context.getString(com.kazumaproject.core.R.string.tenkey_alphabet))
+            }
+            InputMode.ModeNumber -> {
+                setKeysInNumberText()
+                announceForAccessibility(context.getString(com.kazumaproject.core.R.string.tenkey_number))
+            }
         }
     }
 

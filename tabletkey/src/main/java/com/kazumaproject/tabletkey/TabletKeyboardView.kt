@@ -11,19 +11,11 @@ import android.graphics.drawable.LayerDrawable
 import android.os.Build
 import android.util.AttributeSet
 import android.util.Log
-import android.view.GestureDetector
-import android.view.LayoutInflater
-import android.view.MotionEvent
-import android.view.View
-import android.view.ViewConfiguration
-import android.widget.PopupWindow
-import android.widget.TextView
-import androidx.appcompat.widget.AppCompatButton
-import androidx.constraintlayout.widget.ConstraintLayout
-import androidx.core.content.ContextCompat
-import androidx.core.graphics.ColorUtils
-import androidx.core.view.isVisible
-import androidx.core.widget.ImageViewCompat
+import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityManager
+import androidx.core.view.ViewCompat
+import androidx.core.view.AccessibilityDelegateCompat
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import com.google.android.material.color.DynamicColors
 import com.google.android.material.textview.MaterialTextView
 import com.kazumaproject.core.data.tablet.TabletCapsLockState
@@ -103,6 +95,17 @@ class TabletKeyboardView @JvmOverloads constructor(
 
     val currentInputMode = AtomicReference<InputMode>(InputMode.ModeJapanese)
     private lateinit var pressedKey: PressedKey
+
+    private val accessibilityManager: AccessibilityManager =
+        context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+    private var currentHoverKey: Key = Key.NotSelected
+    private var isCalledFromHoverEvent = false
+    
+    private var cachedJapaneseKeys: List<KeyRect>? = null
+    private var cachedEnglishKeys: List<KeyRect>? = null
+    private var cachedNumberKeys: List<KeyRect>? = null
+    private var lastViewWidth: Int = 0
+    private var lastViewHeight: Int = 0
 
     private var flickSensitivity: Int = 100
 
@@ -344,6 +347,20 @@ class TabletKeyboardView @JvmOverloads constructor(
                     }
                 }
             }
+        }
+        setupAccessibility()
+    }
+
+    private fun setupAccessibility() {
+        (allButtonKeys + allImageButtonKeys).forEach { view ->
+            ViewCompat.setAccessibilityDelegate(view, object : AccessibilityDelegateCompat() {
+                override fun onInitializeAccessibilityNodeInfo(host: View, info: AccessibilityNodeInfoCompat) {
+                    super.onInitializeAccessibilityNodeInfo(host, info)
+                    info.className = ""
+                    info.roleDescription = "\u200B"
+                    info.isClickable = false
+                }
+            })
         }
     }
 
@@ -1238,6 +1255,60 @@ class TabletKeyboardView @JvmOverloads constructor(
             }
         }
         return false
+    }
+
+    override fun onHoverEvent(event: MotionEvent): Boolean {
+        if (accessibilityManager.isTouchExplorationEnabled && event.pointerCount == 1) {
+            val action = when (event.action) {
+                MotionEvent.ACTION_HOVER_ENTER -> MotionEvent.ACTION_DOWN
+                MotionEvent.ACTION_HOVER_MOVE -> MotionEvent.ACTION_MOVE
+                MotionEvent.ACTION_HOVER_EXIT -> MotionEvent.ACTION_UP
+                else -> return super.onHoverEvent(event)
+            }
+
+            val touchEvent = MotionEvent.obtain(
+                event.downTime,
+                event.eventTime,
+                action,
+                event.x,
+                event.y,
+                event.metaState
+            )
+
+            isCalledFromHoverEvent = true
+            val result = onTouch(this, touchEvent)
+            
+            // Hover-specific snappy announcement
+            if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_MOVE) {
+                val key = pressedKey.key
+                if (key != currentHoverKey) {
+                    currentHoverKey = key
+                    announceHoveredKey(key)
+                }
+            }
+
+            isCalledFromHoverEvent = false
+            touchEvent.recycle()
+            return result
+        }
+        return super.onHoverEvent(event)
+    }
+
+    private fun announceHoveredKey(key: Key) {
+        if (key == Key.NotSelected) return
+        val view = getButtonFromKey(key)
+        val description = (view as? View)?.contentDescription ?: (view as? TextView)?.text
+        if (!description.isNullOrEmpty() && accessibilityManager.isEnabled) {
+            if (accessibilityManager.isTouchExplorationEnabled) {
+                accessibilityManager.interrupt()
+                val event = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT)
+                event.text.add(description)
+                event.packageName = context.packageName
+                event.isEnabled = true
+                (view as? View)?.sendAccessibilityEventUnchecked(event)
+            }
+            (view as? View)?.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+        }
     }
 
     override fun onDetachedFromWindow() {
@@ -2998,13 +3069,22 @@ class TabletKeyboardView @JvmOverloads constructor(
     )
 
     private fun pressedKeyByMotionEvent(event: MotionEvent, pointer: Int): Key {
+        if (cachedJapaneseKeys == null || width != lastViewWidth || height != lastViewHeight) {
+            lastViewWidth = width
+            lastViewHeight = height
+            cachedJapaneseKeys = buildKeyRects()
+            cachedEnglishKeys = buildKeyRectsEnglish()
+            cachedNumberKeys = buildKeyRectsNumber()
+        }
+
         val (x, y) = getRawCoordinates(event, pointer)
 
         val keyRects = when (currentInputMode.get()) {
-            InputMode.ModeEnglish -> buildKeyRectsEnglish()
-            InputMode.ModeJapanese -> buildKeyRects()
-            InputMode.ModeNumber -> buildKeyRectsNumber()
-        }
+            InputMode.ModeEnglish -> cachedEnglishKeys
+            InputMode.ModeJapanese -> cachedJapaneseKeys
+            InputMode.ModeNumber -> cachedNumberKeys
+            else -> cachedJapaneseKeys
+        } ?: return Key.NotSelected
 
         keyRects.forEach { rect ->
             if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {

@@ -147,6 +147,10 @@ class FlickKeyboardView @JvmOverloads constructor(
 
     private var lastHoverTarget: View? = null
 
+    private var cachedKeyRects: List<Pair<Rect, View>>? = null
+    private var lastViewWidth: Int = 0
+    private var lastViewHeight: Int = 0
+
     fun setOnKeyboardActionListener(listener: OnKeyboardActionListener) {
         this.listener = listener
     }
@@ -1485,8 +1489,18 @@ class FlickKeyboardView @JvmOverloads constructor(
         val keyInfo = findKeyInfoForView(view)
         keyInfo?.let { info ->
             val announcement = buildKeyAnnouncement(info.keyData)
-            if (announcement.isNotEmpty()) {
-                view.announceForAccessibility(announcement)
+            if (announcement.isNotEmpty() && accessibilityManager.isEnabled) {
+                if (accessibilityManager.isTouchExplorationEnabled) {
+                    // 強制的にこれまでの読み上げを中断し、新しいキーを即座にアナウンスする
+                    accessibilityManager.interrupt()
+                    val event = android.view.accessibility.AccessibilityEvent.obtain(android.view.accessibility.AccessibilityEvent.TYPE_ANNOUNCEMENT)
+                    event.text.add(announcement)
+                    event.packageName = context.packageName
+                    event.isEnabled = true
+                    view.sendAccessibilityEventUnchecked(event)
+                }
+                // TalkBackのフォーカス移動を維持
+                view.sendAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
             }
         }
     }

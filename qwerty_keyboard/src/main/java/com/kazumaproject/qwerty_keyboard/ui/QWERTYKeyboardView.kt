@@ -129,6 +129,10 @@ class QWERTYKeyboardView @JvmOverloads constructor(
     private var currentTargetView: View? = null
     private var pendingInputJob: Job? = null
 
+    private var cachedKeyRects: List<Pair<Rect, View>>? = null
+    private var lastWidth: Int = 0
+    private var lastHeight: Int = 0
+
     private val qwertyButtonMap: Map<View, QWERTYKey> by lazy {
         mutableMapOf<View, QWERTYKey>().apply {
             put(binding.key1, QWERTYKey.QWERTYKeySwitchMode)
@@ -589,24 +593,38 @@ class QWERTYKeyboardView @JvmOverloads constructor(
     }
 
     private fun announceKey(view: View) {
-        // ビューがテキストまたは説明文を持っていることを確認
         val announcement = (view as? TextView)?.text?.toString()
             ?: view.contentDescription?.toString()
             ?: return
         
         if (announcement.isNotEmpty()) {
-            // TalkBackに「このビューが探索された」ことを通知します。
-            // 役割（roleDescription）を空に設定しているため、TalkBackはキーの名前のみを読み上げます。
-            // ここで announceForAccessibility を重ねて呼ばないことで、二重読み上げを防ぎます。
+            if (accessibilityManager.isTouchExplorationEnabled) {
+                // 強制的にこれまでの読み上げを中断し、新しいキーを即座にアナウンスする
+                accessibilityManager.interrupt()
+                val event = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT)
+                event.text.add(announcement)
+                event.packageName = context.packageName
+                event.isEnabled = true
+                view.sendAccessibilityEventUnchecked(event)
+            }
+            // TalkBackのフォーカス移動を維持
             view.sendAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
         }
     }
 
     private fun findChildViewAt(x: Int, y: Int): View? {
-        val rect = Rect()
-        for (child in qwertyButtonMap.keys) {
-            child.getHitRect(rect)
-            if (rect.contains(x, y) && child.isVisible) {
+        if (cachedKeyRects == null || width != lastWidth || height != lastHeight) {
+            lastWidth = width
+            lastHeight = height
+            cachedKeyRects = qwertyButtonMap.keys.filter { it.isVisible }.map { child ->
+                val rect = Rect()
+                child.getHitRect(rect)
+                rect to child
+            }
+        }
+
+        cachedKeyRects?.forEach { (rect, child) ->
+            if (rect.contains(x, y)) {
                 return child
             }
         }
