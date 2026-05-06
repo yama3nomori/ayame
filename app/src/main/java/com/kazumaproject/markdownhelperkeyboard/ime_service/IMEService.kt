@@ -43,6 +43,7 @@ import android.view.Window
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityManager
+import android.view.accessibility.AccessibilityNodeInfo
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.inputmethod.CompletionInfo
 import android.view.inputmethod.CorrectionInfo
@@ -323,6 +324,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
     private var speechRecognizer: SpeechRecognizer? = null
     private var isListening = false
+    private var shouldFocusFirstCandidateAfterVoiceInput = false
+    private var lastMediaButtonTriggerTime = 0L
 
     /**
      * クリップボードの内容が変更されたときに呼び出されるリスナー。
@@ -845,6 +848,16 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 if (isKeyboardFloatingMode != true) {
                     mainLayoutBinding?.apply {
                         suggestionRecyclerView.scrollToPosition(0)
+                        if (shouldFocusFirstCandidateAfterVoiceInput) {
+                            shouldFocusFirstCandidateAfterVoiceInput = false
+                            suggestionRecyclerView.postDelayed({
+                                val firstChild = suggestionRecyclerView.findViewHolderForAdapterPosition(0)?.itemView
+                                firstChild?.performAccessibilityAction(
+                                    AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS,
+                                    null
+                                )
+                            }, 300)
+                        }
                     }
                 }
             }
@@ -896,15 +909,18 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                     override fun onError(error: Int) {
                         isListening = false
+                        updateMediaSessionState(false)
                         mainLayoutBinding?.suggestionProgressbar?.isVisible = false
                     }
 
                     override fun onResults(results: Bundle?) {
                         isListening = false
+                        updateMediaSessionState(false)
                         val matches =
                             results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                         val text = matches?.firstOrNull() ?: return
                         _inputString.update { text }
+                        shouldFocusFirstCandidateAfterVoiceInput = true
                         mainLayoutBinding?.suggestionProgressbar?.isVisible = false
                     }
 
@@ -1175,11 +1191,14 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         Timber.d("onStartInputView")
         hijackWindowCallback()
         startSilentAudio()
-        mediaSession?.isActive = volumeKeyCursorMovePreference == true
-        if (volumeKeyCursorMovePreference == true) {
+        val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager
+        val isTalkBackEnabled = am?.isEnabled == true && am.isTouchExplorationEnabled
+        mediaSession?.isActive = volumeKeyCursorMovePreference == true || isTalkBackEnabled
+        if (volumeKeyCursorMovePreference == true || isTalkBackEnabled) {
+            val stateVal = if (isListening) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED
             mediaSession?.setPlaybackState(
                 PlaybackStateCompat.Builder()
-                    .setState(PlaybackStateCompat.STATE_PLAYING, 0, 1.0f)
+                    .setState(stateVal, 0, 1.0f)
                     .setActions(PlaybackStateCompat.ACTION_PLAY or PlaybackStateCompat.ACTION_PAUSE or PlaybackStateCompat.ACTION_STOP)
                     .build()
             )
@@ -1615,7 +1634,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         super.onWindowShown()
         Timber.d("onWindowShown")
         // hijackWindowCallback() // Remove potentially conflicting hijacking
-        if (volumeKeyCursorMovePreference == true) {
+        val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager
+        val isTalkBackEnabled = am?.isEnabled == true && am.isTouchExplorationEnabled
+        if (volumeKeyCursorMovePreference == true || isTalkBackEnabled) {
             startSilentAudio()
             requestVolumeControlFocus()
             mediaSession?.isActive = true
@@ -2005,6 +2026,21 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
     }
 
+    private fun triggerVoiceInputFromMediaButton() {
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - lastMediaButtonTriggerTime < 500) {
+            return
+        }
+        lastMediaButtonTriggerTime = currentTime
+        mainLayoutBinding?.let { binding ->
+            if (isListening) {
+                stopVoiceInput()
+            } else {
+                startVoiceInput(binding)
+            }
+        }
+    }
+
     private fun startVoiceInput(
         mainView: MainLayoutBinding
     ) {
@@ -2060,9 +2096,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         try {
             speechRecognizer?.startListening(intent)
             isListening = true
+            updateMediaSessionState(true)
         } catch (e: SecurityException) {
             // RECORD_AUDIO が許可されていないなど
             isListening = false
+            updateMediaSessionState(false)
         }
     }
 
@@ -2073,7 +2111,17 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         } catch (_: Exception) {
         } finally {
             isListening = false
+            updateMediaSessionState(false)
         }
+    }
+
+    private fun updateMediaSessionState(isPlaying: Boolean) {
+        val stateVal = if (isPlaying) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED
+        val state = PlaybackStateCompat.Builder()
+            .setState(stateVal, 0, 1.0f)
+            .setActions(PlaybackStateCompat.ACTION_PLAY or PlaybackStateCompat.ACTION_PAUSE)
+            .build()
+        mediaSession?.setPlaybackState(state)
     }
 
     /**
@@ -10185,10 +10233,26 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 setMetadata(metadata)
 
                 setCallback(object : MediaSessionCompat.Callback() {
-                    // 追加のメディアボタン制御（必要な場合）
+                    override fun onPlay() {
+                        triggerVoiceInputFromMediaButton()
+                    }
+
+                    override fun onPause() {
+                        triggerVoiceInputFromMediaButton()
+                    }
+
                     override fun onMediaButtonEvent(mediaButtonEvent: Intent?): Boolean {
-                        Timber.d("onMediaButtonEvent: ${mediaButtonEvent?.action}")
-                        return true
+                        val event = mediaButtonEvent?.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
+                        if (event != null) {
+                            val keyCode = event.keyCode
+                            if (keyCode == KeyEvent.KEYCODE_HEADSETHOOK || keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
+                                if (event.action == KeyEvent.ACTION_DOWN) {
+                                    triggerVoiceInputFromMediaButton()
+                                }
+                                return true
+                            }
+                        }
+                        return super.onMediaButtonEvent(mediaButtonEvent)
                     }
                 }, Handler(mainLooper))
                 // VOLUME_CONTROL_RELATIVE に戻し、中間の値でOSのUI制御を安定化させる
