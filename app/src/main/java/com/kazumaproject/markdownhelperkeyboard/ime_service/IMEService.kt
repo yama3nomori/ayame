@@ -789,6 +789,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         if (!isDTalkerTTS) {
             val detailedReading = tamachiRepository.getDetailedReading(text) ?: text
             val announcement = "$detailedReading ${index + 1}の$total"
+            interruptTalkBack()
             mainLayoutBinding?.root?.announceForAccessibility(announcement)
             floatingKeyboardBinding?.root?.announceForAccessibility(announcement)
         }
@@ -827,6 +828,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         if (!isDTalkerTTS) {
             val detailedReading = tamachiRepository.getDetailedReading(item.word) ?: item.word
             val announcement = "$detailedReading ${index + 1}の$total"
+            interruptTalkBack()
             mainLayoutBinding?.root?.announceForAccessibility(announcement)
             floatingKeyboardBinding?.root?.announceForAccessibility(announcement)
         }

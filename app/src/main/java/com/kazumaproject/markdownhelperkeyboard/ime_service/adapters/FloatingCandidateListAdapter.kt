@@ -73,6 +73,8 @@ class FloatingCandidateListAdapter(
                 val baseReading = tamachiRepository?.getDetailedReading(item.word) ?: item.word
                 "$baseReading $positionText"
             }
+            itemView.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+            textView.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }
     }
 

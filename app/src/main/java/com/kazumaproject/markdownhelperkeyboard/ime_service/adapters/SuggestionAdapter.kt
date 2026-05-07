@@ -457,6 +457,9 @@ class SuggestionAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             val baseReading = tamachiRepository?.getDetailedReading(textToRead) ?: textToRead
             "$baseReading$positionText"
         }
+        holder.itemView.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+        holder.text.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        holder.typeText.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
 
         holder.text.textSize = candidateTextSize
 

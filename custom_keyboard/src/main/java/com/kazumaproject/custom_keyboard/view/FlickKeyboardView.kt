@@ -1491,13 +1491,8 @@ class FlickKeyboardView @JvmOverloads constructor(
             val announcement = buildKeyAnnouncement(info.keyData)
             if (announcement.isNotEmpty() && accessibilityManager.isEnabled) {
                 if (accessibilityManager.isTouchExplorationEnabled) {
-                    // 強制的にこれまでの読み上げを中断し、新しいキーを即座にアナウンスする
+                    // 強制的にこれまでの読み上げを中断する
                     accessibilityManager.interrupt()
-                    val event = android.view.accessibility.AccessibilityEvent.obtain(android.view.accessibility.AccessibilityEvent.TYPE_ANNOUNCEMENT)
-                    event.text.add(announcement)
-                    event.packageName = context.packageName
-                    event.isEnabled = true
-                    view.sendAccessibilityEventUnchecked(event)
                 }
                 // TalkBackのフォーカス移動を維持
                 view.sendAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)

@@ -13,6 +13,7 @@ import javax.inject.Singleton
 class TamachiRepository @Inject constructor() {
 
     private var tamachiMap: Map<String, String>? = null
+    private val readingCache = java.util.concurrent.ConcurrentHashMap<String, String>()
 
     suspend fun load(context: Context) {
         if (tamachiMap != null) return
@@ -48,6 +49,9 @@ class TamachiRepository @Inject constructor() {
      * If not found, returns the character type detailed description.
      */
     fun getDetailedReading(text: String): String? {
+        val cached = readingCache[text]
+        if (cached != null) return cached
+
         val map = tamachiMap ?: return null
         val sb = StringBuilder()
         var foundAny = false
@@ -79,6 +83,10 @@ class TamachiRepository @Inject constructor() {
                 }
             }
         }
-        return if (foundAny) sb.toString() else null
+        val result = if (foundAny) sb.toString() else null
+        if (result != null) {
+            readingCache[text] = result
+        }
+        return result
     }
 }

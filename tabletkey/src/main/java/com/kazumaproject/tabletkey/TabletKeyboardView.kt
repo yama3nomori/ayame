@@ -1315,11 +1315,6 @@ class TabletKeyboardView @JvmOverloads constructor(
         if (!description.isNullOrEmpty() && accessibilityManager.isEnabled) {
             if (accessibilityManager.isTouchExplorationEnabled) {
                 accessibilityManager.interrupt()
-                val event = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT)
-                event.text.add(description)
-                event.packageName = context.packageName
-                event.isEnabled = true
-                (view as? View)?.sendAccessibilityEventUnchecked(event)
             }
             (view as? View)?.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
         }

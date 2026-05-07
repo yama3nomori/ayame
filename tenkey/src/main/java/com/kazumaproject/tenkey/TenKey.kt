@@ -1224,18 +1224,9 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     // Announce the newly-entered key to TalkBack immediately
                     val targetView = getButtonFromKey(key)
                     if (targetView is View) {
-                        // 強制的にこれまでの読み上げを中断し、新しいキーをアナウンスする
+                        // 強制的にこれまでの読み上げを中断する
                         if (accessibilityManager.isTouchExplorationEnabled) {
                             accessibilityManager.interrupt()
-                            val description = targetView.contentDescription ?: (targetView as? TextView)?.text
-                            if (!description.isNullOrEmpty()) {
-                                val announceEvent = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT)
-                                announceEvent.text.add(description)
-                                announceEvent.packageName = context.packageName
-                                announceEvent.isEnabled = true
-                                // 送信
-                                targetView.sendAccessibilityEventUnchecked(announceEvent)
-                            }
                         }
                         // TalkBackのフォーカス移動を維持
                         targetView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
