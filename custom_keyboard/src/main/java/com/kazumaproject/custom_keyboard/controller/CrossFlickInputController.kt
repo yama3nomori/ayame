@@ -175,27 +175,29 @@ class CrossFlickInputController(private val context: Context) {
 
                 longPressJob?.cancel()
 
-                val flickActionToCommit = if (currentDirection != CrossDirection.TAP) {
-                    flickActionMap[directionMapping[currentDirection]]
-                } else {
-                    flickActionMap[FlickDirection.TAP]
-                }
-
-                val isFlick = currentDirection != CrossDirection.TAP
-
-                // Log.d("CrossFlick Up", "$flickActionToCommit $isLongPressTriggered $isFlick")
-
-                if (isLongPressTriggered) {
-                    if (flickActionToCommit == null) {
-                        listener?.onFlickUpAfterLongPress(
-                            FlickAction.Action(KeyAction.Cancel),
-                            isFlick
-                        )
+                if (event.action == MotionEvent.ACTION_UP) {
+                    val flickActionToCommit = if (currentDirection != CrossDirection.TAP) {
+                        flickActionMap[directionMapping[currentDirection]]
                     } else {
-                        flickActionToCommit.let { listener?.onFlickUpAfterLongPress(it, isFlick) }
+                        flickActionMap[FlickDirection.TAP]
                     }
-                } else {
-                    flickActionToCommit?.let { listener?.onFlick(it, isFlick) }
+
+                    val isFlick = currentDirection != CrossDirection.TAP
+
+                    // Log.d("CrossFlick Up", "$flickActionToCommit $isLongPressTriggered $isFlick")
+
+                    if (isLongPressTriggered) {
+                        if (flickActionToCommit == null) {
+                            listener?.onFlickUpAfterLongPress(
+                                FlickAction.Action(KeyAction.Cancel),
+                                isFlick
+                            )
+                        } else {
+                            flickActionToCommit.let { listener?.onFlickUpAfterLongPress(it, isFlick) }
+                        }
+                    } else {
+                        flickActionToCommit?.let { listener?.onFlick(it, isFlick) }
+                    }
                 }
 
                 dismissAllPopups()

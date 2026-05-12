@@ -114,12 +114,14 @@ class StandardFlickInputController(context: Context) {
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 segmentedDrawable?.highlightDirection = null
-                val dx = event.rawX - initialTouchX
-                val dy = event.rawY - initialTouchY
-                val finalDirection = calculateDirection(dx, dy)
-                characterMap[finalDirection]?.let {
-                    if (it.isNotEmpty()) {
-                        listener?.onFlick(it)
+                if (event.action == MotionEvent.ACTION_UP) {
+                    val dx = event.rawX - initialTouchX
+                    val dy = event.rawY - initialTouchY
+                    val finalDirection = calculateDirection(dx, dy)
+                    characterMap[finalDirection]?.let {
+                        if (it.isNotEmpty()) {
+                            listener?.onFlick(it)
+                        }
                     }
                 }
                 dismissPopup()

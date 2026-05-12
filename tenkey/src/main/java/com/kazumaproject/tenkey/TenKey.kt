@@ -1234,9 +1234,23 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                 }
             }
             MotionEvent.ACTION_HOVER_EXIT -> {
-                // "Confirm on lift": fire the key input when the finger leaves
-                if (currentHoverKey != Key.NotSelected) {
-                    performKeyInput(currentHoverKey)
+                // Prevent accidental input when sliding off the keyboard edge.
+                // Android usually triggers HOVER_EXIT at the boundaries [0, width]/[0, height].
+                // Since keys have internal margins, the extreme boundary is never over a valid key press area.
+                val buffer = 2f // Tolerance pixels for the view boundary
+                val viewWidth = width.toFloat()
+                val viewHeight = height.toFloat()
+                
+                val isSlideOff = event.x <= buffer || 
+                               event.x >= (viewWidth - buffer) || 
+                               event.y <= buffer || 
+                               event.y >= (viewHeight - buffer)
+
+                if (!isSlideOff) {
+                    // "Confirm on lift": only fire if we actually lifted inside the view area (not on the extreme edge)
+                    if (currentHoverKey != Key.NotSelected) {
+                        performKeyInput(currentHoverKey)
+                    }
                 }
                 currentHoverKey = Key.NotSelected
             }

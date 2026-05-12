@@ -159,7 +159,13 @@ class TfbiHierarchicalFlickController(
         when (event.action) {
             MotionEvent.ACTION_DOWN -> handleTouchDown(event, view)
             MotionEvent.ACTION_MOVE -> handleTouchMove(event, view)
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> handleTouchUp(event)
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                if (event.action == MotionEvent.ACTION_UP) {
+                    handleTouchUp(event)
+                } else {
+                    resetState()
+                }
+            }
         }
         return true
     }

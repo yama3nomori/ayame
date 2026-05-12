@@ -1114,12 +1114,14 @@ class FlickKeyboardView @JvmOverloads constructor(
                     keyView.setOnTouchListener { _, event ->
                         if (event.action == MotionEvent.ACTION_UP || event.action == MotionEvent.ACTION_CANCEL) {
                             if (isLongPressTriggered) {
-                                val currentAction =
-                                    dynamicKeyMap[keyData.keyId]?.keyData?.action ?: action
-                                this@FlickKeyboardView.listener?.onActionUpAfterLongPress(
-                                    currentAction
-                                ); isLongPressTriggered =
-                                    false
+                                if (event.action == MotionEvent.ACTION_UP) {
+                                    val currentAction =
+                                        dynamicKeyMap[keyData.keyId]?.keyData?.action ?: action
+                                    this@FlickKeyboardView.listener?.onActionUpAfterLongPress(
+                                        currentAction
+                                    )
+                                }
+                                isLongPressTriggered = false
                             }
                         }
                         false
@@ -1446,10 +1448,17 @@ class FlickKeyboardView @JvmOverloads constructor(
                         event.action = MotionEvent.ACTION_MOVE
                     }
                     MotionEvent.ACTION_HOVER_EXIT -> {
-                        Log.d("FlickKeyboardView", "Converting HOVER_EXIT to ACTION_UP")
-                        logToFile("Converting HOVER_EXIT to ACTION_UP")
-                        announceForAccessibility("ホバーイグジット、アクションアップに変換")
-                        event.action = MotionEvent.ACTION_UP
+                        val buffer = 2f
+                        val isSlideOff = event.x <= buffer || 
+                                       event.x >= (width.toFloat() - buffer) || 
+                                       event.y <= buffer || 
+                                       event.y >= (height.toFloat() - buffer)
+                        
+                        if (isSlideOff) {
+                            event.action = MotionEvent.ACTION_CANCEL
+                        } else {
+                            event.action = MotionEvent.ACTION_UP
+                        }
                     }
                 }
                 

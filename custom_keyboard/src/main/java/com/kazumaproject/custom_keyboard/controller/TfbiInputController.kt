@@ -117,7 +117,11 @@ class TfbiInputController(
             }
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                handleTouchUp(event)
+                if (event.action == MotionEvent.ACTION_UP) {
+                    handleTouchUp(event)
+                } else {
+                    resetState()
+                }
             }
         }
         return true

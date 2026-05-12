@@ -503,7 +503,14 @@ class QWERTYKeyboardView @JvmOverloads constructor(
             val action = when (event.action) {
                 MotionEvent.ACTION_HOVER_ENTER -> MotionEvent.ACTION_DOWN
                 MotionEvent.ACTION_HOVER_MOVE -> MotionEvent.ACTION_MOVE
-                MotionEvent.ACTION_HOVER_EXIT -> MotionEvent.ACTION_UP
+                MotionEvent.ACTION_HOVER_EXIT -> {
+                    val buffer = 2f
+                    val isSlideOff = event.x <= buffer || 
+                                   event.x >= (width.toFloat() - buffer) || 
+                                   event.y <= buffer || 
+                                   event.y >= (height.toFloat() - buffer)
+                    if (isSlideOff) MotionEvent.ACTION_CANCEL else MotionEvent.ACTION_UP
+                }
                 else -> return super.onHoverEvent(event)
             }
             

@@ -177,20 +177,22 @@ class CustomAngleFlickController(
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 longPressJob?.cancel()
 
-                val finalDirection = calculateDirection(event.rawX, event.rawY)
+                if (event.action == MotionEvent.ACTION_UP) {
+                    val finalDirection = calculateDirection(event.rawX, event.rawY)
 
-                // ★変更: UP_RIGHTフリックはマップ切り替え動作のため、文字入力を行わない
-                if (finalDirection != FlickDirection.UP_RIGHT) {
-                    if (keyMaps.isNotEmpty()) {
-                        val currentMap = keyMaps[currentMapIndex]
-                        val character = currentMap[finalDirection] ?: ""
+                    // ★変更: UP_RIGHTフリックはマップ切り替え動作のため、文字入力を行わない
+                    if (finalDirection != FlickDirection.UP_RIGHT) {
+                        if (keyMaps.isNotEmpty()) {
+                            val currentMap = keyMaps[currentMapIndex]
+                            val character = currentMap[finalDirection] ?: ""
 
-                        if (character.isNotEmpty()) {
-                            listener?.onFlick(finalDirection, character)
-                        } else if (finalDirection == FlickDirection.TAP) {
-                            val tapChar = currentMap[FlickDirection.TAP] ?: ""
-                            if (tapChar.isNotEmpty()) {
-                                listener?.onFlick(FlickDirection.TAP, tapChar)
+                            if (character.isNotEmpty()) {
+                                listener?.onFlick(finalDirection, character)
+                            } else if (finalDirection == FlickDirection.TAP) {
+                                val tapChar = currentMap[FlickDirection.TAP] ?: ""
+                                if (tapChar.isNotEmpty()) {
+                                    listener?.onFlick(FlickDirection.TAP, tapChar)
+                                }
                             }
                         }
                     }
