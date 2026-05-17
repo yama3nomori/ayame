@@ -143,6 +143,31 @@ class TfbiHierarchicalFlickController(
     }
 
     /**
+     * TalkBackのダブルタップ（performClick）時に、タップ入力をシミュレートします。
+     */
+    fun performTap() {
+        val node = rootNode ?: return
+        val currentM = getMapForCurrentMode(node)
+        val tapNode = currentM[TfbiFlickDirection.TAP]
+        
+        var selectedNode: TfbiFlickNode.Input? = null
+        when (tapNode) {
+            is TfbiFlickNode.Input -> selectedNode = tapNode
+            is TfbiFlickNode.SubMenu -> {
+                val nextTapNode = tapNode.nextMap[TfbiFlickDirection.TAP]
+                if (nextTapNode is TfbiFlickNode.Input) {
+                    selectedNode = nextTapNode
+                }
+            }
+            else -> {}
+        }
+        
+        if (selectedNode != null) {
+            listener?.onFlick(selectedNode.char)
+        }
+    }
+
+    /**
      * コントローラーを View からデタッチし、リソースを解放します。
      */
     fun cancel() {
@@ -257,6 +282,20 @@ class TfbiHierarchicalFlickController(
 
         // ハイライトを更新
         currentHighlight = highlightTargetDirection
+
+        // Voice Guidance
+        if (accessibilityManager.isEnabled && accessibilityManager.isTouchExplorationEnabled) {
+            val announcement = when (node) {
+                is TfbiFlickNode.Input -> node.char
+                is TfbiFlickNode.SubMenu -> node.label
+                    ?: (node.nextMap[TfbiFlickDirection.TAP] as? TfbiFlickNode.Input)?.char ?: ""
+
+                else -> ""
+            }
+            if (announcement.isNotEmpty()) {
+                attachedView?.announceForAccessibility(announcement)
+            }
+        }
 
         when (node) {
             is TfbiFlickNode.Input -> {
@@ -423,6 +462,20 @@ class TfbiHierarchicalFlickController(
         // 9. ★ UI（ポップアップ）を即座に更新
         setupStageUI(this.currentMap!!)
         popupView?.highlightDirection(this.currentHighlight)
+
+        // Voice Guidance for mode change
+        if (accessibilityManager.isEnabled && accessibilityManager.isTouchExplorationEnabled) {
+            val currentNode = this.currentMap?.get(this.currentHighlight)
+            val announcement = when (currentNode) {
+                is TfbiFlickNode.Input -> currentNode.char
+                is TfbiFlickNode.SubMenu -> currentNode.label
+                    ?: (currentNode.nextMap[TfbiFlickDirection.TAP] as? TfbiFlickNode.Input)?.char ?: ""
+                else -> ""
+            }
+            if (announcement.isNotEmpty()) {
+                attachedView?.announceForAccessibility(announcement)
+            }
+        }
     }
 
     // --- ポップアップとUIのヘルパー ---

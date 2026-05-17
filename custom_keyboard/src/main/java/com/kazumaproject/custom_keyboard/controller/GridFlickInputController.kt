@@ -282,8 +282,18 @@ class GridFlickInputController(
             }
 
             MotionEvent.ACTION_MOVE -> {
-                val dx = event.rawX - initialTouchX
-                val dy = event.rawY - initialTouchY
+                val dx1 = event.rawX - initialTouchX
+                val dy1 = event.rawY - initialTouchY
+
+                val location = IntArray(2)
+                view.getLocationOnScreen(location)
+                val centerX = location[0] + view.width / 2f
+                val centerY = location[1] + view.height / 2f
+                val dx2 = event.rawX - centerX
+                val dy2 = event.rawY - centerY
+
+                val dx = if (kotlin.math.abs(dx1) > kotlin.math.abs(dx2)) dx1 else dx2
+                val dy = if (kotlin.math.abs(dy1) > kotlin.math.abs(dy2)) dy1 else dy2
 
                 if (sqrt(dx * dx + dy * dy) > flickSensitivity * 0.5f) {
                     longPressJob?.cancel()
@@ -308,8 +318,19 @@ class GridFlickInputController(
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 longPressJob?.cancel()
                 if (event.action == MotionEvent.ACTION_UP) {
-                    val dx = event.rawX - initialTouchX
-                    val dy = event.rawY - initialTouchY
+                    val dx1 = event.rawX - initialTouchX
+                    val dy1 = event.rawY - initialTouchY
+
+                    val location = IntArray(2)
+                    view.getLocationOnScreen(location)
+                    val centerX = location[0] + view.width / 2f
+                    val centerY = location[1] + view.height / 2f
+                    val dx2 = event.rawX - centerX
+                    val dy2 = event.rawY - centerY
+
+                    val dx = if (kotlin.math.abs(dx1) > kotlin.math.abs(dx2)) dx1 else dx2
+                    val dy = if (kotlin.math.abs(dy1) > kotlin.math.abs(dy2)) dy1 else dy2
+
                     val finalDirection = calculateDirection(dx, dy)
                     characterMap[finalDirection]?.let {
                         listener?.onFlick(

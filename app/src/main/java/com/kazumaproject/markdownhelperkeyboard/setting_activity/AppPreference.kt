@@ -126,10 +126,10 @@ object AppPreference {
 
     private val defaultKeyboardOrderJson = gson.toJson(
         listOf(
+            KeyboardType.CUSTOM,
             KeyboardType.TENKEY,
             KeyboardType.QWERTY,
-            KeyboardType.ROMAJI,
-            KeyboardType.CUSTOM
+            KeyboardType.ROMAJI
         )
     )
     private val KEYBOARD_ORDER = Pair("keyboard_order_preference", defaultKeyboardOrderJson)

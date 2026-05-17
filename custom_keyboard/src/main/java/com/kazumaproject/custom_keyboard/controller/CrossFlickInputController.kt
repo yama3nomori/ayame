@@ -125,8 +125,18 @@ class CrossFlickInputController(private val context: Context) {
                 view.drawableHotspotChanged(event.x, event.y)
                 // ▲▲▲ 修正終了 ▲▲▲
 
-                val dx = event.rawX - initialTouchPoint.x
-                val dy = event.rawY - initialTouchPoint.y
+                val dx1 = event.rawX - initialTouchPoint.x
+                val dy1 = event.rawY - initialTouchPoint.y
+
+                val location = IntArray(2)
+                view.getLocationOnScreen(location)
+                val centerX = location[0] + view.width / 2f
+                val centerY = location[1] + view.height / 2f
+                val dx2 = event.rawX - centerX
+                val dy2 = event.rawY - centerY
+
+                val dx = if (kotlin.math.abs(dx1) > kotlin.math.abs(dx2)) dx1 else dx2
+                val dy = if (kotlin.math.abs(dy1) > kotlin.math.abs(dy2)) dy1 else dy2
 
                 val newDirection = calculateDirection(dx, dy)
                 if (newDirection != currentDirection) {

@@ -162,3 +162,13 @@ dependencies {
 
 //    debugImplementation("com.squareup.leakcanary:leakcanary-android:2.14")
 }
+
+tasks.matching { it.name == "installDebug" }.configureEach {
+    doLast {
+        def soundFile = new File(rootProject.projectDir, "sound/nt_musicbox.mp3").absolutePath
+        def ffplayExe = new File(rootProject.projectDir, "ffplay.exe").absolutePath
+        if (new File(ffplayExe).exists() && new File(soundFile).exists()) {
+            new ProcessBuilder(ffplayExe, "-nodisp", "-autoexit", soundFile).start()
+        }
+    }
+}

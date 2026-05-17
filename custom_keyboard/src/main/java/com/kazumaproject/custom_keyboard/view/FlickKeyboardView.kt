@@ -17,6 +17,7 @@ import android.util.TypedValue
 import android.view.View
 import android.view.Gravity
 import android.view.MotionEvent
+import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityManager
 import android.widget.Button
 import android.widget.GridLayout
@@ -24,6 +25,9 @@ import androidx.annotation.AttrRes
 import androidx.appcompat.widget.AppCompatImageButton
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
+import androidx.core.view.AccessibilityDelegateCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import com.google.android.material.R
 import com.kazumaproject.core.domain.extensions.isDarkThemeOn
 import com.kazumaproject.core.domain.extensions.setBorder
@@ -36,6 +40,7 @@ import com.kazumaproject.custom_keyboard.controller.StandardFlickInputController
 import com.kazumaproject.custom_keyboard.controller.TfbiHierarchicalFlickController
 import com.kazumaproject.custom_keyboard.controller.TfbiInputController
 import com.kazumaproject.custom_keyboard.controller.TfbiStickyFlickController
+import com.kazumaproject.custom_keyboard.controller.FlickInputController
 import com.kazumaproject.custom_keyboard.controller.TfbiFlickDirection
 import com.kazumaproject.custom_keyboard.data.FlickAction
 import com.kazumaproject.custom_keyboard.data.FlickDirection
@@ -126,15 +131,56 @@ class FlickKeyboardView @JvmOverloads constructor(
     private var isCalledFromHoverEvent = false
     
     // デバッグ用: 最初の1回だけTalkBackの状態を通知
-    private var hasAnnouncedTalkBackStatus = false
+    // private var hasAnnouncedTalkBackStatus = false
     
-    // デバッグ用: ファイルログ
-    private fun logToFile(message: String) {
-        try {
-            val logFile = java.io.File(context.getExternalFilesDir(null), "flick_keyboard_debug.txt")
-            logFile.appendText("${java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.getDefault()).format(java.util.Date())}: $message\n")
-        } catch (e: Exception) {
-            Log.e("FlickKeyboardView", "Failed to write log", e)
+    /** Mark key Views as important for accessibility so TalkBack can find them via swiping. **/
+    private fun setupAccessibility() {
+        // 親ビュー自体の設定: TalkBackの対象にするが、背景自体のフォーカスは避ける
+        this.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+        this.isFocusable = false
+        this.isClickable = false
+        
+        // 子要素の基本設定は updateKeyVisuals 内で行われる
+        for (i in 0 until childCount) {
+            val child = getChildAt(i)
+            val info = findKeyInfoForView(child)
+            if (info != null) {
+                updateKeyVisuals(child, info.keyData)
+            }
+        }
+    }
+
+    /**
+     * TalkBackのダブルタップ（performClick）時の処理
+     */
+    private fun handleKeyClick(view: View) {
+        val keyInfo = findKeyInfoForView(view) ?: return
+        val keyData = keyInfo.keyData
+        
+        // 特殊アクションがある場合はそれを優先
+        if (keyData.action != null) {
+            listener?.onAction(keyData.action, view, false)
+            return
+        }
+
+        // コントローラーの種類に応じてタップ処理を振り分け
+        when (val controller = keyInfo.controller) {
+            is TfbiHierarchicalFlickController -> {
+                controller.performTap()
+            }
+            is TfbiStickyFlickController -> {
+                controller.performTap()
+            }
+            is FlickInputController -> {
+                controller.performTap()
+            }
+            else -> {
+                // デフォルトのタップ処理（ラベルの最初の文字を入力）
+                if (keyData.label.isNotEmpty()) {
+                    val char = keyData.label.split("\n").firstOrNull() ?: keyData.label
+                    listener?.onKey(char, false)
+                }
+            }
         }
     }
 
@@ -278,6 +324,7 @@ class FlickKeyboardView @JvmOverloads constructor(
 
             this.addView(keyView)
         }
+        setupAccessibility()
     }
 
     /**
@@ -335,6 +382,8 @@ class FlickKeyboardView @JvmOverloads constructor(
         info.view = newView
         info.keyData = newKeyData
         info.controller = newController
+        
+        setupAccessibility()
     }
 
     /** keyDataに基づいてViewを生成し、基本的な設定（背景、テキスト、パディング等）を行います */
@@ -542,6 +591,7 @@ class FlickKeyboardView @JvmOverloads constructor(
             }
         }
         keyView.layoutParams = params
+        updateKeyVisuals(keyView, keyData)
         return keyView
     }
 
@@ -1327,10 +1377,43 @@ class FlickKeyboardView @JvmOverloads constructor(
 
     /** 既存Viewのビジュアル（テキスト/アイコン）のみを更新します */
     private fun updateKeyVisuals(view: View, keyData: KeyData) {
+        val announcement = buildKeyAnnouncement(keyData)
+        view.contentDescription = announcement
+
+        // TalkBack対応: 各キーをアクセシビリティ対象にする
+        view.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+        view.isFocusable = true
+        
+        // TalkBackのダブルタップを有効にするために常にクリック可能にしてリスナーを設定する
+        view.isClickable = true
+        view.setOnClickListener {
+            if (isTouchExplorationEnabled()) {
+                handleKeyClick(view)
+            }
+        }
+
+        // TenKey.kt と同様のアクセシビリティデリゲートを設定
+        ViewCompat.setAccessibilityDelegate(view, object : AccessibilityDelegateCompat() {
+            override fun onInitializeAccessibilityNodeInfo(
+                host: View,
+                info: AccessibilityNodeInfoCompat
+            ) {
+                super.onInitializeAccessibilityNodeInfo(host, info)
+                
+                if (announcement.isNotEmpty()) {
+                    info.text = announcement
+                    info.contentDescription = announcement
+                }
+                
+                // クラス名を空にし、役割記述をゼロ幅スペースにすることで「ボタン」の読み込みを完全に阻止する
+                info.className = ""
+                info.roleDescription = "\u200B"
+            }
+        })
+
         when (view) {
             is AppCompatImageButton -> {
                 keyData.drawableResId?.let { view.setImageResource(it) }
-                view.contentDescription = keyData.label
                 view.isPressed = keyData.isHiLighted
             }
 
@@ -1404,13 +1487,17 @@ class FlickKeyboardView @JvmOverloads constructor(
     @SuppressLint("ClickableViewAccessibility")
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
         val action = ev.actionMasked
-        Log.d(TAG, "onInterceptTouchEvent: ${MotionEvent.actionToString(action)} $")
+
+        // TalkBack有効時かつホバー経由でない（＝スワイプ中のダブルタップなどの実タッチ）場合は、
+        // インターセプトせずに子ビューにイベントを渡す。
+        if (isTouchExplorationEnabled() && !isCalledFromHoverEvent) {
+            return false
+        }
 
         // 最初の指が触れた瞬間に true を返すことで、
         // この後のすべてのタッチイベント(MOVE, UP, POINTER_DOWNなど)を
         // このビューの onTouchEvent で処理することを決定する。
         if (action == MotionEvent.ACTION_DOWN) {
-            Log.d(TAG, "-> Intercepting gesture from ACTION_DOWN. Returning true.")
             return true
         }
 
@@ -1422,55 +1509,56 @@ class FlickKeyboardView @JvmOverloads constructor(
         return super.onInterceptTouchEvent(ev)
     }
 
-    override fun onHoverEvent(event: MotionEvent): Boolean {
-        // デバッグ: onHoverEventが呼ばれたことを通知
-        if (event.action == MotionEvent.ACTION_HOVER_ENTER) {
-            logToFile("onHoverEvent called: ACTION_HOVER_ENTER")
-            announceForAccessibility("オンホバーイベント呼び出し")
+    override fun onInterceptHoverEvent(event: MotionEvent): Boolean {
+        // DTalker IME方式: 全てのホバーイベントを親（このView）でインターセプトし、
+        // 子要素への自動的な配信を阻止する。これにより、onHoverEvent で集中管理が可能になる。
+        if (isTouchExplorationEnabled()) {
+            return true
         }
-        
-        // DTalkerIME Android 4.1+ のロジック: ホバーイベントをタッチイベントに変換
+        return super.onInterceptHoverEvent(event)
+    }
+
+    override fun onHoverEvent(event: MotionEvent): Boolean {
+        // DTalker IMEのテンキー入力方式の実装: ホバーイベントを直接制御して「スライド入力」を実現する
         if (accessibilityManager.isTouchExplorationEnabled && event.pointerCount == 1) {
-            logToFile("TalkBack enabled, converting hover event")
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN) {
-                val action = event.action
-                
-                Log.d("FlickKeyboardView", "onHoverEvent: action=$action (${getActionName(action)})")
-                
-                // 元のイベントのアクションを直接変更（DTalker IME方式）
-                when (action) {
-                    MotionEvent.ACTION_HOVER_ENTER -> {
-                        Log.d("FlickKeyboardView", "Converting HOVER_ENTER to ACTION_DOWN")
-                        event.action = MotionEvent.ACTION_DOWN
-                    }
-                    MotionEvent.ACTION_HOVER_MOVE -> {
-                        Log.d("FlickKeyboardView", "Converting HOVER_MOVE to ACTION_MOVE")
-                        event.action = MotionEvent.ACTION_MOVE
-                    }
-                    MotionEvent.ACTION_HOVER_EXIT -> {
-                        val buffer = 2f
-                        val isSlideOff = event.x <= buffer || 
-                                       event.x >= (width.toFloat() - buffer) || 
-                                       event.y <= buffer || 
-                                       event.y >= (height.toFloat() - buffer)
-                        
-                        if (isSlideOff) {
-                            event.action = MotionEvent.ACTION_CANCEL
-                        } else {
-                            event.action = MotionEvent.ACTION_UP
+            val action = event.action
+            val x = event.x
+            val y = event.y
+            val targetView = findTargetView(x, y)
+
+            when (action) {
+                MotionEvent.ACTION_HOVER_ENTER, MotionEvent.ACTION_HOVER_MOVE -> {
+                    if (targetView != lastHoverTarget) {
+                        lastHoverTarget = targetView
+                        targetView?.let { view ->
+                            // 強制的にこれまでの読み上げを中断し、新しいキーのフォーカスイベントを飛ばす
+                            if (accessibilityManager.isTouchExplorationEnabled) {
+                                accessibilityManager.interrupt()
+                            }
+                            // そのキーに対してホバーイベントを送信することで、TalkBackに読み上げを促す
+                            view.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
                         }
                     }
                 }
-                
-                // フラグを設定して、onHoverEventから呼ばれたことを示す
-                isCalledFromHoverEvent = true
-                // 変更したイベントをonTouchEventに渡す
-                val result = onTouchEvent(event)
-                isCalledFromHoverEvent = false
-                
-                Log.d("FlickKeyboardView", "onTouchEvent returned: $result")
-                return result
+                MotionEvent.ACTION_HOVER_EXIT -> {
+                    // キーボードの外にスライドして指を離した場合はキャンセル扱いにするための判定
+                    val buffer = 2f
+                    val isSlideOff = x <= buffer || 
+                                   x >= (width.toFloat() - buffer) || 
+                                   y <= buffer || 
+                                   y >= (height.toFloat() - buffer)
+                    
+                    if (!isSlideOff) {
+                        // 指を離した（リフトした）瞬間に、最後にホバーしていたキーを確定させる
+                        lastHoverTarget?.let { view ->
+                            handleKeyClick(view)
+                        }
+                    }
+                    lastHoverTarget = null
+                }
             }
+            // DTalker IME方式: システムのデフォルト処理をバイパスするために true を返す
+            return true
         }
         return super.onHoverEvent(event)
     }
@@ -1503,8 +1591,7 @@ class FlickKeyboardView @JvmOverloads constructor(
                     // 強制的にこれまでの読み上げを中断する
                     accessibilityManager.interrupt()
                 }
-                // TalkBackのフォーカス移動を維持
-                view.sendAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+                this.announceForAccessibility(announcement)
             }
         }
     }
@@ -1566,22 +1653,10 @@ class FlickKeyboardView @JvmOverloads constructor(
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        // デバッグ: 最初の1回だけTalkBackの状態を通知
-        if (!hasAnnouncedTalkBackStatus && event.actionMasked == MotionEvent.ACTION_DOWN) {
-            hasAnnouncedTalkBackStatus = true
-            val isTalkBackEnabled = isTouchExplorationEnabled()
-            logToFile("TalkBack status: ${if (isTalkBackEnabled) "enabled" else "disabled"}")
-            announceForAccessibility(if (isTalkBackEnabled) "トークバック有効" else "トークバック無効")
-        }
-        
-        // TalkBack対応: 通常のタッチイベントを無視
-        // ただし、onHoverEventから呼ばれた場合は処理する
-        if (!isCalledFromHoverEvent && 
-            isTouchExplorationEnabled() && 
-            android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN) {
-            // 通常のタッチイベントを無視
-            Log.d("FlickKeyboardView", "Blocking normal touch event in TalkBack mode")
-            return true
+        // TalkBack対応: スワイプ中のダブルタップなどの実タッチイベントはブロックせずに
+        // システムの標準的なディスパッチ（子ビューへの伝達）に任せる。
+        if (!isCalledFromHoverEvent && isTouchExplorationEnabled()) {
+            return super.onTouchEvent(event)
         }
 
         val action = event.actionMasked
@@ -1589,7 +1664,8 @@ class FlickKeyboardView @JvmOverloads constructor(
         val pointerId = event.getPointerId(pointerIndex)
         
         // TalkBack有効時の音声フィードバック
-        if (accessibilityManager.isTouchExplorationEnabled && action == MotionEvent.ACTION_MOVE) {
+        if (accessibilityManager.isTouchExplorationEnabled && 
+            (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_MOVE)) {
             val target = findTargetView(event.x, event.y)
             if (target != lastHoverTarget) {
                 lastHoverTarget = target
@@ -1644,6 +1720,7 @@ class FlickKeyboardView @JvmOverloads constructor(
                     clearSpaceKeyPressedState()
                     motionTargets.clear()
                     pointerDownTime.clear()
+                    lastHoverTarget = null
                     return true
                 }
             }
@@ -1905,10 +1982,7 @@ class FlickKeyboardView @JvmOverloads constructor(
                 // 最後の指が離された、またはジェスチャーがキャンセルされた
                 val x = event.getX(pointerIndex)
                 val y = event.getY(pointerIndex)
-                val actionToDispatch =
-                    if (action == MotionEvent.ACTION_UP) MotionEvent.ACTION_UP else MotionEvent.ACTION_CANCEL
-
-                announceForAccessibility("アクションアップ検出、フラグは${if (isCalledFromHoverEvent) "真" else "偽"}")
+                val actionToDispatch = if (action == MotionEvent.ACTION_UP) MotionEvent.ACTION_UP else MotionEvent.ACTION_CANCEL
 
                 motionTargets[pointerId]?.let { target ->
                     val downTime = pointerDownTime[pointerId]!!
@@ -1918,17 +1992,15 @@ class FlickKeyboardView @JvmOverloads constructor(
                     )
 
                     Log.d("FlickKeyboardView MotionEvent.ACTION_UP", "$downTime $newEvent")
-                    announceForAccessibility("アクションアップをターゲットに送信")
                     newEvent.offsetLocation(-target.left.toFloat(), -target.top.toFloat())
                     target.dispatchTouchEvent(newEvent)
                     newEvent.recycle()
-                } ?: run {
-                    announceForAccessibility("ターゲットが見つかりません")
                 }
 
                 // すべての状態をクリア
                 motionTargets.clear()
                 pointerDownTime.clear()
+                lastHoverTarget = null
                 return true
             }
         }

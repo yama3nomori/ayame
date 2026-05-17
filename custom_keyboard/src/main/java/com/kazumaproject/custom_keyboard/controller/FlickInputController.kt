@@ -83,6 +83,19 @@ class FlickInputController(context: Context) {
     }
 
 
+    /**
+     * TalkBackのダブルタップ（performClick）時に、タップ入力をシミュレートします。
+     */
+    fun performTap() {
+        if (keyMaps.isNotEmpty()) {
+            val tapMap = keyMaps[currentMapIndex]
+            val char = tapMap[FlickDirection.TAP] ?: ""
+            if (char.isNotEmpty()) {
+                listener?.onFlick(FlickDirection.TAP, char)
+            }
+        }
+    }
+
     fun cancel() {
         controllerScope.cancel()
     }
@@ -130,10 +143,17 @@ class FlickInputController(context: Context) {
             }
 
             MotionEvent.ACTION_MOVE -> {
-                val currentCalculatedDirection = calculateDirection(event.rawX, event.rawY)
+                val currentCalculatedDirection = calculateDirection(view, event.rawX, event.rawY)
 
                 if (currentCalculatedDirection != previousDirection) {
                     listener?.onFlickDirectionChanged(currentCalculatedDirection)
+
+                    // Voice Guidance
+                    val currentMap = keyMaps[currentMapIndex]
+                    val text = currentMap[currentCalculatedDirection]
+                    if (!text.isNullOrEmpty()) {
+                        view.announceForAccessibility(text)
+                    }
                 }
 
                 if (currentCalculatedDirection != FlickDirection.TAP) {
@@ -150,6 +170,12 @@ class FlickInputController(context: Context) {
                         val newMap = keyMaps[currentMapIndex]
                         popupView.setCharacterMap(newMap)
                         listener?.onStateChanged(view, newMap)
+                        
+                        // Voice Guidance for map change
+                        val textForSpeech = newMap[currentCalculatedDirection]
+                        if (!textForSpeech.isNullOrEmpty()) {
+                            view.announceForAccessibility(textForSpeech)
+                        }
                     }
                 }
 
@@ -162,7 +188,7 @@ class FlickInputController(context: Context) {
                 longPressJob?.cancel()
 
                 val finalDirectionToInput = if (isDownModeActive || isLongPressModeActive) {
-                    calculateDirection(event.rawX, event.rawY)
+                    calculateDirection(view, event.rawX, event.rawY)
                 } else {
                     FlickDirection.TAP
                 }
@@ -210,9 +236,20 @@ class FlickInputController(context: Context) {
         anchorView = null
     }
 
-    private fun calculateDirection(currentX: Float, currentY: Float): FlickDirection {
-        val dx = currentX - initialTouchX
-        val dy = currentY - initialTouchY
+    private fun calculateDirection(view: View, currentX: Float, currentY: Float): FlickDirection {
+        val dx1 = currentX - initialTouchX
+        val dy1 = currentY - initialTouchY
+
+        val location = IntArray(2)
+        view.getLocationOnScreen(location)
+        val centerX = location[0] + view.width / 2f
+        val centerY = location[1] + view.height / 2f
+        val dx2 = currentX - centerX
+        val dy2 = currentY - centerY
+
+        val dx = if (kotlin.math.abs(dx1) > kotlin.math.abs(dx2)) dx1 else dx2
+        val dy = if (kotlin.math.abs(dy1) > kotlin.math.abs(dy2)) dy1 else dy2
+
         val distance = sqrt(dx * dx + dy * dy)
 
         if (distance < flickThreshold) {

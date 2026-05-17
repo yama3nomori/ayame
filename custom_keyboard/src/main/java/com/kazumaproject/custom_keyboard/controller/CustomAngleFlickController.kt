@@ -102,7 +102,7 @@ class CustomAngleFlickController(
         val currentDirection = if (event.action == MotionEvent.ACTION_DOWN) {
             FlickDirection.TAP
         } else {
-            calculateDirection(event.rawX, event.rawY)
+            calculateDirection(view, event.rawX, event.rawY)
         }
 
         when (event.action) {
@@ -178,7 +178,7 @@ class CustomAngleFlickController(
                 longPressJob?.cancel()
 
                 if (event.action == MotionEvent.ACTION_UP) {
-                    val finalDirection = calculateDirection(event.rawX, event.rawY)
+                    val finalDirection = calculateDirection(view, event.rawX, event.rawY)
 
                     // ★変更: UP_RIGHTフリックはマップ切り替え動作のため、文字入力を行わない
                     if (finalDirection != FlickDirection.UP_RIGHT) {
@@ -228,9 +228,20 @@ class CustomAngleFlickController(
         anchorView = null
     }
 
-    private fun calculateDirection(currentX: Float, currentY: Float): FlickDirection {
-        val dx = currentX - initialTouchX
-        val dy = currentY - initialTouchY
+    private fun calculateDirection(view: View, currentX: Float, currentY: Float): FlickDirection {
+        val dx1 = currentX - initialTouchX
+        val dy1 = currentY - initialTouchY
+
+        val location = IntArray(2)
+        view.getLocationOnScreen(location)
+        val centerX = location[0] + view.width / 2f
+        val centerY = location[1] + view.height / 2f
+        val dx2 = currentX - centerX
+        val dy2 = currentY - centerY
+
+        val dx = if (kotlin.math.abs(dx1) > kotlin.math.abs(dx2)) dx1 else dx2
+        val dy = if (kotlin.math.abs(dy1) > kotlin.math.abs(dy2)) dy1 else dy2
+
         val distance = sqrt(dx * dx + dy * dy)
 
         // 判定はコンストラクタで渡された flickSensitivity を使用

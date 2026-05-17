@@ -86,6 +86,13 @@ class TfbiStickyFlickController(
         view.setOnTouchListener { _, event -> handleTouchEvent(event) }
     }
 
+    /**
+     * TalkBackのダブルタップ（performClick）時に、タップ入力をシミュレートします。
+     */
+    fun performTap() {
+        listener?.onFlick(TfbiFlickDirection.TAP, TfbiFlickDirection.TAP)
+    }
+
     fun cancel() {
         resetState()
         attachedView?.setOnTouchListener(null)
@@ -142,6 +149,14 @@ class TfbiStickyFlickController(
                 setupSecondStageUI(firstFlickDirection)
                 popupView?.highlightDirection(determinedDirection)
                 currentSecondFlickDirection = determinedDirection
+
+                // Voice Guidance
+                if (accessibilityManager.isEnabled && accessibilityManager.isTouchExplorationEnabled) {
+                    val textForSpeech = characterMapProvider?.invoke(firstFlickDirection, TfbiFlickDirection.TAP)
+                    if (!textForSpeech.isNullOrEmpty()) {
+                        attachedView?.announceForAccessibility(textForSpeech)
+                    }
+                }
             }
         } else {
             // ===== ★ 変更点 1 =====
@@ -177,6 +192,14 @@ class TfbiStickyFlickController(
             if (highlightTargetDirection != currentSecondFlickDirection) {
                 popupView?.highlightDirection(highlightTargetDirection)
                 currentSecondFlickDirection = highlightTargetDirection
+
+                // Voice Guidance
+                if (accessibilityManager.isEnabled && accessibilityManager.isTouchExplorationEnabled) {
+                    val textForSpeech = characterMapProvider?.invoke(firstFlickDirection, highlightTargetDirection)
+                    if (!textForSpeech.isNullOrEmpty()) {
+                        attachedView?.announceForAccessibility(textForSpeech)
+                    }
+                }
             }
         }
     }
