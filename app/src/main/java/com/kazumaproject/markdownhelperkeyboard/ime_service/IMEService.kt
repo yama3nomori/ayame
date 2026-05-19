@@ -2048,6 +2048,19 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     ) {
         Timber.d("startVoiceInput: [$isListening] [$speechRecognizer]")
         mainView.suggestionProgressbar.isVisible = false
+        val hasPermission = ContextCompat.checkSelfPermission(
+            this,
+            android.Manifest.permission.RECORD_AUDIO
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+        if (!hasPermission) {
+            val intent = Intent(this, PermissionRequestActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+            return
+        }
+
         if (isListening) return
         if (speechRecognizer == null) return
 
