@@ -886,6 +886,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             announceCandidateItemHighlight(suggestion, currentHighlightIndex, listAdapter.currentList.size)
             commitText(suggestion.word, 1)
             finishComposingText()
+            isHenkan.set(false)
+            henkanPressedWithBunsetsuDetect = false
+            suggestionClickNum = 0
+            _inputString.update { "" }
+            romajiConverter?.clear()
         }
         listAdapter.onPagerClicked = {
             goToNextPageForFloatingCandidate()
@@ -2950,9 +2955,16 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         when {
             insertString.isNotEmpty() -> {
                 if (isHenkan.get()) {
-                    cancelHenkanByLongPressDeleteKey()
+                    isHenkan.set(false)
+                    henkanPressedWithBunsetsuDetect = false
+                    suggestionClickNum = 0
                     listAdapter.updateHighlightPosition(-1)
                     currentHighlightIndex = -1
+                    deleteStringCommon(insertString)
+                    resetFlagsDeleteKey()
+                    event?.let { e ->
+                        romajiConverter?.handleDelete(e)
+                    }
                     return true
                 } else {
                     deleteStringCommon(insertString)
@@ -3116,22 +3128,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             val sb = StringBuilder() // ここで宣言
 
             if (isHenkan.get()) {
-                listAdapter.selectHighlightedItem()
-                scope.launch {
-                    delay(32)
-                    val letterConverted = if (isDefaultRomajiHenkanMap) {
-                        romajiConverter?.handleKeyEventZenkaku(e)
-                    } else {
-                        romajiConverter?.handleKeyEvent(e)
-                    }
-                    letterConverted?.let { romajiResult ->
-                        Timber.d("KeyEvent Key Henkan: $e\n$insertString\n${romajiResult.first}")
-                        _inputString.update {
-                            romajiResult.first
-                        }
-                    }
-                }
-                return true
+                isHenkan.set(false)
+                henkanPressedWithBunsetsuDetect = false
+                suggestionClickNum = 0
+                listAdapter.updateHighlightPosition(-1)
+                currentHighlightIndex = -1
             }
             if (hardKeyboardShiftPressd) {
                 val char = PhysicalShiftKeyCodeMap.keymap[keyCode]
@@ -3409,6 +3410,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             } else {
                 commitText(selectedSuggestion.word, 1)
                 updateSuggestionsForFloatingCandidate(emptyList())
+                finishComposingText()
+                isHenkan.set(false)
+                henkanPressedWithBunsetsuDetect = false
+                suggestionClickNum = 0
+                _inputString.update { "" }
+                romajiConverter?.clear()
             }
         }
     }
@@ -4107,32 +4114,18 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     ) {
         if (isHenkan.get()) {
             suggestionAdapter?.updateHighlightPosition(-1)
-            finishComposingText()
-            setComposingText("", 0)
-            mainView.root.post {
-                isHenkan.set(false)
-                henkanPressedWithBunsetsuDetect = false
-                char?.let {
-                    sendCharFlick(
-                        charToSend = it, insertString = "", sb = sb
-                    )
-                    announceChar(it)
-                }
-                isContinuousTapInputEnabled.set(true)
-
-                lastFlickConvertedNextHiragana.set(true)
-            }
-        } else {
-                char?.let {
-                    sendCharFlick(
-                        charToSend = it, insertString = insertString, sb = sb
-                    )
-                    announceChar(it)
-                }
-            isContinuousTapInputEnabled.set(true)
-            lastFlickConvertedNextHiragana.set(true)
+            isHenkan.set(false)
+            henkanPressedWithBunsetsuDetect = false
+            suggestionClickNum = 0
         }
-
+        char?.let {
+            sendCharFlick(
+                charToSend = it, insertString = insertString, sb = sb
+            )
+            announceChar(it)
+        }
+        isContinuousTapInputEnabled.set(true)
+        lastFlickConvertedNextHiragana.set(true)
     }
 
     private fun handleFlickFloating(
@@ -4143,32 +4136,18 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     ) {
         if (isHenkan.get()) {
             suggestionAdapter?.updateHighlightPosition(-1)
-            finishComposingText()
-            setComposingText("", 0)
-            floatingKeyboardLayoutBinding.root.post {
-                isHenkan.set(false)
-                henkanPressedWithBunsetsuDetect = false
-                char?.let {
-                    sendCharFlick(
-                        charToSend = it, insertString = "", sb = sb
-                    )
-                    announceChar(it)
-                }
-                isContinuousTapInputEnabled.set(true)
-
-                lastFlickConvertedNextHiragana.set(true)
-            }
-        } else {
-            char?.let {
-                sendCharFlick(
-                    charToSend = it, insertString = insertString, sb = sb
-                )
-                announceChar(it)
-            }
-            isContinuousTapInputEnabled.set(true)
-            lastFlickConvertedNextHiragana.set(true)
+            isHenkan.set(false)
+            henkanPressedWithBunsetsuDetect = false
+            suggestionClickNum = 0
         }
-
+        char?.let {
+            sendCharFlick(
+                charToSend = it, insertString = insertString, sb = sb
+            )
+            announceChar(it)
+        }
+        isContinuousTapInputEnabled.set(true)
+        lastFlickConvertedNextHiragana.set(true)
     }
 
     private fun handleTap(
@@ -4176,26 +4155,15 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     ) {
         if (isHenkan.get()) {
             suggestionAdapter?.updateHighlightPosition(-1)
-            finishComposingText()
-            setComposingText("", 0)
-            mainView.root.post {
-                isHenkan.set(false)
-                henkanPressedWithBunsetsuDetect = false
-                char?.let {
-                    sendCharTap(
-                        charToSend = it, insertString = "", sb = sb
-                    )
-                    announceChar(it)
-                }
-
-            }
-        } else {
-            char?.let {
-                sendCharTap(
-                    charToSend = it, insertString = insertString, sb = sb
-                )
-                announceChar(it)
-            }
+            isHenkan.set(false)
+            henkanPressedWithBunsetsuDetect = false
+            suggestionClickNum = 0
+        }
+        char?.let {
+            sendCharTap(
+                charToSend = it, insertString = insertString, sb = sb
+            )
+            announceChar(it)
         }
     }
 
@@ -4207,26 +4175,15 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     ) {
         if (isHenkan.get()) {
             suggestionAdapter?.updateHighlightPosition(-1)
-            finishComposingText()
-            setComposingText("", 0)
-            floatingKeyboardLayoutBinding.root.post {
-                isHenkan.set(false)
-                henkanPressedWithBunsetsuDetect = false
-                char?.let {
-                    sendCharTap(
-                        charToSend = it, insertString = "", sb = sb
-                    )
-                    announceChar(it)
-                }
-
-            }
-        } else {
-            char?.let {
-                sendCharTap(
-                    charToSend = it, insertString = insertString, sb = sb
-                )
-                announceChar(it)
-            }
+            isHenkan.set(false)
+            henkanPressedWithBunsetsuDetect = false
+            suggestionClickNum = 0
+        }
+        char?.let {
+            sendCharTap(
+                charToSend = it, insertString = insertString, sb = sb
+            )
+            announceChar(it)
         }
     }
 
@@ -9655,7 +9612,25 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                         else -> {
                             if (mainView.keyboardView.currentInputMode.value == InputMode.ModeJapanese) {
-                                if (insertString.isNotEmpty()) {
+                                if (isHenkan.get()) {
+                                    suggestionAdapter?.updateHighlightPosition(-1)
+                                    isHenkan.set(false)
+                                    henkanPressedWithBunsetsuDetect = false
+                                    suggestionClickNum = 0
+                                    tap?.let { c ->
+                                        val charToAppend = if (isDefaultRomajiHenkanMap) {
+                                            c.toZenkaku()
+                                        } else {
+                                            c
+                                        }
+                                        sb.append(insertString).append(charToAppend)
+                                        romajiConverter?.let { converter ->
+                                            _inputString.update {
+                                                converter.convertQWERTYZenkaku(sb.toString())
+                                            }
+                                        }
+                                    }
+                                } else if (insertString.isNotEmpty()) {
                                     Timber.d("QWERTY romaji not empty: $hardKeyboardShiftPressd $qwertyRomajiShiftConversionPreference")
                                     if (qwertyRomajiShiftConversionPreference == true) {
                                         if (hardKeyboardShiftPressd) {
@@ -11797,12 +11772,13 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         when {
             insertString.isNotEmpty() -> {
                 if (isHenkan.get()) {
-                    if (deleteKeyHighLight == true) {
-                        handleDeleteKeyInHenkan(suggestions, insertString)
-                    } else {
-                        cancelHenkanByLongPressDeleteKey()
-                        hasConvertedKatakana = isLiveConversionEnable == true
-                    }
+                    isHenkan.set(false)
+                    henkanPressedWithBunsetsuDetect = false
+                    suggestionClickNum = 0
+                    suggestionAdapter?.updateHighlightPosition(RecyclerView.NO_POSITION)
+                    
+                    deleteStringCommon(insertString)
+                    resetFlagsDeleteKey()
                 } else {
                     deleteStringCommon(insertString)
                     resetFlagsDeleteKey()
