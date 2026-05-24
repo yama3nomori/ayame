@@ -73,6 +73,12 @@ class FloatingCandidateListAdapter(
                 val baseReading = tamachiRepository?.getDetailedReading(item.word) ?: item.word
                 "$baseReading $positionText"
             }
+            androidx.core.view.ViewCompat.setAccessibilityDelegate(itemView, object : androidx.core.view.AccessibilityDelegateCompat() {
+                override fun onInitializeAccessibilityNodeInfo(host: View, info: androidx.core.view.accessibility.AccessibilityNodeInfoCompat) {
+                    super.onInitializeAccessibilityNodeInfo(host, info)
+                    info.setCollectionItemInfo(null)
+                }
+            })
             itemView.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
             textView.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }

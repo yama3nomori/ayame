@@ -5,4 +5,9 @@
         android:imeSubtypeLocale="jp_JP"
         android:imeSubtypeMode="keyboard"
         android:label="@string/app_name" />
+    <subtype
+        android:imeSubtypeLocale="jp_JP"
+        android:imeSubtypeMode="voice"
+        android:label="@string/app_name"
+        android:isAuxiliary="true" />
 </input-method>

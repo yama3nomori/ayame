@@ -457,6 +457,12 @@ class SuggestionAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             val baseReading = tamachiRepository?.getDetailedReading(textToRead) ?: textToRead
             "$baseReading$positionText"
         }
+        androidx.core.view.ViewCompat.setAccessibilityDelegate(holder.itemView, object : androidx.core.view.AccessibilityDelegateCompat() {
+            override fun onInitializeAccessibilityNodeInfo(host: View, info: androidx.core.view.accessibility.AccessibilityNodeInfoCompat) {
+                super.onInitializeAccessibilityNodeInfo(host, info)
+                info.setCollectionItemInfo(null)
+            }
+        })
         holder.itemView.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
         holder.text.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         holder.typeText.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO

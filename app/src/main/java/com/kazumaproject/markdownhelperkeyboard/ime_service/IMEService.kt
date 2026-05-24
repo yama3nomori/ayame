@@ -786,12 +786,14 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     )
 
     private fun announceCandidateHighlight(text: String, index: Int, total: Int) {
-        if (!isDTalkerTTS) {
-            val detailedReading = tamachiRepository.getDetailedReading(text) ?: text
-            val announcement = "$detailedReading ${index + 1}の$total"
-            interruptTalkBack()
-            mainLayoutBinding?.root?.announceForAccessibility(announcement)
-            floatingKeyboardBinding?.root?.announceForAccessibility(announcement)
+        val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager ?: return
+        if (am.isEnabled) {
+            val recyclerView = if (isKeyboardFloatingMode == true) floatingKeyboardBinding?.suggestionRecyclerView else mainLayoutBinding?.suggestionRecyclerView
+            recyclerView?.postDelayed({
+                am.interrupt() // ターゲットアプリ側の「〜に変更しました」という読み上げを強制停止
+                val viewHolder = recyclerView.findViewHolderForAdapterPosition(index)
+                viewHolder?.itemView?.performAccessibilityAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
+            }, 150)
         }
     }
 
@@ -825,12 +827,14 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     }
 
     private fun announceCandidateItemHighlight(item: CandidateItem, index: Int, total: Int) {
-        if (!isDTalkerTTS) {
-            val detailedReading = tamachiRepository.getDetailedReading(item.word) ?: item.word
-            val announcement = "$detailedReading ${index + 1}の$total"
-            interruptTalkBack()
-            mainLayoutBinding?.root?.announceForAccessibility(announcement)
-            floatingKeyboardBinding?.root?.announceForAccessibility(announcement)
+        val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager ?: return
+        if (am.isEnabled) {
+            val recyclerView = if (isKeyboardFloatingMode == true) floatingKeyboardBinding?.suggestionRecyclerView else mainLayoutBinding?.suggestionRecyclerView
+            recyclerView?.postDelayed({
+                am.interrupt() // ターゲットアプリ側の「〜に変更しました」という読み上げを強制停止
+                val viewHolder = recyclerView.findViewHolderForAdapterPosition(index)
+                viewHolder?.itemView?.performAccessibilityAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
+            }, 150)
         }
     }
 
@@ -1193,15 +1197,34 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         Timber.d("onStartInputView")
         hijackWindowCallback()
         startSilentAudio()
-        val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager
-        val isTalkBackEnabled = am?.isEnabled == true && am.isTouchExplorationEnabled
+        val isTalkBackEnabled = isTalkBackActive()
         mediaSession?.isActive = volumeKeyCursorMovePreference == true || isTalkBackEnabled
         if (volumeKeyCursorMovePreference == true || isTalkBackEnabled) {
-            val stateVal = if (isListening) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED
+            if (volumeKeyCursorMovePreference == true) {
+                mediaSession?.setPlaybackToRemote(object : VolumeProviderCompat(
+                    VolumeProviderCompat.VOLUME_CONTROL_RELATIVE, 100, 50
+                ) {
+                    override fun onAdjustVolume(direction: Int) {
+                        if (!isInputViewShown()) return
+                        try {
+                            audioManager.adjustStreamVolume(
+                                AudioManager.STREAM_MUSIC,
+                                AudioManager.ADJUST_SAME,
+                                AudioManager.FLAG_REMOVE_SOUND_AND_VIBRATE
+                            )
+                        } catch (e: Exception) {
+                            // ignore
+                        }
+                    }
+                })
+            } else {
+                mediaSession?.setPlaybackToLocal(AudioManager.STREAM_MUSIC)
+            }
+
             mediaSession?.setPlaybackState(
                 PlaybackStateCompat.Builder()
-                    .setState(stateVal, 0, 1.0f)
-                    .setActions(PlaybackStateCompat.ACTION_PLAY or PlaybackStateCompat.ACTION_PAUSE or PlaybackStateCompat.ACTION_STOP)
+                    .setState(PlaybackStateCompat.STATE_PLAYING, 0, 1.0f)
+                    .setActions(PlaybackStateCompat.ACTION_PLAY or PlaybackStateCompat.ACTION_PAUSE or PlaybackStateCompat.ACTION_PLAY_PAUSE or PlaybackStateCompat.ACTION_STOP)
                     .build()
             )
         }
@@ -1636,12 +1659,40 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         super.onWindowShown()
         Timber.d("onWindowShown")
         // hijackWindowCallback() // Remove potentially conflicting hijacking
-        val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager
-        val isTalkBackEnabled = am?.isEnabled == true && am.isTouchExplorationEnabled
+        val isTalkBackEnabled = isTalkBackActive()
         if (volumeKeyCursorMovePreference == true || isTalkBackEnabled) {
             startSilentAudio()
             requestVolumeControlFocus()
             mediaSession?.isActive = true
+        }
+    }
+
+    override fun onCurrentInputMethodSubtypeChanged(newSubtype: android.view.inputmethod.InputMethodSubtype?) {
+        super.onCurrentInputMethodSubtypeChanged(newSubtype)
+        Timber.d("onCurrentInputMethodSubtypeChanged: mode=${newSubtype?.mode}")
+        if (newSubtype?.mode == "voice") {
+            mainLayoutBinding?.let { binding ->
+                startVoiceInput(binding)
+            }
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+            val token = window?.window?.attributes?.token
+            if (imm != null && token != null) {
+                try {
+                    val ourInputMethodId = android.provider.Settings.Secure.getString(
+                        contentResolver,
+                        android.provider.Settings.Secure.DEFAULT_INPUT_METHOD
+                    )
+                    val subtypes = imm.getEnabledInputMethodSubtypeList(null, true)
+                    for (subtype in subtypes) {
+                        if (subtype.mode == "keyboard") {
+                            imm.setInputMethodAndSubtype(token, ourInputMethodId, subtype)
+                            break
+                        }
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to switch back to keyboard subtype")
+                }
+            }
         }
     }
 
@@ -2131,10 +2182,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     }
 
     private fun updateMediaSessionState(isPlaying: Boolean) {
-        val stateVal = if (isPlaying) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED
         val state = PlaybackStateCompat.Builder()
-            .setState(stateVal, 0, 1.0f)
-            .setActions(PlaybackStateCompat.ACTION_PLAY or PlaybackStateCompat.ACTION_PAUSE)
+            .setState(PlaybackStateCompat.STATE_PLAYING, 0, 1.0f)
+            .setActions(PlaybackStateCompat.ACTION_PLAY or PlaybackStateCompat.ACTION_PAUSE or PlaybackStateCompat.ACTION_PLAY_PAUSE or PlaybackStateCompat.ACTION_STOP)
             .build()
         mediaSession?.setPlaybackState(state)
     }
@@ -10225,6 +10275,31 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     }
 
 
+    private fun isTalkBackActive(): Boolean {
+        val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager ?: return false
+        if (!am.isEnabled) return false
+        if (am.isTouchExplorationEnabled) return true
+
+        try {
+            val enabledServices = android.provider.Settings.Secure.getString(
+                contentResolver,
+                android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+            )
+            if (!enabledServices.isNullOrEmpty()) {
+                if (enabledServices.contains("talkback", ignoreCase = true) ||
+                    enabledServices.contains("screenreader", ignoreCase = true) ||
+                    enabledServices.contains("marvin", ignoreCase = true)) {
+                    return true
+                }
+            }
+        } catch (e: Exception) {
+            // ignore
+        }
+
+        val serviceList = am.getEnabledAccessibilityServiceList(android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_SPOKEN)
+        return serviceList != null && serviceList.isNotEmpty()
+    }
+
     private fun initializeMediaSession() {
         if (mediaSession == null) {
             mediaSession = MediaSessionCompat(this, "JapaneseKeyboard").apply {
@@ -10233,7 +10308,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 // セッションをダミーの再生状態にする
                 val state = PlaybackStateCompat.Builder()
                     .setState(PlaybackStateCompat.STATE_PLAYING, 0, 1.0f)
-                    .setActions(PlaybackStateCompat.ACTION_PLAY or PlaybackStateCompat.ACTION_PAUSE)
+                    .setActions(PlaybackStateCompat.ACTION_PLAY or PlaybackStateCompat.ACTION_PAUSE or PlaybackStateCompat.ACTION_PLAY_PAUSE or PlaybackStateCompat.ACTION_STOP)
                     .build()
                 setPlaybackState(state)
 
@@ -10260,7 +10335,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                         val event = mediaButtonEvent?.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
                         if (event != null) {
                             val keyCode = event.keyCode
-                            if (keyCode == KeyEvent.KEYCODE_HEADSETHOOK || keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
+                            if (keyCode == KeyEvent.KEYCODE_HEADSETHOOK ||
+                                keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE ||
+                                keyCode == KeyEvent.KEYCODE_MEDIA_PLAY ||
+                                keyCode == KeyEvent.KEYCODE_MEDIA_PAUSE) {
                                 if (event.action == KeyEvent.ACTION_DOWN) {
                                     triggerVoiceInputFromMediaButton()
                                 }
@@ -10270,16 +10348,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                         return super.onMediaButtonEvent(mediaButtonEvent)
                     }
                 }, Handler(mainLooper))
-                // VOLUME_CONTROL_RELATIVE に戻し、中間の値でOSのUI制御を安定化させる
-                setPlaybackToRemote(object : VolumeProviderCompat(
-                    VolumeProviderCompat.VOLUME_CONTROL_RELATIVE, 100, 50
-                ) {
-                    override fun onAdjustVolume(direction: Int) {
-                        if (!isInputViewShown()) return
-                        // MediaSessionを通じて音量ボタンをジャックし、システムUIを抑制する
-                        // カーソル移動自体はより確実な onKeyDown/onKeyUp (Handler) 方式に任せるため、
-                        // ここではHUD消去のシグナル送信のみを行う
-                        if (volumeKeyCursorMovePreference == true) {
+                if (volumeKeyCursorMovePreference == true) {
+                    setPlaybackToRemote(object : VolumeProviderCompat(
+                        VolumeProviderCompat.VOLUME_CONTROL_RELATIVE, 100, 50
+                    ) {
+                        override fun onAdjustVolume(direction: Int) {
+                            if (!isInputViewShown()) return
                             try {
                                 audioManager.adjustStreamVolume(
                                     AudioManager.STREAM_MUSIC,
@@ -10290,8 +10364,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                                 // ignore
                             }
                         }
-                    }
-                })
+                    })
+                } else {
+                    setPlaybackToLocal(AudioManager.STREAM_MUSIC)
+                }
             }
         }
     }
@@ -10302,7 +10378,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
     private fun startSilentAudio() {
         try {
-            if (volumeKeyCursorMovePreference != true) return
+            val isTalkBackEnabled = isTalkBackActive()
+            if (volumeKeyCursorMovePreference != true && !isTalkBackEnabled) return
             if (silentAudioTrack == null) {
                 val sampleRate = 44100
                 val minSize = AudioTrack.getMinBufferSize(
