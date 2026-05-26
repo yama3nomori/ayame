@@ -8015,6 +8015,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 }
                 floatingKeyboardLayoutBinding.suggestionVisibility.apply {
                     this.setImageDrawable(if (isVisible) cachedArrowDropDownDrawable else cachedArrowDropUpDrawable)
+                    this.contentDescription = if (isVisible) {
+                        getString(R.string.suggestion_visibility_description)
+                    } else {
+                        getString(R.string.suggestion_visibility_shrink_description)
+                    }
                 }
             }
         }
@@ -8061,6 +8066,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
         mainView.suggestionVisibility.apply {
             this.setImageDrawable(if (isVisible) cachedArrowDropDownDrawable else cachedArrowDropUpDrawable)
+            this.contentDescription = if (isVisible) {
+                getString(R.string.suggestion_visibility_description)
+            } else {
+                getString(R.string.suggestion_visibility_shrink_description)
+            }
         }
     }
 

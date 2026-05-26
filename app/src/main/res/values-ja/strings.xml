@@ -442,4 +442,6 @@
     <string name="enable_typo_correction_qwerty_english_keyboard_preference_summary">QWERTY入力でミスを検知した場合、補正した候補を表示します。</string>
     <string name="volume_key_cursor_move_title">ボリュームキーでカーソル移動</string>
     <string name="volume_key_cursor_move_summary">ボリュームキーを使用してカーソルを左右に移動します</string>
+    <string name="suggestion_visibility_description">候補の全画面表示</string>
+    <string name="suggestion_visibility_shrink_description">候補の縮小表示</string>
 </resources>

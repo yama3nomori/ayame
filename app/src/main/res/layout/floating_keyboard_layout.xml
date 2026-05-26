@@ -38,6 +38,7 @@
                 android:layout_width="42dp"
                 android:layout_height="42dp"
                 android:background="@drawable/recyclerview_size_button_bg"
+                android:contentDescription="@string/suggestion_visibility_description"
                 android:scaleType="center"
                 android:src="@drawable/outline_arrow_drop_down_24"
                 android:tint="@color/keyboard_icon_color"

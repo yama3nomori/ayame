@@ -445,4 +445,6 @@
     <string name="read_aloud">読み上げ</string>
     <string name="volume_key_cursor_move_title">Volume Key Cursor Move</string>
     <string name="volume_key_cursor_move_summary">Use volume keys to move the cursor left and right</string>
+    <string name="suggestion_visibility_description">Full screen candidates</string>
+    <string name="suggestion_visibility_shrink_description">Collapse candidates</string>
 </resources>
