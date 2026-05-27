@@ -278,6 +278,18 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
     private var isCursorMode = false
 
+    // Drag tracking variables for Key.SideKeyCursorRight
+    private var isDraggingRightCursor = false
+    private var isHoverDraggingRightCursor = false
+    private var isLineStartAnnounced = false
+    private var isLineEndAnnounced = false
+    private var rightCursorDragStartX = 0f
+    private var rightCursorDragEndX = 0f
+    private var rightCursorDragStartY = 0f
+    private var hoverRightCursorDragStartX = 0f
+    private var hoverRightCursorDragEndX = 0f
+    private var hoverRightCursorDragStartY = 0f
+
     // Theme Variables (Initialized with defaults)
     private var themeMode: String = "default"
     private var isNightMode: Boolean = false
@@ -1218,7 +1230,20 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
         val key = pressedKeyByScreenCoordinates(screenX, screenY)
 
         when (event.action) {
-            MotionEvent.ACTION_HOVER_ENTER, MotionEvent.ACTION_HOVER_MOVE -> {
+            MotionEvent.ACTION_HOVER_ENTER -> {
+                if (key == Key.SideKeyCursorRight) {
+                    isHoverDraggingRightCursor = true
+                    hoverRightCursorDragStartX = screenX
+                    hoverRightCursorDragEndX = screenX
+                    hoverRightCursorDragStartY = screenY
+                    isLineStartAnnounced = false
+                    isLineEndAnnounced = false
+                } else {
+                    isHoverDraggingRightCursor = false
+                    isLineStartAnnounced = false
+                    isLineEndAnnounced = false
+                }
+
                 if (key != currentHoverKey) {
                     currentHoverKey = key
                     // Announce the newly-entered key to TalkBack immediately
@@ -1233,10 +1258,111 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     }
                 }
             }
+            MotionEvent.ACTION_HOVER_MOVE -> {
+                // Handle slide-in / slide-out state transition for SideKeyCursorRight
+                if (key == Key.SideKeyCursorRight) {
+                    if (!isHoverDraggingRightCursor) {
+                        isHoverDraggingRightCursor = true
+                        hoverRightCursorDragStartX = screenX
+                        hoverRightCursorDragEndX = screenX
+                        hoverRightCursorDragStartY = screenY
+                        isLineStartAnnounced = false
+                        isLineEndAnnounced = false
+                        Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid onto Right Cursor (Hover). Initialized drag coordinates: X=$hoverRightCursorDragStartX, Y=$hoverRightCursorDragStartY")
+                    }
+                } else {
+                    if (isHoverDraggingRightCursor) {
+                        Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid off Right Cursor (Hover) to $key. Drag cancelled.")
+                        isHoverDraggingRightCursor = false
+                        isLineStartAnnounced = false
+                        isLineEndAnnounced = false
+                    }
+                }
+
+                if (key != currentHoverKey) {
+                    currentHoverKey = key
+
+                    // Only announce if we are not actively dragging the Right Cursor to prevent confusing user
+                    if (!isHoverDraggingRightCursor) {
+                        val targetView = getButtonFromKey(key)
+                        if (targetView is View) {
+                            if (accessibilityManager.isTouchExplorationEnabled) {
+                                accessibilityManager.interrupt()
+                            }
+                            targetView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+                        }
+                    }
+                }
+
+                if (isHoverDraggingRightCursor) {
+                    // Update peak X coordinates before any trigger
+                    if (!isLineStartAnnounced && !isLineEndAnnounced) {
+                        if (screenX > hoverRightCursorDragStartX) {
+                            hoverRightCursorDragStartX = screenX
+                        }
+                        if (screenX < hoverRightCursorDragEndX) {
+                            hoverRightCursorDragEndX = screenX
+                        }
+                    }
+
+                    val dxStart = screenX - hoverRightCursorDragStartX // negative when sliding left
+                    val dxEnd = screenX - hoverRightCursorDragEndX     // positive when sliding right
+                    val dy = screenY - hoverRightCursorDragStartY
+                    
+                    val threshold = 35f // Highly sensitive and responsive
+                    val cancelLeftThreshold = -150f
+                    val cancelRightThreshold = 150f
+                    val cancelYThreshold = 60f
+                    
+                    Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: isHoverDraggingRightCursor=true, screenX=$screenX, dxStart=$dxStart, dxEnd=$dxEnd, dy=$dy")
+                    
+                    if (dxStart < -threshold && dxStart >= cancelLeftThreshold && abs(dy) <= cancelYThreshold) {
+                        if (!isLineStartAnnounced && !isLineEndAnnounced) {
+                            isLineStartAnnounced = true
+                            Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Left threshold reached! Announcing '行頭'")
+                            announceForAccessibility("行頭")
+                            android.widget.Toast.makeText(context, "行頭", android.widget.Toast.LENGTH_SHORT).show()
+                            performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                        }
+                    } else if (dxEnd > threshold && dxEnd <= cancelRightThreshold && abs(dy) <= cancelYThreshold) {
+                        if (!isLineStartAnnounced && !isLineEndAnnounced) {
+                            isLineEndAnnounced = true
+                            Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Right threshold reached! Announcing '行末'")
+                            announceForAccessibility("行末")
+                            android.widget.Toast.makeText(context, "行末", android.widget.Toast.LENGTH_SHORT).show()
+                            performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                        }
+                    } else {
+                        val shouldCancel = if (isLineStartAnnounced) {
+                            (dxStart >= -threshold / 2f) || (dxStart < cancelLeftThreshold) || (abs(dy) > cancelYThreshold)
+                        } else if (isLineEndAnnounced) {
+                            (dxEnd <= threshold / 2f) || (dxEnd > cancelRightThreshold) || (abs(dy) > cancelYThreshold)
+                        } else {
+                            (dxStart < cancelLeftThreshold) || (dxEnd > cancelRightThreshold) || (abs(dy) > cancelYThreshold)
+                        }
+                        
+                        if (shouldCancel) {
+                            if (isLineStartAnnounced || isLineEndAnnounced) {
+                                Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Resetting drag announcement (cancelled by drag out of bounds)")
+                                isLineStartAnnounced = false
+                                isLineEndAnnounced = false
+                            }
+                            isHoverDraggingRightCursor = false
+                            
+                            // Immediately announce the currently hovered key since we cancelled the drag gesture
+                            val targetView = getButtonFromKey(key)
+                            if (targetView is View) {
+                                if (accessibilityManager.isTouchExplorationEnabled) {
+                                    accessibilityManager.interrupt()
+                                }
+                                targetView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+                            }
+                        }
+                    }
+                }
+            }
             MotionEvent.ACTION_HOVER_EXIT -> {
                 // Prevent accidental input when sliding off the keyboard edge.
-                // Android usually triggers HOVER_EXIT at the boundaries [0, width]/[0, height].
-                // Since keys have internal margins, the extreme boundary is never over a valid key press area.
                 val buffer = 2f // Tolerance pixels for the view boundary
                 val viewWidth = width.toFloat()
                 val viewHeight = height.toFloat()
@@ -1246,8 +1372,35 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                event.y <= buffer || 
                                event.y >= (viewHeight - buffer)
 
+                if (isHoverDraggingRightCursor) {
+                    isHoverDraggingRightCursor = false
+                    Log.d("TenKeyDrag", "ACTION_HOVER_EXIT: hover right cursor drag finished. isLineStartAnnounced=$isLineStartAnnounced, isLineEndAnnounced=$isLineEndAnnounced")
+                    if (isLineStartAnnounced) {
+                        isLineStartAnnounced = false
+                        if (!isSlideOff) {
+                            flickListener?.onFlick(
+                                gestureType = GestureType.Tap,
+                                key = Key.SideKeyCursorRight,
+                                char = '\u0001'
+                            )
+                        }
+                        currentHoverKey = Key.NotSelected
+                        return true
+                    } else if (isLineEndAnnounced) {
+                        isLineEndAnnounced = false
+                        if (!isSlideOff) {
+                            flickListener?.onFlick(
+                                gestureType = GestureType.Tap,
+                                key = Key.SideKeyCursorRight,
+                                char = '\u0002'
+                            )
+                        }
+                        currentHoverKey = Key.NotSelected
+                        return true
+                    }
+                }
+
                 if (!isSlideOff) {
-                    // "Confirm on lift": only fire if we actually lifted inside the view area (not on the extreme edge)
                     if (currentHoverKey != Key.NotSelected) {
                         performKeyInput(currentHoverKey)
                     }
@@ -1334,6 +1487,32 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         )
                     }
 
+                    // Drag tracking for Key.SideKeyCursorRight
+                    Log.d("TenKeyDrag", "ACTION_DOWN: key=$key")
+                    if (key == Key.SideKeyCursorRight) {
+                        isDraggingRightCursor = true
+                        isLineStartAnnounced = false
+                        isLineEndAnnounced = false
+                        val currentX = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            event.getRawX(0)
+                        } else {
+                            event.getX(0)
+                        }
+                        val currentY = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            event.getRawY(0)
+                        } else {
+                            event.getY(0)
+                        }
+                        rightCursorDragStartX = currentX
+                        rightCursorDragEndX = currentX
+                        rightCursorDragStartY = currentY
+                        Log.d("TenKeyDrag", "ACTION_DOWN: Right Cursor drag initialized. StartX=$rightCursorDragStartX")
+                    } else {
+                        isDraggingRightCursor = false
+                        isLineStartAnnounced = false
+                        isLineEndAnnounced = false
+                    }
+
                     Log.d("TenKey: ACTION_DOWN", "called ${pressedKey.key}")
 
                     if (isCursorMode) {
@@ -1354,6 +1533,31 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
                 MotionEvent.ACTION_UP -> {
                     resetLongPressAction()
+                    if (isDraggingRightCursor) {
+                        isDraggingRightCursor = false
+                        Log.d("TenKeyDrag", "ACTION_UP: Right Cursor drag finished. isLineStartAnnounced=$isLineStartAnnounced, isLineEndAnnounced=$isLineEndAnnounced")
+                        if (isLineStartAnnounced) {
+                            isLineStartAnnounced = false
+                            flickListener?.onFlick(
+                                gestureType = GestureType.Tap,
+                                key = Key.SideKeyCursorRight,
+                                char = '\u0001'
+                            )
+                            resetAllKeys()
+                            popupWindowActive.hide()
+                            return false
+                        } else if (isLineEndAnnounced) {
+                            isLineEndAnnounced = false
+                            flickListener?.onFlick(
+                                gestureType = GestureType.Tap,
+                                key = Key.SideKeyCursorRight,
+                                char = '\u0002'
+                            )
+                            resetAllKeys()
+                            popupWindowActive.hide()
+                            return false
+                        }
+                    }
                     if (isCursorMode) {
                         val viewToRelease: View? = when (pressedKey.key) {
                             Key.SideKeySpace -> binding.keySpace
@@ -1513,6 +1717,106 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         return true
                     }
 
+                    val currentX = if (event.pointerCount > 0) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            event.getRawX(0)
+                        } else {
+                            event.getX(0)
+                        }
+                    } else 0f
+                    val currentY = if (event.pointerCount > 0) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            event.getRawY(0)
+                        } else {
+                            event.getY(0)
+                        }
+                    } else 0f
+
+                    val currentKey = if (event.pointerCount > 0) {
+                        pressedKeyByMotionEvent(event, 0)
+                    } else {
+                        Key.NotSelected
+                    }
+
+                    // Handle slide-in / slide-out state transition for SideKeyCursorRight
+                    if (currentKey == Key.SideKeyCursorRight) {
+                        if (!isDraggingRightCursor) {
+                            isDraggingRightCursor = true
+                            rightCursorDragStartX = currentX
+                            rightCursorDragEndX = currentX
+                            rightCursorDragStartY = currentY
+                            isLineStartAnnounced = false
+                            isLineEndAnnounced = false
+                            Log.d("TenKeyDrag", "ACTION_MOVE: Slid onto Right Cursor. Initialized drag coordinates: X=$rightCursorDragStartX, Y=$rightCursorDragStartY")
+                        }
+                    } else {
+                        if (isDraggingRightCursor) {
+                            Log.d("TenKeyDrag", "ACTION_MOVE: Slid off Right Cursor to $currentKey. Drag cancelled.")
+                            isDraggingRightCursor = false
+                            isLineStartAnnounced = false
+                            isLineEndAnnounced = false
+                        }
+                    }
+
+                    if (isDraggingRightCursor) {
+                        // Update peak X coordinates before any trigger
+                        if (!isLineStartAnnounced && !isLineEndAnnounced) {
+                            if (currentX > rightCursorDragStartX) {
+                                rightCursorDragStartX = currentX
+                            }
+                            if (currentX < rightCursorDragEndX) {
+                                rightCursorDragEndX = currentX
+                            }
+                        }
+
+                        val dxStart = currentX - rightCursorDragStartX // negative when sliding left
+                        val dxEnd = currentX - rightCursorDragEndX     // positive when sliding right
+                        val dy = currentY - rightCursorDragStartY
+                        
+                        val threshold = 35f // Highly sensitive and responsive
+                        val cancelLeftThreshold = -150f
+                        val cancelRightThreshold = 150f
+                        val cancelYThreshold = 60f
+                        
+                        Log.d("TenKeyDrag", "ACTION_MOVE: isDraggingRightCursor=true, currentX=$currentX, dxStart=$dxStart, dxEnd=$dxEnd, dy=$dy")
+                        
+                        if (dxStart < -threshold && dxStart >= cancelLeftThreshold && abs(dy) <= cancelYThreshold) {
+                            if (!isLineStartAnnounced && !isLineEndAnnounced) {
+                                isLineStartAnnounced = true
+                                Log.d("TenKeyDrag", "ACTION_MOVE: Left threshold reached! Announcing '行頭'")
+                                announceForAccessibility("行頭")
+                                android.widget.Toast.makeText(context, "行頭", android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else if (dxEnd > threshold && dxEnd <= cancelRightThreshold && abs(dy) <= cancelYThreshold) {
+                            if (!isLineStartAnnounced && !isLineEndAnnounced) {
+                                isLineEndAnnounced = true
+                                Log.d("TenKeyDrag", "ACTION_MOVE: Right threshold reached! Announcing '行末'")
+                                announceForAccessibility("行末")
+                                android.widget.Toast.makeText(context, "行末", android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else {
+                            val shouldCancel = if (isLineStartAnnounced) {
+                                (dxStart >= -threshold / 2f) || (dxStart < cancelLeftThreshold) || (abs(dy) > cancelYThreshold)
+                            } else if (isLineEndAnnounced) {
+                                (dxEnd <= threshold / 2f) || (dxEnd > cancelRightThreshold) || (abs(dy) > cancelYThreshold)
+                            } else {
+                                (dxStart < cancelLeftThreshold) || (dxEnd > cancelRightThreshold) || (abs(dy) > cancelYThreshold)
+                            }
+                            
+                            if (shouldCancel) {
+                                if (isLineStartAnnounced || isLineEndAnnounced) {
+                                    Log.d("TenKeyDrag", "ACTION_MOVE: Resetting drag announcement (cancelled by drag out of bounds)")
+                                    isLineStartAnnounced = false
+                                    isLineEndAnnounced = false
+                                }
+                                isDraggingRightCursor = false
+                            }
+                        }
+                        return true // Consume this event to bypass popups and other move gesture handlers!
+                    }
+
                     val gestureType = if (event.pointerCount == 1) {
                         getGestureType(event, 0)
                     } else {
@@ -1536,6 +1840,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     }
                     popupWindowActive.hide()
                     longPressJob?.cancel()
+                    isDraggingRightCursor = false
+                    isLineStartAnnounced = false
                     if (isCursorMode) {
                         return true
                     }

@@ -3769,25 +3769,25 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             }
 
             Key.SideKeyCursorRight -> {
-                if (!rightCursorKeyLongKeyPressed.get()) {
-                    if (isHenkan.get()) {
-                        if (bunsetsuSeparation == true) {
+                if (char == '\u0001') {
+                    moveCursorToStartOfLine()
+                } else if (char == '\u0002') {
+                    moveCursorToEndOfLine()
+                } else {
+                    if (!rightCursorKeyLongKeyPressed.get()) {
+                        if (isHenkan.get()) {
                             handleJapaneseModeSpaceKey(
                                 mainView, suggestions, insertString
                             )
                         } else {
-                            handleJapaneseModeSpaceKey(
-                                mainView, suggestions, insertString
-                            )
+                            actionInRightKeyPressed(gestureType, insertString)
                         }
-                    } else {
-                        actionInRightKeyPressed(gestureType, insertString)
                     }
+                    onRightKeyLongPressUp.set(true)
+                    rightCursorKeyLongKeyPressed.set(false)
+                    rightLongPressJob?.cancel()
+                    rightLongPressJob = null
                 }
-                onRightKeyLongPressUp.set(true)
-                rightCursorKeyLongKeyPressed.set(false)
-                rightLongPressJob?.cancel()
-                rightLongPressJob = null
             }
 
             Key.SideKeyDelete -> {
@@ -3974,19 +3974,25 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             }
 
             Key.SideKeyCursorRight -> {
-                if (!rightCursorKeyLongKeyPressed.get()) {
-                    if (isHenkan.get()) {
-                        handleJapaneseModeSpaceKeyFloating(
-                            floatingKeyboardLayoutBinding, suggestions, insertString
-                        )
-                    } else {
-                        actionInRightKeyPressed(gestureType, insertString)
+                if (char == '\u0001') {
+                    moveCursorToStartOfLine()
+                } else if (char == '\u0002') {
+                    moveCursorToEndOfLine()
+                } else {
+                    if (!rightCursorKeyLongKeyPressed.get()) {
+                        if (isHenkan.get()) {
+                            handleJapaneseModeSpaceKeyFloating(
+                                floatingKeyboardLayoutBinding, suggestions, insertString
+                            )
+                        } else {
+                            actionInRightKeyPressed(gestureType, insertString)
+                        }
                     }
+                    onRightKeyLongPressUp.set(true)
+                    rightCursorKeyLongKeyPressed.set(false)
+                    rightLongPressJob?.cancel()
+                    rightLongPressJob = null
                 }
-                onRightKeyLongPressUp.set(true)
-                rightCursorKeyLongKeyPressed.set(false)
-                rightLongPressJob?.cancel()
-                rightLongPressJob = null
             }
 
             Key.SideKeyDelete -> {
