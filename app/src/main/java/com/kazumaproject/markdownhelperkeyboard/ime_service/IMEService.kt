@@ -2668,6 +2668,36 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MOVE_END))
     }
 
+    private fun moveCursorToPrevLineAndReadAloud() {
+        interruptTalkBack()
+        val ic = currentInputConnection ?: return
+        Timber.d("moveCursorToPrevLineAndReadAloud: start")
+        Toast.makeText(this, "1行上", Toast.LENGTH_SHORT).show()
+        
+        // Move cursor 1 line up retaining column position using system DPAD_UP key event
+        sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_UP)
+        
+        // Announce the newly focused line's whole content after selection updates
+        mainLayoutBinding?.root?.postDelayed({
+            readAloudCurrentText()
+        }, 50)
+    }
+
+    private fun moveCursorToNextLineAndReadAloud() {
+        interruptTalkBack()
+        val ic = currentInputConnection ?: return
+        Timber.d("moveCursorToNextLineAndReadAloud: start")
+        Toast.makeText(this, "1行下", Toast.LENGTH_SHORT).show()
+        
+        // Move cursor 1 line down retaining column position using system DPAD_DOWN key event
+        sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_DOWN)
+        
+        // Announce the newly focused line's whole content after selection updates
+        mainLayoutBinding?.root?.postDelayed({
+            readAloudCurrentText()
+        }, 50)
+    }
+
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
@@ -3773,6 +3803,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     moveCursorToStartOfLine()
                 } else if (char == '\u0002') {
                     moveCursorToEndOfLine()
+                } else if (char == '\u0003') {
+                    moveCursorToPrevLineAndReadAloud()
+                } else if (char == '\u0004') {
+                    moveCursorToNextLineAndReadAloud()
                 } else {
                     if (!rightCursorKeyLongKeyPressed.get()) {
                         if (isHenkan.get()) {
@@ -3978,6 +4012,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     moveCursorToStartOfLine()
                 } else if (char == '\u0002') {
                     moveCursorToEndOfLine()
+                } else if (char == '\u0003') {
+                    moveCursorToPrevLineAndReadAloud()
+                } else if (char == '\u0004') {
+                    moveCursorToNextLineAndReadAloud()
                 } else {
                     if (!rightCursorKeyLongKeyPressed.get()) {
                         if (isHenkan.get()) {
