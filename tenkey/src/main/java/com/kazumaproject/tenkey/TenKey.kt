@@ -1363,17 +1363,17 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     } else if (dyUp < -threshold && dyUp >= cancelUpThreshold && abs(screenX - hoverRightCursorDragStartX) <= cancelXThreshold) {
                         if (!isLineStartAnnounced && !isLineEndAnnounced && !isLineUpAnnounced && !isLineDownAnnounced) {
                             isLineUpAnnounced = true
-                            Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Up threshold reached! Announcing '1行上'")
-                            announceForAccessibility("1行上")
-                            android.widget.Toast.makeText(context, "1行上", android.widget.Toast.LENGTH_SHORT).show()
+                            Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Up threshold reached! Announcing '上カーソル'")
+                            announceForAccessibility("上カーソル")
+                            android.widget.Toast.makeText(context, "上カーソル", android.widget.Toast.LENGTH_SHORT).show()
                             performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                         }
                     } else if (dyDown > threshold && dyDown <= cancelDownThreshold && abs(screenX - hoverRightCursorDragStartX) <= cancelXThreshold) {
                         if (!isLineStartAnnounced && !isLineEndAnnounced && !isLineUpAnnounced && !isLineDownAnnounced) {
                             isLineDownAnnounced = true
-                            Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Down threshold reached! Announcing '1行下'")
-                            announceForAccessibility("1行下")
-                            android.widget.Toast.makeText(context, "1行下", android.widget.Toast.LENGTH_SHORT).show()
+                            Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Down threshold reached! Announcing '下カーソル'")
+                            announceForAccessibility("下カーソル")
+                            android.widget.Toast.makeText(context, "下カーソル", android.widget.Toast.LENGTH_SHORT).show()
                             performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                         }
                     } else {
@@ -1983,17 +1983,17 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         } else if (dyUp < -threshold && dyUp >= cancelUpThreshold && abs(currentX - rightCursorDragStartX) <= cancelXThreshold) {
                             if (!isLineStartAnnounced && !isLineEndAnnounced && !isLineUpAnnounced && !isLineDownAnnounced) {
                                 isLineUpAnnounced = true
-                                Log.d("TenKeyDrag", "ACTION_MOVE: Up threshold reached! Announcing '1行上'")
-                                announceForAccessibility("1行上")
-                                android.widget.Toast.makeText(context, "1行上", android.widget.Toast.LENGTH_SHORT).show()
+                                Log.d("TenKeyDrag", "ACTION_MOVE: Up threshold reached! Announcing '上カーソル'")
+                                announceForAccessibility("上カーソル")
+                                android.widget.Toast.makeText(context, "上カーソル", android.widget.Toast.LENGTH_SHORT).show()
                                 performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                             }
                         } else if (dyDown > threshold && dyDown <= cancelDownThreshold && abs(currentX - rightCursorDragStartX) <= cancelXThreshold) {
                             if (!isLineStartAnnounced && !isLineEndAnnounced && !isLineUpAnnounced && !isLineDownAnnounced) {
                                 isLineDownAnnounced = true
-                                Log.d("TenKeyDrag", "ACTION_MOVE: Down threshold reached! Announcing '1行下'")
-                                announceForAccessibility("1行下")
-                                android.widget.Toast.makeText(context, "1行下", android.widget.Toast.LENGTH_SHORT).show()
+                                Log.d("TenKeyDrag", "ACTION_MOVE: Down threshold reached! Announcing '下カーソル'")
+                                announceForAccessibility("下カーソル")
+                                android.widget.Toast.makeText(context, "下カーソル", android.widget.Toast.LENGTH_SHORT).show()
                                 performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                             }
                         } else {

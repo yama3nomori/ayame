@@ -2672,7 +2672,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         interruptTalkBack()
         val ic = currentInputConnection ?: return
         Timber.d("moveCursorToPrevLineAndReadAloud: start")
-        Toast.makeText(this, "1行上", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "上カーソル", Toast.LENGTH_SHORT).show()
         
         // Move cursor 1 line up retaining column position using system DPAD_UP key event
         sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_UP)
@@ -2687,7 +2687,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         interruptTalkBack()
         val ic = currentInputConnection ?: return
         Timber.d("moveCursorToNextLineAndReadAloud: start")
-        Toast.makeText(this, "1行下", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "下カーソル", Toast.LENGTH_SHORT).show()
         
         // Move cursor 1 line down retaining column position using system DPAD_DOWN key event
         sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_DOWN)
