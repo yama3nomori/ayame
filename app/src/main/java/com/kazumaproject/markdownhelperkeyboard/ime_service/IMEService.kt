@@ -3835,13 +3835,19 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             }
 
             Key.SideKeyDelete -> {
-                if (!isFlick) {
-                    if (!deleteKeyLongKeyPressed.get()) {
-                        handleDeleteKeyTap(insertString, suggestions)
-                    }
+                if (char == '\u0005') {
+                    handleDeleteLeftDragOrFlick(insertString)
+                } else if (char == '\u0006') {
+                    performUndoAction()
                 } else {
-                    if (gestureType == GestureType.FlickLeft && isDeleteLeftFlickPreference == true) {
-                        deleteWordOrSymbolsBeforeCursor(insertString)
+                    if (!isFlick) {
+                        if (!deleteKeyLongKeyPressed.get()) {
+                            handleDeleteKeyTap(insertString, suggestions)
+                        }
+                    } else {
+                        if (gestureType == GestureType.FlickLeft && isDeleteLeftFlickPreference == true) {
+                            deleteWordOrSymbolsBeforeCursor(insertString)
+                        }
                     }
                 }
                 stopDeleteLongPress()
@@ -4054,13 +4060,19 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             }
 
             Key.SideKeyDelete -> {
-                if (!isFlick) {
-                    if (!deleteKeyLongKeyPressed.get()) {
-                        handleDeleteKeyTap(insertString, suggestions)
-                    }
+                if (char == '\u0005') {
+                    handleDeleteLeftDragOrFlick(insertString)
+                } else if (char == '\u0006') {
+                    performUndoAction()
                 } else {
-                    if (gestureType == GestureType.FlickLeft && isDeleteLeftFlickPreference == true) {
-                        deleteWordOrSymbolsBeforeCursor(insertString)
+                    if (!isFlick) {
+                        if (!deleteKeyLongKeyPressed.get()) {
+                            handleDeleteKeyTap(insertString, suggestions)
+                        }
+                    } else {
+                        if (gestureType == GestureType.FlickLeft && isDeleteLeftFlickPreference == true) {
+                            deleteWordOrSymbolsBeforeCursor(insertString)
+                        }
                     }
                 }
                 stopDeleteLongPress()
@@ -13453,6 +13465,99 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             vibratorManager?.vibrate(combinedVibration)
         } else {
             vibrator?.vibrate(2)
+        }
+    }
+
+    private fun handleDeleteLeftDragOrFlick(insertString: String) {
+        if (insertString.isNotEmpty()) {
+            deleteComposingTextEntirely()
+        } else {
+            val ic = currentInputConnection ?: return
+            val before = ic.getTextBeforeCursor(10000, 0) ?: ""
+            if (before.isEmpty()) return
+            
+            val lastNewLine = before.lastIndexOf('\n')
+            val charsToDelete = if (lastNewLine == -1) before.length else before.length - lastNewLine - 1
+            if (charsToDelete > 0) {
+                val deletedText = before.takeLast(charsToDelete)
+                val reversedDeleted = reverseByGrapheme(deletedText.toString())
+                
+                appPreference.undo_enable_preference?.let {
+                    if (it) {
+                        deletedBuffer.append(reversedDeleted)
+                        val drawable = ContextCompat.getDrawable(
+                            this@IMEService,
+                            com.kazumaproject.core.R.drawable.baseline_delete_24
+                        )
+                        mainLayoutBinding?.keyboardView?.setSideKeyPreviousDrawable(drawable)
+                        suggestionAdapter?.apply {
+                            setUndoEnabled(true)
+                            setUndoPreviewText(deletedBuffer.toString())
+                        }
+                    }
+                }
+                
+                ic.beginBatchEdit()
+                ic.deleteSurroundingText(charsToDelete, 0)
+                ic.endBatchEdit()
+                
+                announceText("一括削除")
+                android.widget.Toast.makeText(this, "一括削除", android.widget.Toast.LENGTH_SHORT).show()
+                vibrate()
+            }
+        }
+    }
+
+    private fun deleteComposingTextEntirely() {
+        _inputString.update { "" }
+        if (stringInTail.get().isEmpty()) {
+            setComposingText("", 0)
+        }
+        resetFlagsDeleteKey()
+    }
+
+    private fun performUndoAction() {
+        if (deletedBuffer.isEmpty()) return
+        
+        val textToCommit = reverseByGrapheme(deletedBuffer.toString())
+        commitText(textToCommit, 1)
+        
+        clearDeletedBuffer()
+        suggestionAdapter?.setUndoEnabled(false)
+        updateClipboardPreview()
+        
+        announceText("元に戻しました")
+        android.widget.Toast.makeText(this, "元に戻しました", android.widget.Toast.LENGTH_SHORT).show()
+        vibrate()
+    }
+
+    private fun announceText(text: String) {
+        val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager ?: return
+        if (am.isEnabled) {
+            val targetView = if (isKeyboardFloatingMode == true) {
+                floatingKeyboardBinding?.root
+            } else {
+                mainLayoutBinding?.root
+            }
+            targetView?.let { view ->
+                try {
+                    am.interrupt()
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to interrupt TalkBack")
+                }
+                val event = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT)
+                event.text.add(text)
+                event.packageName = packageName
+                event.className = javaClass.name
+                event.isEnabled = true
+                view.postDelayed({
+                    try {
+                        view.sendAccessibilityEventUnchecked(event)
+                    } catch (e: Exception) {
+                        Timber.e(e, "Failed to send accessibility announcement")
+                    }
+                }, 10)
+            }
         }
     }
 
