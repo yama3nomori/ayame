@@ -1707,28 +1707,22 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
                 if (isHoverDraggingDeleteKey) {
                     // Update peak coordinates before any trigger
-                    if (!isDeleteLeftAnnounced && !isDeleteUpAnnounced) {
+                    if (!isDeleteLeftAnnounced) {
                         if (screenX < hoverDeleteKeyDragEndX) {
                             hoverDeleteKeyDragEndX = screenX
-                        }
-                        if (screenY < hoverDeleteKeyDragTopY) {
-                            hoverDeleteKeyDragTopY = screenY
                         }
                     }
 
                     val dxStart = screenX - hoverDeleteKeyDragStartX // negative when sliding left
-                    val dyUp = screenY - hoverDeleteKeyDragEndY       // negative when sliding up
                     
                     val threshold = 35f // Highly sensitive and responsive
                     val cancelLeftThreshold = -150f
-                    val cancelUpThreshold = -150f
-                    val cancelXThreshold = 60f
                     val cancelYThreshold = 60f
                     
-                    Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: isHoverDraggingDeleteKey=true, screenX=$screenX, screenY=$screenY, dxStart=$dxStart, dyUp=$dyUp")
+                    Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: isHoverDraggingDeleteKey=true, screenX=$screenX, screenY=$screenY, dxStart=$dxStart")
                     
                     if (dxStart < -threshold && dxStart >= cancelLeftThreshold && abs(screenY - hoverDeleteKeyDragStartY) <= cancelYThreshold) {
-                        if (!isDeleteLeftAnnounced && !isDeleteUpAnnounced) {
+                        if (!isDeleteLeftAnnounced) {
                             isDeleteLeftAnnounced = true
                             val annText = if (isInputComposing) "一括削除" else "行頭まで削除"
                             Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Delete Left threshold reached! Announcing '$annText'")
@@ -1736,21 +1730,11 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
                             performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                         }
-                    } else if (dyUp < -threshold && dyUp >= cancelUpThreshold && abs(screenX - hoverDeleteKeyDragStartX) <= cancelXThreshold) {
-                        if (!isDeleteLeftAnnounced && !isDeleteUpAnnounced) {
-                            isDeleteUpAnnounced = true
-                            Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Delete Up threshold reached! Announcing '元に戻す'")
-                            announceForAccessibility("元に戻す")
-                            android.widget.Toast.makeText(context, "元に戻す", android.widget.Toast.LENGTH_SHORT).show()
-                            performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
-                        }
                     } else {
                         val shouldCancel = if (isDeleteLeftAnnounced) {
                             (dxStart >= -threshold / 2f) || (dxStart < cancelLeftThreshold) || (abs(screenY - hoverDeleteKeyDragStartY) > cancelYThreshold)
-                        } else if (isDeleteUpAnnounced) {
-                            (dyUp >= -threshold / 2f) || (dyUp < cancelUpThreshold) || (abs(screenX - hoverDeleteKeyDragStartX) > cancelXThreshold)
                         } else {
-                            (dxStart < cancelLeftThreshold) || (dyUp < cancelUpThreshold) || (abs(screenY - hoverDeleteKeyDragStartY) > cancelYThreshold && abs(screenX - hoverDeleteKeyDragStartX) > cancelXThreshold)
+                            (dxStart < cancelLeftThreshold) || (abs(screenY - hoverDeleteKeyDragStartY) > cancelYThreshold)
                         }
                         
                         if (shouldCancel) {
@@ -1939,20 +1923,16 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     Log.d("TenKeyDrag", "ACTION_HOVER_EXIT: hover Delete drag finished. isDeleteLeftAnnounced=$isDeleteLeftAnnounced, isDeleteUpAnnounced=$isDeleteUpAnnounced")
                     
                     var triggerDeleteLeft = isDeleteLeftAnnounced
-                    var triggerDeleteUp = isDeleteUpAnnounced
 
                     // Fallback for fast flick in Hover Mode: if not already announced, check final delta
-                    if (!triggerDeleteLeft && !triggerDeleteUp) {
+                    if (!triggerDeleteLeft) {
                         val dx = screenX - hoverDeleteKeyDragStartX
                         val dy = screenY - hoverDeleteKeyDragStartY
                         val threshold = 35f
-                        val cancelXThreshold = 60f
                         val cancelYThreshold = 60f
                         
                         if (abs(dy) <= cancelYThreshold && dx < -threshold) {
                             triggerDeleteLeft = true
-                        } else if (abs(dx) <= cancelXThreshold && dy < -threshold) {
-                            triggerDeleteUp = true
                         }
                     }
 
@@ -1963,17 +1943,6 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyDelete,
                                 char = '\u0005'
-                            )
-                        }
-                        currentHoverKey = Key.NotSelected
-                        return true
-                    } else if (triggerDeleteUp) {
-                        isDeleteUpAnnounced = false
-                        if (!isSlideOff) {
-                            flickListener?.onFlick(
-                                gestureType = GestureType.Tap,
-                                key = Key.SideKeyDelete,
-                                char = '\u0006'
                             )
                         }
                         currentHoverKey = Key.NotSelected
@@ -2272,23 +2241,13 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
                     if (isDraggingDeleteKey) {
                         isDraggingDeleteKey = false
-                        Log.d("TenKeyDrag", "ACTION_UP: Delete key drag finished. isDeleteLeftAnnounced=$isDeleteLeftAnnounced, isDeleteUpAnnounced=$isDeleteUpAnnounced")
+                        Log.d("TenKeyDrag", "ACTION_UP: Delete key drag finished. isDeleteLeftAnnounced=$isDeleteLeftAnnounced")
                         if (isDeleteLeftAnnounced) {
                             isDeleteLeftAnnounced = false
                             flickListener?.onFlick(
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyDelete,
                                 char = '\u0005'
-                            )
-                            resetAllKeys()
-                            popupWindowActive.hide()
-                            return false
-                        } else if (isDeleteUpAnnounced) {
-                            isDeleteUpAnnounced = false
-                            flickListener?.onFlick(
-                                gestureType = GestureType.Tap,
-                                key = Key.SideKeyDelete,
-                                char = '\u0006'
                             )
                             resetAllKeys()
                             popupWindowActive.hide()
@@ -2389,15 +2348,6 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyDelete,
                                 char = '\u0005'
-                            )
-                            resetAllKeys()
-                            popupWindowActive.hide()
-                            return false
-                        } else if (gestureType == GestureType.FlickTop) {
-                            flickListener?.onFlick(
-                                gestureType = GestureType.Tap,
-                                key = Key.SideKeyDelete,
-                                char = '\u0006'
                             )
                             resetAllKeys()
                             popupWindowActive.hide()
@@ -2910,28 +2860,22 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
                     if (isDraggingDeleteKey) {
                         // Update peak coordinates before any trigger
-                        if (!isDeleteLeftAnnounced && !isDeleteUpAnnounced) {
+                        if (!isDeleteLeftAnnounced) {
                             if (screenX < deleteKeyDragEndX) {
                                 deleteKeyDragEndX = screenX
-                            }
-                            if (screenY < deleteKeyDragTopY) {
-                                deleteKeyDragTopY = screenY
                             }
                         }
 
                         val dxStart = screenX - deleteKeyDragStartX // negative when sliding left
-                        val dyUp = screenY - deleteKeyDragEndY       // negative when sliding up
                         
                         val threshold = 35f // Highly sensitive and responsive
                         val cancelLeftThreshold = -150f
-                        val cancelUpThreshold = -150f
-                        val cancelXThreshold = 60f
                         val cancelYThreshold = 60f
                         
-                        Log.d("TenKeyDrag", "ACTION_MOVE: isDraggingDeleteKey=true, screenX=$screenX, screenY=$screenY, dxStart=$dxStart, dyUp=$dyUp")
+                        Log.d("TenKeyDrag", "ACTION_MOVE: isDraggingDeleteKey=true, screenX=$screenX, screenY=$screenY, dxStart=$dxStart")
                         
                         if (dxStart < -threshold && dxStart >= cancelLeftThreshold && abs(screenY - deleteKeyDragStartY) <= cancelYThreshold) {
-                            if (!isDeleteLeftAnnounced && !isDeleteUpAnnounced) {
+                            if (!isDeleteLeftAnnounced) {
                                 isDeleteLeftAnnounced = true
                                 val annText = if (isInputComposing) "一括削除" else "行頭まで削除"
                                 Log.d("TenKeyDrag", "ACTION_MOVE: Delete Left threshold reached! Announcing '$annText'")
@@ -2939,29 +2883,17 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
                                 performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                             }
-                        } else if (dyUp < -threshold && dyUp >= cancelUpThreshold && abs(screenX - deleteKeyDragStartX) <= cancelXThreshold) {
-                            if (!isDeleteLeftAnnounced && !isDeleteUpAnnounced) {
-                                isDeleteUpAnnounced = true
-                                Log.d("TenKeyDrag", "ACTION_MOVE: Delete Up threshold reached! Announcing '元に戻す'")
-                                announceForAccessibility("元に戻す")
-                                android.widget.Toast.makeText(context, "元に戻す", android.widget.Toast.LENGTH_SHORT).show()
-                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
-                            }
                         } else {
                             val shouldCancel = if (isDeleteLeftAnnounced) {
                                 (dxStart >= -threshold / 2f) || (dxStart < cancelLeftThreshold) || (abs(screenY - deleteKeyDragStartY) > cancelYThreshold)
-                            } else if (isDeleteUpAnnounced) {
-                                (dyUp >= -threshold / 2f) || (dyUp < cancelUpThreshold) || (abs(screenX - deleteKeyDragStartX) > cancelXThreshold)
                             } else {
-                                (dxStart < cancelLeftThreshold) || (dyUp < cancelUpThreshold) || 
-                                (abs(screenY - deleteKeyDragStartY) > cancelYThreshold && abs(screenX - deleteKeyDragStartX) > cancelXThreshold)
+                                (dxStart < cancelLeftThreshold) || (abs(screenY - deleteKeyDragStartY) > cancelYThreshold)
                             }
                             
                             if (shouldCancel) {
-                                if (isDeleteLeftAnnounced || isDeleteUpAnnounced) {
+                                if (isDeleteLeftAnnounced) {
                                     Log.d("TenKeyDrag", "ACTION_MOVE: Resetting Delete drag announcement (cancelled by drag out of bounds)")
                                     isDeleteLeftAnnounced = false
-                                    isDeleteUpAnnounced = false
                                 }
                                 isDraggingDeleteKey = false
                             }

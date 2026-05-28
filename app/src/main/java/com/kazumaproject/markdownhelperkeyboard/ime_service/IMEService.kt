@@ -3837,8 +3837,6 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             Key.SideKeyDelete -> {
                 if (char == '\u0005') {
                     handleDeleteLeftDragOrFlick(insertString)
-                } else if (char == '\u0006') {
-                    performUndoAction()
                 } else {
                     if (!isFlick) {
                         if (!deleteKeyLongKeyPressed.get()) {
@@ -4062,8 +4060,6 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             Key.SideKeyDelete -> {
                 if (char == '\u0005') {
                     handleDeleteLeftDragOrFlick(insertString)
-                } else if (char == '\u0006') {
-                    performUndoAction()
                 } else {
                     if (!isFlick) {
                         if (!deleteKeyLongKeyPressed.get()) {
