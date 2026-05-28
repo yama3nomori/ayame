@@ -4242,6 +4242,9 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         info.roleDescription = "\u200B"
                         // OS側で「ボタン」としての挙動を認識させない（QWERTYと同様）
                         info.isClickable = false
+                        info.isLongClickable = false
+                        info.removeAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_CLICK)
+                        info.removeAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_LONG_CLICK)
                     }
                 })
             }
@@ -4278,5 +4281,28 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
     private fun setViewsNotFocusable() {
         // No-op or removed in favor of setupAccessibility
+    }
+
+    override fun announceForAccessibility(text: CharSequence?) {
+        if (text == null) return
+        if (accessibilityManager.isEnabled) {
+            try {
+                accessibilityManager.interrupt()
+            } catch (e: Exception) {
+                Log.e("TenKey", "Failed to interrupt TalkBack", e)
+            }
+            val event = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT)
+            event.text.add(text)
+            event.packageName = context.packageName
+            event.className = javaClass.name
+            event.isEnabled = true
+            postDelayed({
+                try {
+                    sendAccessibilityEventUnchecked(event)
+                } catch (e: Exception) {
+                    Log.e("TenKey", "Failed to send accessibility announcement", e)
+                }
+            }, 10)
+        }
     }
 }
