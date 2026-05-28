@@ -296,6 +296,14 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
     private var hoverRightCursorDragEndY = 0f
     private var hoverRightCursorDragTopY = 0f
 
+    // Stationary tracking for slide-in gesture start on Right Cursor key
+    private var touchSlideInEntryTime = 0L
+    private var touchSlideInEntryX = 0f
+    private var touchSlideInEntryY = 0f
+    private var hoverSlideInEntryTime = 0L
+    private var hoverSlideInEntryX = 0f
+    private var hoverSlideInEntryY = 0f
+
     // Theme Variables (Initialized with defaults)
     private var themeMode: String = "default"
     private var isNightMode: Boolean = false
@@ -1274,21 +1282,39 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                 // Handle slide-in / slide-out state transition for SideKeyCursorRight
                 if (key == Key.SideKeyCursorRight) {
                     if (!isHoverDraggingRightCursor) {
-                        if (isNearCenter(Key.SideKeyCursorRight, screenX, screenY)) {
-                            isHoverDraggingRightCursor = true
-                            hoverRightCursorDragStartX = screenX
-                            hoverRightCursorDragEndX = screenX
-                            hoverRightCursorDragStartY = screenY
-                            hoverRightCursorDragEndY = screenY
-                            hoverRightCursorDragTopY = screenY
-                            isLineStartAnnounced = false
-                            isLineEndAnnounced = false
-                            isLineUpAnnounced = false
-                            isLineDownAnnounced = false
-                            Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid onto Right Cursor (Hover) and reached center. Initialized drag coordinates: X=$hoverRightCursorDragStartX, Y=$hoverRightCursorDragStartY")
+                        if (hoverSlideInEntryTime == 0L) {
+                            hoverSlideInEntryTime = System.currentTimeMillis()
+                            hoverSlideInEntryX = screenX
+                            hoverSlideInEntryY = screenY
+                        } else {
+                            val movementThreshold = 10f
+                            val dx = screenX - hoverSlideInEntryX
+                            val dy = screenY - hoverSlideInEntryY
+                            if (abs(dx) > movementThreshold || abs(dy) > movementThreshold) {
+                                hoverSlideInEntryTime = System.currentTimeMillis()
+                                hoverSlideInEntryX = screenX
+                                hoverSlideInEntryY = screenY
+                            } else {
+                                val elapsed = System.currentTimeMillis() - hoverSlideInEntryTime
+                                if (elapsed >= 500L) {
+                                    isHoverDraggingRightCursor = true
+                                    hoverRightCursorDragStartX = screenX
+                                    hoverRightCursorDragEndX = screenX
+                                    hoverRightCursorDragStartY = screenY
+                                    hoverRightCursorDragEndY = screenY
+                                    hoverRightCursorDragTopY = screenY
+                                    isLineStartAnnounced = false
+                                    isLineEndAnnounced = false
+                                    isLineUpAnnounced = false
+                                    isLineDownAnnounced = false
+                                    hoverSlideInEntryTime = 0L
+                                    Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid onto Right Cursor (Hover) and remained stationary for 500ms. Starting drag tracking.")
+                                }
+                            }
                         }
                     }
                 } else {
+                    hoverSlideInEntryTime = 0L
                     if (isHoverDraggingRightCursor) {
                         Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid off Right Cursor (Hover) to $key. Drag cancelled.")
                         isHoverDraggingRightCursor = false
@@ -1917,21 +1943,39 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     // Handle slide-in / slide-out state transition for SideKeyCursorRight
                     if (currentKey == Key.SideKeyCursorRight) {
                         if (!isDraggingRightCursor) {
-                            if (isNearCenter(Key.SideKeyCursorRight, screenX, screenY)) {
-                                isDraggingRightCursor = true
-                                rightCursorDragStartX = screenX
-                                rightCursorDragEndX = screenX
-                                rightCursorDragStartY = screenY
-                                rightCursorDragEndY = screenY
-                                rightCursorDragTopY = screenY
-                                isLineStartAnnounced = false
-                                isLineEndAnnounced = false
-                                isLineUpAnnounced = false
-                                isLineDownAnnounced = false
-                                Log.d("TenKeyDrag", "ACTION_MOVE: Slid onto Right Cursor and reached center. Initialized drag coordinates: X=$rightCursorDragStartX, Y=$rightCursorDragStartY")
+                            if (touchSlideInEntryTime == 0L) {
+                                touchSlideInEntryTime = System.currentTimeMillis()
+                                touchSlideInEntryX = screenX
+                                touchSlideInEntryY = screenY
+                            } else {
+                                val movementThreshold = 10f
+                                val dx = screenX - touchSlideInEntryX
+                                val dy = screenY - touchSlideInEntryY
+                                if (abs(dx) > movementThreshold || abs(dy) > movementThreshold) {
+                                    touchSlideInEntryTime = System.currentTimeMillis()
+                                    touchSlideInEntryX = screenX
+                                    touchSlideInEntryY = screenY
+                                } else {
+                                    val elapsed = System.currentTimeMillis() - touchSlideInEntryTime
+                                    if (elapsed >= 500L) {
+                                        isDraggingRightCursor = true
+                                        rightCursorDragStartX = screenX
+                                        rightCursorDragEndX = screenX
+                                        rightCursorDragStartY = screenY
+                                        rightCursorDragEndY = screenY
+                                        rightCursorDragTopY = screenY
+                                        isLineStartAnnounced = false
+                                        isLineEndAnnounced = false
+                                        isLineUpAnnounced = false
+                                        isLineDownAnnounced = false
+                                        touchSlideInEntryTime = 0L
+                                        Log.d("TenKeyDrag", "ACTION_MOVE: Slid onto Right Cursor and remained stationary for 500ms. Starting drag tracking.")
+                                    }
+                                }
                             }
                         }
                     } else {
+                        touchSlideInEntryTime = 0L
                         if (isDraggingRightCursor) {
                             Log.d("TenKeyDrag", "ACTION_MOVE: Slid off Right Cursor to $currentKey. Drag cancelled.")
                             isDraggingRightCursor = false
