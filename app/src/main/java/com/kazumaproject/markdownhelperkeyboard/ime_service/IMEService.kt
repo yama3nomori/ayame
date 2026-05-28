@@ -7543,6 +7543,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
         launch {
             inputString.collectLatest { string ->
+                val isComposing = string.isNotEmpty()
+                mainView.keyboardView.isInputComposing = isComposing
+                floatingKeyboardBinding?.keyboardViewFloating?.isInputComposing = isComposing
                 processInputString(string, mainView)
             }
         }

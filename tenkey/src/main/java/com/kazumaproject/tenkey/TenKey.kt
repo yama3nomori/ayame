@@ -331,6 +331,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
     private var leftHoverSlideInEntryY = 0f
 
     // Drag tracking variables for Key.SideKeyDelete
+    var isInputComposing = false
     private var isDraggingDeleteKey = false
     private var isHoverDraggingDeleteKey = false
     private var isDeleteLeftAnnounced = false
@@ -1729,9 +1730,10 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     if (dxStart < -threshold && dxStart >= cancelLeftThreshold && abs(screenY - hoverDeleteKeyDragStartY) <= cancelYThreshold) {
                         if (!isDeleteLeftAnnounced && !isDeleteUpAnnounced) {
                             isDeleteLeftAnnounced = true
-                            Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Delete Left threshold reached! Announcing '一括削除'")
-                            announceForAccessibility("一括削除")
-                            android.widget.Toast.makeText(context, "一括削除", android.widget.Toast.LENGTH_SHORT).show()
+                            val annText = if (isInputComposing) "一括削除" else "行頭まで削除"
+                            Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Delete Left threshold reached! Announcing '$annText'")
+                            announceForAccessibility(annText)
+                            android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
                             performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                         }
                     } else if (dyUp < -threshold && dyUp >= cancelUpThreshold && abs(screenX - hoverDeleteKeyDragStartX) <= cancelXThreshold) {
@@ -2931,9 +2933,10 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         if (dxStart < -threshold && dxStart >= cancelLeftThreshold && abs(screenY - deleteKeyDragStartY) <= cancelYThreshold) {
                             if (!isDeleteLeftAnnounced && !isDeleteUpAnnounced) {
                                 isDeleteLeftAnnounced = true
-                                Log.d("TenKeyDrag", "ACTION_MOVE: Delete Left threshold reached! Announcing '一括削除'")
-                                announceForAccessibility("一括削除")
-                                android.widget.Toast.makeText(context, "一括削除", android.widget.Toast.LENGTH_SHORT).show()
+                                val annText = if (isInputComposing) "一括削除" else "行頭まで削除"
+                                Log.d("TenKeyDrag", "ACTION_MOVE: Delete Left threshold reached! Announcing '$annText'")
+                                announceForAccessibility(annText)
+                                android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
                                 performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                             }
                         } else if (dyUp < -threshold && dyUp >= cancelUpThreshold && abs(screenX - deleteKeyDragStartX) <= cancelXThreshold) {
