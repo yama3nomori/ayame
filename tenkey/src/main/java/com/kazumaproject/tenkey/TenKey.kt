@@ -304,6 +304,32 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
     private var hoverSlideInEntryX = 0f
     private var hoverSlideInEntryY = 0f
 
+    // Drag tracking variables for Key.SideKeyCursorLeft
+    private var isDraggingLeftCursor = false
+    private var isHoverDraggingLeftCursor = false
+    private var isLeftLineStartAnnounced = false
+    private var isLeftLineEndAnnounced = false
+    private var isLeftLineUpAnnounced = false
+    private var isLeftLineDownAnnounced = false
+    private var leftCursorDragStartX = 0f
+    private var leftCursorDragEndX = 0f
+    private var leftCursorDragStartY = 0f
+    private var leftCursorDragEndY = 0f
+    private var leftCursorDragTopY = 0f
+    private var hoverLeftCursorDragStartX = 0f
+    private var hoverLeftCursorDragEndX = 0f
+    private var hoverLeftCursorDragStartY = 0f
+    private var hoverLeftCursorDragEndY = 0f
+    private var hoverLeftCursorDragTopY = 0f
+
+    // Stationary tracking for slide-in gesture start on Left Cursor key
+    private var leftTouchSlideInEntryTime = 0L
+    private var leftTouchSlideInEntryX = 0f
+    private var leftTouchSlideInEntryY = 0f
+    private var leftHoverSlideInEntryTime = 0L
+    private var leftHoverSlideInEntryX = 0f
+    private var leftHoverSlideInEntryY = 0f
+
     // Theme Variables (Initialized with defaults)
     private var themeMode: String = "default"
     private var isNightMode: Boolean = false
@@ -1256,12 +1282,28 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     isLineEndAnnounced = false
                     isLineUpAnnounced = false
                     isLineDownAnnounced = false
+                } else if (key == Key.SideKeyCursorLeft) {
+                    isHoverDraggingLeftCursor = true
+                    hoverLeftCursorDragStartX = screenX
+                    hoverLeftCursorDragEndX = screenX
+                    hoverLeftCursorDragStartY = screenY
+                    hoverLeftCursorDragEndY = screenY
+                    hoverLeftCursorDragTopY = screenY
+                    isLeftLineStartAnnounced = false
+                    isLeftLineEndAnnounced = false
+                    isLeftLineUpAnnounced = false
+                    isLeftLineDownAnnounced = false
                 } else {
                     isHoverDraggingRightCursor = false
                     isLineStartAnnounced = false
                     isLineEndAnnounced = false
                     isLineUpAnnounced = false
                     isLineDownAnnounced = false
+                    isHoverDraggingLeftCursor = false
+                    isLeftLineStartAnnounced = false
+                    isLeftLineEndAnnounced = false
+                    isLeftLineUpAnnounced = false
+                    isLeftLineDownAnnounced = false
                 }
 
                 if (key != currentHoverKey) {
@@ -1325,11 +1367,57 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     }
                 }
 
+                // Handle slide-in / slide-out state transition for SideKeyCursorLeft
+                if (key == Key.SideKeyCursorLeft) {
+                    if (!isHoverDraggingLeftCursor) {
+                        if (leftHoverSlideInEntryTime == 0L) {
+                            leftHoverSlideInEntryTime = System.currentTimeMillis()
+                            leftHoverSlideInEntryX = screenX
+                            leftHoverSlideInEntryY = screenY
+                        } else {
+                            val movementThreshold = 10f
+                            val dx = screenX - leftHoverSlideInEntryX
+                            val dy = screenY - leftHoverSlideInEntryY
+                            if (abs(dx) > movementThreshold || abs(dy) > movementThreshold) {
+                                leftHoverSlideInEntryTime = System.currentTimeMillis()
+                                leftHoverSlideInEntryX = screenX
+                                leftHoverSlideInEntryY = screenY
+                            } else {
+                                val elapsed = System.currentTimeMillis() - leftHoverSlideInEntryTime
+                                if (elapsed >= 500L) {
+                                    isHoverDraggingLeftCursor = true
+                                    hoverLeftCursorDragStartX = screenX
+                                    hoverLeftCursorDragEndX = screenX
+                                    hoverLeftCursorDragStartY = screenY
+                                    hoverLeftCursorDragEndY = screenY
+                                    hoverLeftCursorDragTopY = screenY
+                                    isLeftLineStartAnnounced = false
+                                    isLeftLineEndAnnounced = false
+                                    isLeftLineUpAnnounced = false
+                                    isLeftLineDownAnnounced = false
+                                    leftHoverSlideInEntryTime = 0L
+                                    Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid onto Left Cursor (Hover) and remained stationary for 500ms. Starting drag tracking.")
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    leftHoverSlideInEntryTime = 0L
+                    if (isHoverDraggingLeftCursor) {
+                        Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid off Left Cursor (Hover) to $key. Drag cancelled.")
+                        isHoverDraggingLeftCursor = false
+                        isLeftLineStartAnnounced = false
+                        isLeftLineEndAnnounced = false
+                        isLeftLineUpAnnounced = false
+                        isLeftLineDownAnnounced = false
+                    }
+                }
+
                 if (key != currentHoverKey) {
                     currentHoverKey = key
 
-                    // Only announce if we are not actively dragging the Right Cursor to prevent confusing user
-                    if (!isHoverDraggingRightCursor) {
+                    // Only announce if we are not actively dragging the Right/Left Cursor to prevent confusing user
+                    if (!isHoverDraggingRightCursor && !isHoverDraggingLeftCursor) {
                         val targetView = getButtonFromKey(key)
                         if (targetView is View) {
                             if (accessibilityManager.isTouchExplorationEnabled) {
@@ -1438,6 +1526,105 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         }
                     }
                 }
+
+                if (isHoverDraggingLeftCursor) {
+                    // Update peak coordinates before any trigger
+                    if (!isLeftLineStartAnnounced && !isLeftLineEndAnnounced && !isLeftLineUpAnnounced && !isLeftLineDownAnnounced) {
+                        if (screenX > hoverLeftCursorDragStartX) {
+                            hoverLeftCursorDragStartX = screenX
+                        }
+                        if (screenX < hoverLeftCursorDragEndX) {
+                            hoverLeftCursorDragEndX = screenX
+                        }
+                        if (screenY > hoverLeftCursorDragEndY) {
+                            hoverLeftCursorDragEndY = screenY
+                        }
+                        if (screenY < hoverLeftCursorDragTopY) {
+                            hoverLeftCursorDragTopY = screenY
+                        }
+                    }
+
+                    val dxStart = screenX - hoverLeftCursorDragStartX // negative when sliding left
+                    val dxEnd = screenX - hoverLeftCursorDragEndX     // positive when sliding right
+                    val dyUp = screenY - hoverLeftCursorDragEndY       // negative when sliding up
+                    val dyDown = screenY - hoverLeftCursorDragTopY     // positive when sliding down
+                    
+                    val threshold = 35f // Highly sensitive and responsive
+                    val cancelLeftThreshold = -150f
+                    val cancelRightThreshold = 150f
+                    val cancelUpThreshold = -150f
+                    val cancelDownThreshold = 150f
+                    val cancelXThreshold = 60f
+                    val cancelYThreshold = 60f
+                    
+                    Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: isHoverDraggingLeftCursor=true, screenX=$screenX, screenY=$screenY, dxStart=$dxStart, dxEnd=$dxEnd, dyUp=$dyUp, dyDown=$dyDown")
+                    
+                    if (dxStart < -threshold && dxStart >= cancelLeftThreshold && abs(screenY - hoverLeftCursorDragStartY) <= cancelYThreshold) {
+                        if (!isLeftLineStartAnnounced && !isLeftLineEndAnnounced && !isLeftLineUpAnnounced && !isLeftLineDownAnnounced) {
+                            isLeftLineStartAnnounced = true
+                            Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Left threshold reached! Announcing '行頭'")
+                            announceForAccessibility("行頭")
+                            android.widget.Toast.makeText(context, "行頭", android.widget.Toast.LENGTH_SHORT).show()
+                            performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                        }
+                    } else if (dxEnd > threshold && dxEnd <= cancelRightThreshold && abs(screenY - hoverLeftCursorDragStartY) <= cancelYThreshold) {
+                        if (!isLeftLineStartAnnounced && !isLeftLineEndAnnounced && !isLeftLineUpAnnounced && !isLeftLineDownAnnounced) {
+                            isLeftLineEndAnnounced = true
+                            Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Right threshold reached! Announcing '行末'")
+                            announceForAccessibility("行末")
+                            android.widget.Toast.makeText(context, "行末", android.widget.Toast.LENGTH_SHORT).show()
+                            performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                        }
+                    } else if (dyUp < -threshold && dyUp >= cancelUpThreshold && abs(screenX - hoverLeftCursorDragStartX) <= cancelXThreshold) {
+                        if (!isLeftLineStartAnnounced && !isLeftLineEndAnnounced && !isLeftLineUpAnnounced && !isLeftLineDownAnnounced) {
+                            isLeftLineUpAnnounced = true
+                            Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Up threshold reached! Announcing '上カーソル'")
+                            announceForAccessibility("上カーソル")
+                            android.widget.Toast.makeText(context, "上カーソル", android.widget.Toast.LENGTH_SHORT).show()
+                            performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                        }
+                    } else if (dyDown > threshold && dyDown <= cancelDownThreshold && abs(screenX - hoverLeftCursorDragStartX) <= cancelXThreshold) {
+                        if (!isLeftLineStartAnnounced && !isLeftLineEndAnnounced && !isLeftLineUpAnnounced && !isLeftLineDownAnnounced) {
+                            isLeftLineDownAnnounced = true
+                            Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Down threshold reached! Announcing '下カーソル'")
+                            announceForAccessibility("下カーソル")
+                            android.widget.Toast.makeText(context, "下カーソル", android.widget.Toast.LENGTH_SHORT).show()
+                            performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                        }
+                    } else {
+                        val shouldCancel = if (isLeftLineStartAnnounced) {
+                            (dxStart >= -threshold / 2f) || (dxStart < cancelLeftThreshold) || (abs(screenY - hoverLeftCursorDragStartY) > cancelYThreshold)
+                        } else if (isLeftLineEndAnnounced) {
+                            (dxEnd <= threshold / 2f) || (dxEnd > cancelRightThreshold) || (abs(screenY - hoverLeftCursorDragStartY) > cancelYThreshold)
+                        } else if (isLeftLineUpAnnounced) {
+                            (dyUp >= -threshold / 2f) || (dyUp < cancelUpThreshold) || (abs(screenX - hoverLeftCursorDragStartX) > cancelXThreshold)
+                        } else if (isLeftLineDownAnnounced) {
+                            (dyDown <= threshold / 2f) || (dyDown > cancelDownThreshold) || (abs(screenX - hoverLeftCursorDragStartX) > cancelXThreshold)
+                        } else {
+                            (dxStart < cancelLeftThreshold) || (dxEnd > cancelRightThreshold) || (dyUp < cancelUpThreshold) || (dyDown > cancelDownThreshold) || (abs(screenY - hoverLeftCursorDragStartY) > cancelYThreshold && abs(screenX - hoverLeftCursorDragStartX) > cancelXThreshold)
+                        }
+                        
+                        if (shouldCancel) {
+                            if (isLeftLineStartAnnounced || isLeftLineEndAnnounced || isLeftLineUpAnnounced || isLeftLineDownAnnounced) {
+                                Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Resetting left drag announcement (cancelled by drag out of bounds)")
+                                isLeftLineStartAnnounced = false
+                                isLeftLineEndAnnounced = false
+                                isLeftLineUpAnnounced = false
+                                isLeftLineDownAnnounced = false
+                            }
+                            isHoverDraggingLeftCursor = false
+                            
+                            // Immediately announce the currently hovered key since we cancelled the drag gesture
+                            val targetView = getButtonFromKey(key)
+                            if (targetView is View) {
+                                if (accessibilityManager.isTouchExplorationEnabled) {
+                                    accessibilityManager.interrupt()
+                                }
+                                targetView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+                            }
+                        }
+                    }
+                }
             }
             MotionEvent.ACTION_HOVER_EXIT -> {
                 // Prevent accidental input when sliding off the keyboard edge.
@@ -1517,6 +1704,81 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             flickListener?.onFlick(
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyCursorRight,
+                                char = '\u0004'
+                            )
+                        }
+                        currentHoverKey = Key.NotSelected
+                        return true
+                    }
+                }
+
+                if (isHoverDraggingLeftCursor) {
+                    isHoverDraggingLeftCursor = false
+                    Log.d("TenKeyDrag", "ACTION_HOVER_EXIT: hover left cursor drag finished. isLeftLineStartAnnounced=$isLeftLineStartAnnounced, isLeftLineEndAnnounced=$isLeftLineEndAnnounced, isLeftLineUpAnnounced=$isLeftLineUpAnnounced, isLeftLineDownAnnounced=$isLeftLineDownAnnounced")
+                    
+                    var triggerLineStart = isLeftLineStartAnnounced
+                    var triggerLineEnd = isLeftLineEndAnnounced
+                    var triggerLineUp = isLeftLineUpAnnounced
+                    var triggerLineDown = isLeftLineDownAnnounced
+
+                    // Fallback for fast flick in Hover Mode: if not already announced, check final delta
+                    if (!triggerLineStart && !triggerLineEnd && !triggerLineUp && !triggerLineDown) {
+                        val dx = screenX - hoverLeftCursorDragStartX
+                        val dy = screenY - hoverLeftCursorDragStartY
+                        val threshold = 35f
+                        val cancelXThreshold = 60f
+                        val cancelYThreshold = 60f
+                        
+                        if (abs(dy) <= cancelYThreshold && dx < -threshold) {
+                            triggerLineStart = true
+                        } else if (abs(dy) <= cancelYThreshold && dx > threshold) {
+                            triggerLineEnd = true
+                        } else if (abs(dx) <= cancelXThreshold && dy < -threshold) {
+                            triggerLineUp = true
+                        } else if (abs(dx) <= cancelXThreshold && dy > threshold) {
+                            triggerLineDown = true
+                        }
+                    }
+
+                    if (triggerLineStart) {
+                        isLeftLineStartAnnounced = false
+                        if (!isSlideOff) {
+                            flickListener?.onFlick(
+                                gestureType = GestureType.Tap,
+                                key = Key.SideKeyCursorLeft,
+                                char = '\u0001'
+                            )
+                        }
+                        currentHoverKey = Key.NotSelected
+                        return true
+                    } else if (triggerLineEnd) {
+                        isLeftLineEndAnnounced = false
+                        if (!isSlideOff) {
+                            flickListener?.onFlick(
+                                gestureType = GestureType.Tap,
+                                key = Key.SideKeyCursorLeft,
+                                char = '\u0002'
+                            )
+                        }
+                        currentHoverKey = Key.NotSelected
+                        return true
+                    } else if (triggerLineUp) {
+                        isLeftLineUpAnnounced = false
+                        if (!isSlideOff) {
+                            flickListener?.onFlick(
+                                gestureType = GestureType.Tap,
+                                key = Key.SideKeyCursorLeft,
+                                char = '\u0003'
+                            )
+                        }
+                        currentHoverKey = Key.NotSelected
+                        return true
+                    } else if (triggerLineDown) {
+                        isLeftLineDownAnnounced = false
+                        if (!isSlideOff) {
+                            flickListener?.onFlick(
+                                gestureType = GestureType.Tap,
+                                key = Key.SideKeyCursorLeft,
                                 char = '\u0004'
                             )
                         }
@@ -1612,7 +1874,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         )
                     }
 
-                    // Drag tracking for Key.SideKeyCursorRight
+                    // Drag tracking for Key.SideKeyCursorRight / Key.SideKeyCursorLeft
                     Log.d("TenKeyDrag", "ACTION_DOWN: key=$key")
                     if (key == Key.SideKeyCursorRight) {
                         isDraggingRightCursor = true
@@ -1636,12 +1898,39 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         rightCursorDragEndY = currentY
                         rightCursorDragTopY = currentY
                         Log.d("TenKeyDrag", "ACTION_DOWN: Right Cursor drag initialized. StartX=$rightCursorDragStartX")
+                    } else if (key == Key.SideKeyCursorLeft) {
+                        isDraggingLeftCursor = true
+                        isLeftLineStartAnnounced = false
+                        isLeftLineEndAnnounced = false
+                        isLeftLineUpAnnounced = false
+                        isLeftLineDownAnnounced = false
+                        val currentX = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            event.getRawX(0)
+                        } else {
+                            event.getX(0)
+                        }
+                        val currentY = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            event.getRawY(0)
+                        } else {
+                            event.getY(0)
+                        }
+                        leftCursorDragStartX = currentX
+                        leftCursorDragEndX = currentX
+                        leftCursorDragStartY = currentY
+                        leftCursorDragEndY = currentY
+                        leftCursorDragTopY = currentY
+                        Log.d("TenKeyDrag", "ACTION_DOWN: Left Cursor drag initialized. StartX=$leftCursorDragStartX")
                     } else {
                         isDraggingRightCursor = false
                         isLineStartAnnounced = false
                         isLineEndAnnounced = false
                         isLineUpAnnounced = false
                         isLineDownAnnounced = false
+                        isDraggingLeftCursor = false
+                        isLeftLineStartAnnounced = false
+                        isLeftLineEndAnnounced = false
+                        isLeftLineUpAnnounced = false
+                        isLeftLineDownAnnounced = false
                     }
 
                     Log.d("TenKey: ACTION_DOWN", "called ${pressedKey.key}")
@@ -1712,6 +2001,52 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         }
                     }
 
+                    if (isDraggingLeftCursor) {
+                        isDraggingLeftCursor = false
+                        Log.d("TenKeyDrag", "ACTION_UP: Left Cursor drag finished. isLeftLineStartAnnounced=$isLeftLineStartAnnounced, isLeftLineEndAnnounced=$isLeftLineEndAnnounced, isLeftLineUpAnnounced=$isLeftLineUpAnnounced, isLeftLineDownAnnounced=$isLeftLineDownAnnounced")
+                        if (isLeftLineStartAnnounced) {
+                            isLeftLineStartAnnounced = false
+                            flickListener?.onFlick(
+                                gestureType = GestureType.Tap,
+                                key = Key.SideKeyCursorLeft,
+                                char = '\u0001'
+                            )
+                            resetAllKeys()
+                            popupWindowActive.hide()
+                            return false
+                        } else if (isLeftLineEndAnnounced) {
+                            isLeftLineEndAnnounced = false
+                            flickListener?.onFlick(
+                                gestureType = GestureType.Tap,
+                                key = Key.SideKeyCursorLeft,
+                                char = '\u0002'
+                            )
+                            resetAllKeys()
+                            popupWindowActive.hide()
+                            return false
+                        } else if (isLeftLineUpAnnounced) {
+                            isLeftLineUpAnnounced = false
+                            flickListener?.onFlick(
+                                gestureType = GestureType.Tap,
+                                key = Key.SideKeyCursorLeft,
+                                char = '\u0003'
+                            )
+                            resetAllKeys()
+                            popupWindowActive.hide()
+                            return false
+                        } else if (isLeftLineDownAnnounced) {
+                            isLeftLineDownAnnounced = false
+                            flickListener?.onFlick(
+                                gestureType = GestureType.Tap,
+                                key = Key.SideKeyCursorLeft,
+                                char = '\u0004'
+                            )
+                            resetAllKeys()
+                            popupWindowActive.hide()
+                            return false
+                        }
+                    }
+
                     // 2) Fast flick gesture fallback (if drag didn't confirm because of quick swipe & release)
                     if (pressedKey.key == Key.SideKeyCursorRight) {
                         val gestureType = getGestureType(event)
@@ -1747,6 +2082,48 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             flickListener?.onFlick(
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyCursorRight,
+                                char = '\u0004'
+                            )
+                            resetAllKeys()
+                            popupWindowActive.hide()
+                            return false
+                        }
+                    }
+
+                    if (pressedKey.key == Key.SideKeyCursorLeft) {
+                        val gestureType = getGestureType(event)
+                        Log.d("TenKeyDrag", "ACTION_UP: Left Cursor fast flick gesture detected: $gestureType")
+                        if (gestureType == GestureType.FlickLeft) {
+                            flickListener?.onFlick(
+                                gestureType = GestureType.Tap,
+                                key = Key.SideKeyCursorLeft,
+                                char = '\u0001'
+                            )
+                            resetAllKeys()
+                            popupWindowActive.hide()
+                            return false
+                        } else if (gestureType == GestureType.FlickRight) {
+                            flickListener?.onFlick(
+                                gestureType = GestureType.Tap,
+                                key = Key.SideKeyCursorLeft,
+                                char = '\u0002'
+                            )
+                            resetAllKeys()
+                            popupWindowActive.hide()
+                            return false
+                        } else if (gestureType == GestureType.FlickTop) {
+                            flickListener?.onFlick(
+                                gestureType = GestureType.Tap,
+                                key = Key.SideKeyCursorLeft,
+                                char = '\u0003'
+                            )
+                            resetAllKeys()
+                            popupWindowActive.hide()
+                            return false
+                        } else if (gestureType == GestureType.FlickBottom) {
+                            flickListener?.onFlick(
+                                gestureType = GestureType.Tap,
+                                key = Key.SideKeyCursorLeft,
                                 char = '\u0004'
                             )
                             resetAllKeys()
@@ -1986,6 +2363,52 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         }
                     }
 
+                    // Handle slide-in / slide-out state transition for SideKeyCursorLeft
+                    if (currentKey == Key.SideKeyCursorLeft) {
+                        if (!isDraggingLeftCursor) {
+                            if (leftTouchSlideInEntryTime == 0L) {
+                                leftTouchSlideInEntryTime = System.currentTimeMillis()
+                                leftTouchSlideInEntryX = screenX
+                                leftTouchSlideInEntryY = screenY
+                            } else {
+                                val movementThreshold = 10f
+                                val dx = screenX - leftTouchSlideInEntryX
+                                val dy = screenY - leftTouchSlideInEntryY
+                                if (abs(dx) > movementThreshold || abs(dy) > movementThreshold) {
+                                    leftTouchSlideInEntryTime = System.currentTimeMillis()
+                                    leftTouchSlideInEntryX = screenX
+                                    leftTouchSlideInEntryY = screenY
+                                } else {
+                                    val elapsed = System.currentTimeMillis() - leftTouchSlideInEntryTime
+                                    if (elapsed >= 500L) {
+                                        isDraggingLeftCursor = true
+                                        leftCursorDragStartX = screenX
+                                        leftCursorDragEndX = screenX
+                                        leftCursorDragStartY = screenY
+                                        leftCursorDragEndY = screenY
+                                        leftCursorDragTopY = screenY
+                                        isLeftLineStartAnnounced = false
+                                        isLeftLineEndAnnounced = false
+                                        isLeftLineUpAnnounced = false
+                                        isLeftLineDownAnnounced = false
+                                        leftTouchSlideInEntryTime = 0L
+                                        Log.d("TenKeyDrag", "ACTION_MOVE: Slid onto Left Cursor and remained stationary for 500ms. Starting drag tracking.")
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        leftTouchSlideInEntryTime = 0L
+                        if (isDraggingLeftCursor) {
+                            Log.d("TenKeyDrag", "ACTION_MOVE: Slid off Left Cursor to $currentKey. Drag cancelled.")
+                            isDraggingLeftCursor = false
+                            isLeftLineStartAnnounced = false
+                            isLeftLineEndAnnounced = false
+                            isLeftLineUpAnnounced = false
+                            isLeftLineDownAnnounced = false
+                        }
+                    }
+
                     if (isDraggingRightCursor) {
                         // Update peak coordinates before any trigger
                         if (!isLineStartAnnounced && !isLineEndAnnounced && !isLineUpAnnounced && !isLineDownAnnounced) {
@@ -2078,6 +2501,98 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         return true // Consume this event to bypass popups and other move gesture handlers!
                     }
 
+                    if (isDraggingLeftCursor) {
+                        // Update peak coordinates before any trigger
+                        if (!isLeftLineStartAnnounced && !isLeftLineEndAnnounced && !isLeftLineUpAnnounced && !isLeftLineDownAnnounced) {
+                            if (screenX > leftCursorDragStartX) {
+                                leftCursorDragStartX = screenX
+                            }
+                            if (screenX < leftCursorDragEndX) {
+                                leftCursorDragEndX = screenX
+                            }
+                            if (screenY > leftCursorDragEndY) {
+                                leftCursorDragEndY = screenY
+                            }
+                            if (screenY < leftCursorDragTopY) {
+                                leftCursorDragTopY = screenY
+                            }
+                        }
+
+                        val dxStart = screenX - leftCursorDragStartX // negative when sliding left
+                        val dxEnd = screenX - leftCursorDragEndX     // positive when sliding right
+                        val dyUp = screenY - leftCursorDragEndY       // negative when sliding up
+                        val dyDown = screenY - leftCursorDragTopY     // positive when sliding down
+                        
+                        val threshold = 35f // Highly sensitive and responsive
+                        val cancelLeftThreshold = -150f
+                        val cancelRightThreshold = 150f
+                        val cancelUpThreshold = -150f
+                        val cancelDownThreshold = 150f
+                        val cancelXThreshold = 60f
+                        val cancelYThreshold = 60f
+                        
+                        Log.d("TenKeyDrag", "ACTION_MOVE: isDraggingLeftCursor=true, screenX=$screenX, screenY=$screenY, dxStart=$dxStart, dxEnd=$dxEnd, dyUp=$dyUp, dyDown=$dyDown")
+                        
+                        if (dxStart < -threshold && dxStart >= cancelLeftThreshold && abs(screenY - leftCursorDragStartY) <= cancelYThreshold) {
+                            if (!isLeftLineStartAnnounced && !isLeftLineEndAnnounced && !isLeftLineUpAnnounced && !isLeftLineDownAnnounced) {
+                                isLeftLineStartAnnounced = true
+                                Log.d("TenKeyDrag", "ACTION_MOVE: Left threshold reached! Announcing '行頭'")
+                                announceForAccessibility("行頭")
+                                android.widget.Toast.makeText(context, "行頭", android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else if (dxEnd > threshold && dxEnd <= cancelRightThreshold && abs(screenY - leftCursorDragStartY) <= cancelYThreshold) {
+                            if (!isLeftLineStartAnnounced && !isLeftLineEndAnnounced && !isLeftLineUpAnnounced && !isLeftLineDownAnnounced) {
+                                isLeftLineEndAnnounced = true
+                                Log.d("TenKeyDrag", "ACTION_MOVE: Right threshold reached! Announcing '行末'")
+                                announceForAccessibility("行末")
+                                android.widget.Toast.makeText(context, "行末", android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else if (dyUp < -threshold && dyUp >= cancelUpThreshold && abs(screenX - leftCursorDragStartX) <= cancelXThreshold) {
+                            if (!isLeftLineStartAnnounced && !isLeftLineEndAnnounced && !isLeftLineUpAnnounced && !isLeftLineDownAnnounced) {
+                                isLeftLineUpAnnounced = true
+                                Log.d("TenKeyDrag", "ACTION_MOVE: Up threshold reached! Announcing '上カーソル'")
+                                announceForAccessibility("上カーソル")
+                                android.widget.Toast.makeText(context, "上カーソル", android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else if (dyDown > threshold && dyDown <= cancelDownThreshold && abs(screenX - leftCursorDragStartX) <= cancelXThreshold) {
+                            if (!isLeftLineStartAnnounced && !isLeftLineEndAnnounced && !isLeftLineUpAnnounced && !isLeftLineDownAnnounced) {
+                                isLeftLineDownAnnounced = true
+                                Log.d("TenKeyDrag", "ACTION_MOVE: Down threshold reached! Announcing '下カーソル'")
+                                announceForAccessibility("下カーソル")
+                                android.widget.Toast.makeText(context, "下カーソル", android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else {
+                            val shouldCancel = if (isLeftLineStartAnnounced) {
+                                (dxStart >= -threshold / 2f) || (dxStart < cancelLeftThreshold) || (abs(screenY - leftCursorDragStartY) > cancelYThreshold)
+                            } else if (isLeftLineEndAnnounced) {
+                                (dxEnd <= threshold / 2f) || (dxEnd > cancelRightThreshold) || (abs(screenY - leftCursorDragStartY) > cancelYThreshold)
+                            } else if (isLeftLineUpAnnounced) {
+                                (dyUp >= -threshold / 2f) || (dyUp < cancelUpThreshold) || (abs(screenX - leftCursorDragStartX) > cancelXThreshold)
+                            } else if (isLeftLineDownAnnounced) {
+                                (dyDown <= threshold / 2f) || (dyDown > cancelDownThreshold) || (abs(screenX - leftCursorDragStartX) > cancelXThreshold)
+                            } else {
+                                (dxStart < cancelLeftThreshold) || (dxEnd > cancelRightThreshold) || (dyUp < cancelUpThreshold) || (dyDown > cancelDownThreshold) || 
+                                (abs(screenY - leftCursorDragStartY) > cancelYThreshold && abs(screenX - leftCursorDragStartX) > cancelXThreshold)
+                            }
+                            
+                            if (shouldCancel) {
+                                if (isLeftLineStartAnnounced || isLeftLineEndAnnounced || isLeftLineUpAnnounced || isLeftLineDownAnnounced) {
+                                    Log.d("TenKeyDrag", "ACTION_MOVE: Resetting left drag announcement (cancelled by drag out of bounds)")
+                                    isLeftLineStartAnnounced = false
+                                    isLeftLineEndAnnounced = false
+                                    isLeftLineUpAnnounced = false
+                                    isLeftLineDownAnnounced = false
+                                }
+                                isDraggingLeftCursor = false
+                            }
+                        }
+                        return true // Consume this event to bypass popups and other move gesture handlers!
+                    }
+
                     val gestureType = if (event.pointerCount == 1) {
                         getGestureType(event, 0)
                     } else {
@@ -2103,6 +2618,11 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     longPressJob?.cancel()
                     isDraggingRightCursor = false
                     isLineStartAnnounced = false
+                    isDraggingLeftCursor = false
+                    isLeftLineStartAnnounced = false
+                    isLeftLineEndAnnounced = false
+                    isLeftLineUpAnnounced = false
+                    isLeftLineDownAnnounced = false
                     if (isCursorMode) {
                         return true
                     }

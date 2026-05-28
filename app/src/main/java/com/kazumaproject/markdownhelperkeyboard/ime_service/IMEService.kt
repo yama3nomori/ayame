@@ -3785,11 +3785,21 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             }
 
             Key.SideKeyCursorLeft -> {
-                if (!leftCursorKeyLongKeyPressed.get()) {
-                    if (isHenkan.get()) {
-                        handleDeleteKeyInHenkan(suggestions, insertString)
-                    } else {
-                        handleLeftCursor(gestureType, insertString)
+                if (char == '\u0001') {
+                    moveCursorToStartOfLine()
+                } else if (char == '\u0002') {
+                    moveCursorToEndOfLine()
+                } else if (char == '\u0003') {
+                    moveCursorToPrevLineAndReadAloud()
+                } else if (char == '\u0004') {
+                    moveCursorToNextLineAndReadAloud()
+                } else {
+                    if (!leftCursorKeyLongKeyPressed.get()) {
+                        if (isHenkan.get()) {
+                            handleDeleteKeyInHenkan(suggestions, insertString)
+                        } else {
+                            handleLeftCursor(gestureType, insertString)
+                        }
                     }
                 }
                 onLeftKeyLongPressUp.set(true)
@@ -3994,11 +4004,21 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             }
 
             Key.SideKeyCursorLeft -> {
-                if (!leftCursorKeyLongKeyPressed.get()) {
-                    if (isHenkan.get()) {
-                        handleDeleteKeyInHenkan(suggestions, insertString)
-                    } else {
-                        handleLeftCursor(gestureType, insertString)
+                if (char == '\u0001') {
+                    moveCursorToStartOfLine()
+                } else if (char == '\u0002') {
+                    moveCursorToEndOfLine()
+                } else if (char == '\u0003') {
+                    moveCursorToPrevLineAndReadAloud()
+                } else if (char == '\u0004') {
+                    moveCursorToNextLineAndReadAloud()
+                } else {
+                    if (!leftCursorKeyLongKeyPressed.get()) {
+                        if (isHenkan.get()) {
+                            handleDeleteKeyInHenkan(suggestions, insertString)
+                        } else {
+                            handleLeftCursor(gestureType, insertString)
+                        }
                     }
                 }
                 onLeftKeyLongPressUp.set(true)
