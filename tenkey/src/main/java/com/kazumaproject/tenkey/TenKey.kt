@@ -1274,17 +1274,19 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                 // Handle slide-in / slide-out state transition for SideKeyCursorRight
                 if (key == Key.SideKeyCursorRight) {
                     if (!isHoverDraggingRightCursor) {
-                        isHoverDraggingRightCursor = true
-                        hoverRightCursorDragStartX = screenX
-                        hoverRightCursorDragEndX = screenX
-                        hoverRightCursorDragStartY = screenY
-                        hoverRightCursorDragEndY = screenY
-                        hoverRightCursorDragTopY = screenY
-                        isLineStartAnnounced = false
-                        isLineEndAnnounced = false
-                        isLineUpAnnounced = false
-                        isLineDownAnnounced = false
-                        Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid onto Right Cursor (Hover). Initialized drag coordinates: X=$hoverRightCursorDragStartX, Y=$hoverRightCursorDragStartY")
+                        if (isNearCenter(Key.SideKeyCursorRight, screenX, screenY)) {
+                            isHoverDraggingRightCursor = true
+                            hoverRightCursorDragStartX = screenX
+                            hoverRightCursorDragEndX = screenX
+                            hoverRightCursorDragStartY = screenY
+                            hoverRightCursorDragEndY = screenY
+                            hoverRightCursorDragTopY = screenY
+                            isLineStartAnnounced = false
+                            isLineEndAnnounced = false
+                            isLineUpAnnounced = false
+                            isLineDownAnnounced = false
+                            Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid onto Right Cursor (Hover) and reached center. Initialized drag coordinates: X=$hoverRightCursorDragStartX, Y=$hoverRightCursorDragStartY")
+                        }
                     }
                 } else {
                     if (isHoverDraggingRightCursor) {
@@ -1906,20 +1908,28 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         Key.NotSelected
                     }
 
+                    val (screenX, screenY) = if (event.pointerCount > 0) {
+                        getRawCoordinates(event, 0)
+                    } else {
+                        0f to 0f
+                    }
+
                     // Handle slide-in / slide-out state transition for SideKeyCursorRight
                     if (currentKey == Key.SideKeyCursorRight) {
                         if (!isDraggingRightCursor) {
-                            isDraggingRightCursor = true
-                            rightCursorDragStartX = currentX
-                            rightCursorDragEndX = currentX
-                            rightCursorDragStartY = currentY
-                            rightCursorDragEndY = currentY
-                            rightCursorDragTopY = currentY
-                            isLineStartAnnounced = false
-                            isLineEndAnnounced = false
-                            isLineUpAnnounced = false
-                            isLineDownAnnounced = false
-                            Log.d("TenKeyDrag", "ACTION_MOVE: Slid onto Right Cursor. Initialized drag coordinates: X=$rightCursorDragStartX, Y=$rightCursorDragStartY")
+                            if (isNearCenter(Key.SideKeyCursorRight, screenX, screenY)) {
+                                isDraggingRightCursor = true
+                                rightCursorDragStartX = screenX
+                                rightCursorDragEndX = screenX
+                                rightCursorDragStartY = screenY
+                                rightCursorDragEndY = screenY
+                                rightCursorDragTopY = screenY
+                                isLineStartAnnounced = false
+                                isLineEndAnnounced = false
+                                isLineUpAnnounced = false
+                                isLineDownAnnounced = false
+                                Log.d("TenKeyDrag", "ACTION_MOVE: Slid onto Right Cursor and reached center. Initialized drag coordinates: X=$rightCursorDragStartX, Y=$rightCursorDragStartY")
+                            }
                         }
                     } else {
                         if (isDraggingRightCursor) {
@@ -1935,24 +1945,24 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     if (isDraggingRightCursor) {
                         // Update peak coordinates before any trigger
                         if (!isLineStartAnnounced && !isLineEndAnnounced && !isLineUpAnnounced && !isLineDownAnnounced) {
-                            if (currentX > rightCursorDragStartX) {
-                                rightCursorDragStartX = currentX
+                            if (screenX > rightCursorDragStartX) {
+                                rightCursorDragStartX = screenX
                             }
-                            if (currentX < rightCursorDragEndX) {
-                                rightCursorDragEndX = currentX
+                            if (screenX < rightCursorDragEndX) {
+                                rightCursorDragEndX = screenX
                             }
-                            if (currentY > rightCursorDragEndY) {
-                                rightCursorDragEndY = currentY
+                            if (screenY > rightCursorDragEndY) {
+                                rightCursorDragEndY = screenY
                             }
-                            if (currentY < rightCursorDragTopY) {
-                                rightCursorDragTopY = currentY
+                            if (screenY < rightCursorDragTopY) {
+                                rightCursorDragTopY = screenY
                             }
                         }
 
-                        val dxStart = currentX - rightCursorDragStartX // negative when sliding left
-                        val dxEnd = currentX - rightCursorDragEndX     // positive when sliding right
-                        val dyUp = currentY - rightCursorDragEndY       // negative when sliding up
-                        val dyDown = currentY - rightCursorDragTopY     // positive when sliding down
+                        val dxStart = screenX - rightCursorDragStartX // negative when sliding left
+                        val dxEnd = screenX - rightCursorDragEndX     // positive when sliding right
+                        val dyUp = screenY - rightCursorDragEndY       // negative when sliding up
+                        val dyDown = screenY - rightCursorDragTopY     // positive when sliding down
                         
                         val threshold = 35f // Highly sensitive and responsive
                         val cancelLeftThreshold = -150f
@@ -1962,9 +1972,9 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         val cancelXThreshold = 60f
                         val cancelYThreshold = 60f
                         
-                        Log.d("TenKeyDrag", "ACTION_MOVE: isDraggingRightCursor=true, currentX=$currentX, dxStart=$dxStart, dxEnd=$dxEnd, dyUp=$dyUp, dyDown=$dyDown")
+                        Log.d("TenKeyDrag", "ACTION_MOVE: isDraggingRightCursor=true, screenX=$screenX, screenY=$screenY, dxStart=$dxStart, dxEnd=$dxEnd, dyUp=$dyUp, dyDown=$dyDown")
                         
-                        if (dxStart < -threshold && dxStart >= cancelLeftThreshold && abs(currentY - rightCursorDragStartY) <= cancelYThreshold) {
+                        if (dxStart < -threshold && dxStart >= cancelLeftThreshold && abs(screenY - rightCursorDragStartY) <= cancelYThreshold) {
                             if (!isLineStartAnnounced && !isLineEndAnnounced && !isLineUpAnnounced && !isLineDownAnnounced) {
                                 isLineStartAnnounced = true
                                 Log.d("TenKeyDrag", "ACTION_MOVE: Left threshold reached! Announcing '行頭'")
@@ -1972,7 +1982,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 android.widget.Toast.makeText(context, "行頭", android.widget.Toast.LENGTH_SHORT).show()
                                 performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                             }
-                        } else if (dxEnd > threshold && dxEnd <= cancelRightThreshold && abs(currentY - rightCursorDragStartY) <= cancelYThreshold) {
+                        } else if (dxEnd > threshold && dxEnd <= cancelRightThreshold && abs(screenY - rightCursorDragStartY) <= cancelYThreshold) {
                             if (!isLineStartAnnounced && !isLineEndAnnounced && !isLineUpAnnounced && !isLineDownAnnounced) {
                                 isLineEndAnnounced = true
                                 Log.d("TenKeyDrag", "ACTION_MOVE: Right threshold reached! Announcing '行末'")
@@ -1980,7 +1990,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 android.widget.Toast.makeText(context, "行末", android.widget.Toast.LENGTH_SHORT).show()
                                 performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                             }
-                        } else if (dyUp < -threshold && dyUp >= cancelUpThreshold && abs(currentX - rightCursorDragStartX) <= cancelXThreshold) {
+                        } else if (dyUp < -threshold && dyUp >= cancelUpThreshold && abs(screenX - rightCursorDragStartX) <= cancelXThreshold) {
                             if (!isLineStartAnnounced && !isLineEndAnnounced && !isLineUpAnnounced && !isLineDownAnnounced) {
                                 isLineUpAnnounced = true
                                 Log.d("TenKeyDrag", "ACTION_MOVE: Up threshold reached! Announcing '上カーソル'")
@@ -1988,7 +1998,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 android.widget.Toast.makeText(context, "上カーソル", android.widget.Toast.LENGTH_SHORT).show()
                                 performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                             }
-                        } else if (dyDown > threshold && dyDown <= cancelDownThreshold && abs(currentX - rightCursorDragStartX) <= cancelXThreshold) {
+                        } else if (dyDown > threshold && dyDown <= cancelDownThreshold && abs(screenX - rightCursorDragStartX) <= cancelXThreshold) {
                             if (!isLineStartAnnounced && !isLineEndAnnounced && !isLineUpAnnounced && !isLineDownAnnounced) {
                                 isLineDownAnnounced = true
                                 Log.d("TenKeyDrag", "ACTION_MOVE: Down threshold reached! Announcing '下カーソル'")
@@ -1998,16 +2008,16 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             }
                         } else {
                             val shouldCancel = if (isLineStartAnnounced) {
-                                (dxStart >= -threshold / 2f) || (dxStart < cancelLeftThreshold) || (abs(currentY - rightCursorDragStartY) > cancelYThreshold)
+                                (dxStart >= -threshold / 2f) || (dxStart < cancelLeftThreshold) || (abs(screenY - rightCursorDragStartY) > cancelYThreshold)
                             } else if (isLineEndAnnounced) {
-                                (dxEnd <= threshold / 2f) || (dxEnd > cancelRightThreshold) || (abs(currentY - rightCursorDragStartY) > cancelYThreshold)
+                                (dxEnd <= threshold / 2f) || (dxEnd > cancelRightThreshold) || (abs(screenY - rightCursorDragStartY) > cancelYThreshold)
                             } else if (isLineUpAnnounced) {
-                                (dyUp >= -threshold / 2f) || (dyUp < cancelUpThreshold) || (abs(currentX - rightCursorDragStartX) > cancelXThreshold)
+                                (dyUp >= -threshold / 2f) || (dyUp < cancelUpThreshold) || (abs(screenX - rightCursorDragStartX) > cancelXThreshold)
                             } else if (isLineDownAnnounced) {
-                                (dyDown <= threshold / 2f) || (dyDown > cancelDownThreshold) || (abs(currentX - rightCursorDragStartX) > cancelXThreshold)
+                                (dyDown <= threshold / 2f) || (dyDown > cancelDownThreshold) || (abs(screenX - rightCursorDragStartX) > cancelXThreshold)
                             } else {
                                 (dxStart < cancelLeftThreshold) || (dxEnd > cancelRightThreshold) || (dyUp < cancelUpThreshold) || (dyDown > cancelDownThreshold) || 
-                                (abs(currentY - rightCursorDragStartY) > cancelYThreshold && abs(currentX - rightCursorDragStartX) > cancelXThreshold)
+                                (abs(screenY - rightCursorDragStartY) > cancelYThreshold && abs(screenX - rightCursorDragStartX) > cancelXThreshold)
                             }
                             
                             if (shouldCancel) {
@@ -2461,6 +2471,20 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                 colorTextInt = customKeyTextColor
             )
         }
+    }
+
+    private fun isNearCenter(key: Key, x: Float, y: Float): Boolean {
+        if (cachedKeyRects == null) {
+            refreshKeyRects()
+        }
+        val rect = cachedKeyRects?.find { it.key == key } ?: return true
+        val kw = rect.right - rect.left
+        val kh = rect.bottom - rect.top
+        val cx = rect.left + kw / 2f
+        val cy = rect.top + kh / 2f
+        
+        // Define center region: within 30% of width/height from the center
+        return abs(x - cx) < kw * 0.30f && abs(y - cy) < kh * 0.30f
     }
 
     /** Get absolute coordinates for the given pointer **/
