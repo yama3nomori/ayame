@@ -3881,7 +3881,23 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     _cursorMoveMode.update { false }
                 } else {
                     if (!isSpaceKeyLongPressed) {
-                        if (gestureType == GestureType.FlickLeft) {
+                        if (gestureType == GestureType.FlickBottom) {
+                            if (insertString.isNotBlank() && suggestions.isNotEmpty()) {
+                                mainView.keyboardView.let { tenkey ->
+                                    if (tenkey.currentInputMode.value == InputMode.ModeJapanese) {
+                                        if (bunsetsuSeparation == true) {
+                                            handleJapaneseModeSpaceKeyWithBunsetsu(
+                                                mainView, suggestions, insertString
+                                            )
+                                        } else {
+                                            handleJapaneseModeSpaceKey(
+                                                mainView, suggestions, insertString
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        } else if (gestureType == GestureType.FlickLeft) {
                             val isHankaku = hankakuPreference == true
                             if (isHankaku) {
                                 handleSpaceKeyClick(false, insertString, suggestions, mainView)
@@ -4106,7 +4122,23 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     _cursorMoveMode.update { false }
                 } else {
                     if (!isSpaceKeyLongPressed) {
-                        if (gestureType == GestureType.FlickLeft) {
+                        if (gestureType == GestureType.FlickBottom) {
+                            if (insertString.isNotBlank() && suggestions.isNotEmpty()) {
+                                floatingKeyboardLayoutBinding.keyboardViewFloating.let { tenkey ->
+                                    if (tenkey.currentInputMode.value == InputMode.ModeJapanese) {
+                                        if (bunsetsuSeparation == true) {
+                                            handleJapaneseModeSpaceKeyWithBunsetsuFloating(
+                                                floatingKeyboardLayoutBinding, suggestions, insertString
+                                            )
+                                        } else {
+                                            handleJapaneseModeSpaceKeyFloating(
+                                                floatingKeyboardLayoutBinding, suggestions, insertString
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        } else if (gestureType == GestureType.FlickLeft) {
                             val isHankaku = hankakuPreference == true
                             if (isHankaku) {
                                 handleSpaceKeyClickFloating(
