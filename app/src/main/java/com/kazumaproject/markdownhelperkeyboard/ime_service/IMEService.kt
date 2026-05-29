@@ -11945,9 +11945,20 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 if (isTablet == true) {
                     tabletView.let { tabletKey ->
                         when (tabletKey.currentInputMode.get()) {
-                            InputMode.ModeJapanese -> if (suggestions.isNotEmpty()) handleJapaneseModeSpaceKey(
-                                this, suggestions, insertString
-                            )
+                            InputMode.ModeJapanese -> if (suggestions.isNotEmpty() && isHenkan.get()) {
+                                handleJapaneseModeSpaceKey(
+                                    this, suggestions, insertString
+                                )
+                            } else {
+                                val isHankaku = hankakuPreference == true
+                                val spaceChar = if (isHankaku) " " else "　"
+                                commitText("$insertString$spaceChar", 1)
+                                _inputString.update { "" }
+                                isHenkan.set(false)
+                                henkanPressedWithBunsetsuDetect = false
+                                suggestionClickNum = 0
+                                suggestionAdapter?.updateHighlightPosition(-1)
+                            }
 
                             else -> setSpaceKeyActionEnglishAndNumberNotEmpty(insertString)
                         }
@@ -11955,7 +11966,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 } else {
                     keyboardView.let { tenkey ->
                         when (tenkey.currentInputMode.value) {
-                            InputMode.ModeJapanese -> if (suggestions.isNotEmpty()) {
+                            InputMode.ModeJapanese -> if (suggestions.isNotEmpty() && isHenkan.get()) {
                                 if (bunsetsuSeparation == true) {
                                     handleJapaneseModeSpaceKeyWithBunsetsu(
                                         this, suggestions, insertString
@@ -11965,6 +11976,15 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                                         this, suggestions, insertString
                                     )
                                 }
+                            } else {
+                                val isHankaku = hankakuPreference == true
+                                val spaceChar = if (isHankaku) " " else "　"
+                                commitText("$insertString$spaceChar", 1)
+                                _inputString.update { "" }
+                                isHenkan.set(false)
+                                henkanPressedWithBunsetsuDetect = false
+                                suggestionClickNum = 0
+                                suggestionAdapter?.updateHighlightPosition(-1)
                             }
 
                             else -> setSpaceKeyActionEnglishAndNumberNotEmpty(insertString)
@@ -11989,7 +12009,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             floatingKeyboardLayoutBinding.keyboardViewFloating.let { tenkey ->
                 when (tenkey.currentInputMode.value) {
                     InputMode.ModeJapanese -> {
-                        if (suggestions.isNotEmpty()) {
+                        if (suggestions.isNotEmpty() && isHenkan.get()) {
                             if (bunsetsuSeparation == true) {
                                 handleJapaneseModeSpaceKeyWithBunsetsuFloating(
                                     floatingKeyboardLayoutBinding, suggestions, insertString
@@ -11999,6 +12019,15 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                                     floatingKeyboardLayoutBinding, suggestions, insertString
                                 )
                             }
+                        } else {
+                            val isHankaku = hankakuPreference == true
+                            val spaceChar = if (isHankaku) " " else "　"
+                            commitText("$insertString$spaceChar", 1)
+                            _inputString.update { "" }
+                            isHenkan.set(false)
+                            henkanPressedWithBunsetsuDetect = false
+                            suggestionClickNum = 0
+                            suggestionAdapter?.updateHighlightPosition(-1)
                         }
                     }
 
