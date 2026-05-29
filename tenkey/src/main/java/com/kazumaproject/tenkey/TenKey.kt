@@ -356,6 +356,27 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
     private var deleteHoverSlideInEntryX = 0f
     private var deleteHoverSlideInEntryY = 0f
 
+    // Drag tracking variables for Key.SideKeySpace
+    private var isDraggingSpaceKey = false
+    private var isHoverDraggingSpaceKey = false
+    private var isSpaceDownAnnounced = false
+    private var spaceKeyDragStartX = 0f
+    private var spaceKeyDragEndX = 0f
+    private var spaceKeyDragStartY = 0f
+    private var spaceKeyDragEndY = 0f
+    private var hoverSpaceKeyDragStartX = 0f
+    private var hoverSpaceKeyDragEndX = 0f
+    private var hoverSpaceKeyDragStartY = 0f
+    private var hoverSpaceKeyDragEndY = 0f
+
+    // Stationary tracking for slide-in gesture start on Space key
+    private var spaceTouchSlideInEntryTime = 0L
+    private var spaceTouchSlideInEntryX = 0f
+    private var spaceTouchSlideInEntryY = 0f
+    private var spaceHoverSlideInEntryTime = 0L
+    private var spaceHoverSlideInEntryX = 0f
+    private var spaceHoverSlideInEntryY = 0f
+
     // Theme Variables (Initialized with defaults)
     private var themeMode: String = "default"
     private var isNightMode: Boolean = false
@@ -1308,6 +1329,10 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     isLineEndAnnounced = false
                     isLineUpAnnounced = false
                     isLineDownAnnounced = false
+                    isHoverDraggingLeftCursor = false
+                    isHoverDraggingDeleteKey = false
+                    isHoverDraggingSpaceKey = false
+                    isSpaceDownAnnounced = false
                 } else if (key == Key.SideKeyCursorLeft) {
                     isHoverDraggingLeftCursor = true
                     hoverLeftCursorDragStartX = screenX
@@ -1319,6 +1344,10 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     isLeftLineEndAnnounced = false
                     isLeftLineUpAnnounced = false
                     isLeftLineDownAnnounced = false
+                    isHoverDraggingRightCursor = false
+                    isHoverDraggingDeleteKey = false
+                    isHoverDraggingSpaceKey = false
+                    isSpaceDownAnnounced = false
                 } else if (key == Key.SideKeyDelete) {
                     isHoverDraggingDeleteKey = true
                     hoverDeleteKeyDragStartX = screenX
@@ -1329,6 +1358,20 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     isDeleteLeftAnnounced = false
                     isDeleteRightAnnounced = false
                     isDeleteUpAnnounced = false
+                    isHoverDraggingRightCursor = false
+                    isHoverDraggingLeftCursor = false
+                    isHoverDraggingSpaceKey = false
+                    isSpaceDownAnnounced = false
+                } else if (key == Key.SideKeySpace) {
+                    isHoverDraggingSpaceKey = true
+                    hoverSpaceKeyDragStartX = screenX
+                    hoverSpaceKeyDragEndX = screenX
+                    hoverSpaceKeyDragStartY = screenY
+                    hoverSpaceKeyDragEndY = screenY
+                    isSpaceDownAnnounced = false
+                    isHoverDraggingRightCursor = false
+                    isHoverDraggingLeftCursor = false
+                    isHoverDraggingDeleteKey = false
                 } else {
                     isHoverDraggingRightCursor = false
                     isLineStartAnnounced = false
@@ -1344,6 +1387,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     isDeleteLeftAnnounced = false
                     isDeleteRightAnnounced = false
                     isDeleteUpAnnounced = false
+                    isHoverDraggingSpaceKey = false
+                    isSpaceDownAnnounced = false
                 }
 
                 if (key != currentHoverKey) {
@@ -1495,11 +1540,50 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     }
                 }
 
+                // Handle slide-in / slide-out state transition for SideKeySpace
+                if (key == Key.SideKeySpace) {
+                    if (!isHoverDraggingSpaceKey) {
+                        if (spaceHoverSlideInEntryTime == 0L) {
+                            spaceHoverSlideInEntryTime = System.currentTimeMillis()
+                            spaceHoverSlideInEntryX = screenX
+                            spaceHoverSlideInEntryY = screenY
+                        } else {
+                            val movementThreshold = 10f
+                            val dx = screenX - spaceHoverSlideInEntryX
+                            val dy = screenY - spaceHoverSlideInEntryY
+                            if (abs(dx) > movementThreshold || abs(dy) > movementThreshold) {
+                                spaceHoverSlideInEntryTime = System.currentTimeMillis()
+                                spaceHoverSlideInEntryX = screenX
+                                spaceHoverSlideInEntryY = screenY
+                            } else {
+                                val elapsed = System.currentTimeMillis() - spaceHoverSlideInEntryTime
+                                if (elapsed >= 500L) {
+                                    isHoverDraggingSpaceKey = true
+                                    hoverSpaceKeyDragStartX = screenX
+                                    hoverSpaceKeyDragEndX = screenX
+                                    hoverSpaceKeyDragStartY = screenY
+                                    hoverSpaceKeyDragEndY = screenY
+                                    isSpaceDownAnnounced = false
+                                    spaceHoverSlideInEntryTime = 0L
+                                    Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid onto Space Key (Hover) and remained stationary for 500ms. Starting drag tracking.")
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    spaceHoverSlideInEntryTime = 0L
+                    if (isHoverDraggingSpaceKey) {
+                        Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid off Space Key (Hover) to $key. Drag cancelled.")
+                        isHoverDraggingSpaceKey = false
+                        isSpaceDownAnnounced = false
+                    }
+                }
+
                 if (key != currentHoverKey) {
                     currentHoverKey = key
 
-                    // Only announce if we are not actively dragging Right/Left Cursor or Delete Key to prevent confusing user
-                    if (!isHoverDraggingRightCursor && !isHoverDraggingLeftCursor && !isHoverDraggingDeleteKey) {
+                    // Only announce if we are not actively dragging Right/Left Cursor, Delete Key, or Space Key to prevent confusing user
+                    if (!isHoverDraggingRightCursor && !isHoverDraggingLeftCursor && !isHoverDraggingDeleteKey && !isHoverDraggingSpaceKey) {
                         val targetView = getButtonFromKey(key)
                         if (targetView is View) {
                             if (accessibilityManager.isTouchExplorationEnabled) {
@@ -1772,6 +1856,50 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         }
                     }
                 }
+
+                if (isHoverDraggingSpaceKey) {
+                    val dyStart = screenY - hoverSpaceKeyDragStartY // positive when sliding down
+                    
+                    val threshold = 35f // Highly sensitive and responsive
+                    val cancelDownThreshold = 150f
+                    val cancelXThreshold = 60f
+                    
+                    Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: isHoverDraggingSpaceKey=true, screenX=$screenX, screenY=$screenY, dyStart=$dyStart")
+                    
+                    if (dyStart > threshold && dyStart <= cancelDownThreshold && abs(screenX - hoverSpaceKeyDragStartX) <= cancelXThreshold) {
+                        if (!isSpaceDownAnnounced) {
+                            isSpaceDownAnnounced = true
+                            val annText = "予測変換"
+                            Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Space Down threshold reached! Announcing '$annText'")
+                            announceForAccessibility(annText)
+                            android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
+                            performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                        }
+                    } else {
+                        val shouldCancel = if (isSpaceDownAnnounced) {
+                            (dyStart <= threshold / 2f) || (dyStart > cancelDownThreshold) || (abs(screenX - hoverSpaceKeyDragStartX) > cancelXThreshold)
+                        } else {
+                            (dyStart > cancelDownThreshold) || (abs(screenX - hoverSpaceKeyDragStartX) > cancelXThreshold)
+                        }
+                        
+                        if (shouldCancel) {
+                            if (isSpaceDownAnnounced) {
+                                Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Resetting Space drag announcement (cancelled by drag out of bounds)")
+                                isSpaceDownAnnounced = false
+                            }
+                            isHoverDraggingSpaceKey = false
+                            
+                            // Immediately announce the currently hovered key since we cancelled the drag gesture
+                            val targetView = getButtonFromKey(key)
+                            if (targetView is View) {
+                                if (accessibilityManager.isTouchExplorationEnabled) {
+                                    accessibilityManager.interrupt()
+                                }
+                                targetView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+                            }
+                        }
+                    }
+                }
             }
             MotionEvent.ACTION_HOVER_EXIT -> {
                 // Prevent accidental input when sliding off the keyboard edge.
@@ -1982,6 +2110,40 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     }
                 }
 
+                if (isHoverDraggingSpaceKey) {
+                    isHoverDraggingSpaceKey = false
+                    Log.d("TenKeyDrag", "ACTION_HOVER_EXIT: hover Space drag finished. isSpaceDownAnnounced=$isSpaceDownAnnounced")
+                    
+                    var triggerSpaceDown = isSpaceDownAnnounced
+
+                    // Fallback for fast flick in Hover Mode: if not already announced, check final delta
+                    if (!triggerSpaceDown) {
+                        val dx = screenX - hoverSpaceKeyDragStartX
+                        val dy = screenY - hoverSpaceKeyDragStartY
+                        val threshold = 35f
+                        val cancelXThreshold = 60f
+                        
+                        if (abs(dx) <= cancelXThreshold) {
+                            if (dy > threshold) {
+                                triggerSpaceDown = true
+                            }
+                        }
+                    }
+
+                    if (triggerSpaceDown) {
+                        isSpaceDownAnnounced = false
+                        if (!isSlideOff && isInputComposing) {
+                            flickListener?.onFlick(
+                                gestureType = GestureType.FlickBottom,
+                                key = Key.SideKeySpace,
+                                char = null
+                            )
+                        }
+                        currentHoverKey = Key.NotSelected
+                        return true
+                    }
+                }
+
                 if (!isSlideOff) {
                     if (currentHoverKey != Key.NotSelected) {
                         performKeyInput(currentHoverKey)
@@ -2094,6 +2256,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         rightCursorDragTopY = currentY
                         isDraggingLeftCursor = false
                         isDraggingDeleteKey = false
+                        isDraggingSpaceKey = false
+                        isSpaceDownAnnounced = false
                         Log.d("TenKeyDrag", "ACTION_DOWN: Right Cursor drag initialized. StartX=$rightCursorDragStartX")
                     } else if (key == Key.SideKeyCursorLeft) {
                         isDraggingLeftCursor = true
@@ -2118,6 +2282,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         leftCursorDragTopY = currentY
                         isDraggingRightCursor = false
                         isDraggingDeleteKey = false
+                        isDraggingSpaceKey = false
+                        isSpaceDownAnnounced = false
                         Log.d("TenKeyDrag", "ACTION_DOWN: Left Cursor drag initialized. StartX=$leftCursorDragStartX")
                     } else if (key == Key.SideKeyDelete) {
                         isDraggingDeleteKey = true
@@ -2141,7 +2307,30 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         deleteKeyDragTopY = currentY
                         isDraggingRightCursor = false
                         isDraggingLeftCursor = false
+                        isDraggingSpaceKey = false
+                        isSpaceDownAnnounced = false
                         Log.d("TenKeyDrag", "ACTION_DOWN: Delete key drag initialized. StartX=$deleteKeyDragStartX")
+                    } else if (key == Key.SideKeySpace) {
+                        isDraggingSpaceKey = true
+                        isSpaceDownAnnounced = false
+                        val currentX = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            event.getRawX(0)
+                        } else {
+                            event.getX(0)
+                        }
+                        val currentY = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            event.getRawY(0)
+                        } else {
+                            event.getY(0)
+                        }
+                        spaceKeyDragStartX = currentX
+                        spaceKeyDragEndX = currentX
+                        spaceKeyDragStartY = currentY
+                        spaceKeyDragEndY = currentY
+                        isDraggingRightCursor = false
+                        isDraggingLeftCursor = false
+                        isDraggingDeleteKey = false
+                        Log.d("TenKeyDrag", "ACTION_DOWN: Space key drag initialized. StartX=$spaceKeyDragStartX")
                     } else {
                         isDraggingRightCursor = false
                         isLineStartAnnounced = false
@@ -2157,6 +2346,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         isDeleteLeftAnnounced = false
                         isDeleteRightAnnounced = false
                         isDeleteUpAnnounced = false
+                        isDraggingSpaceKey = false
+                        isSpaceDownAnnounced = false
                     }
 
                     Log.d("TenKey: ACTION_DOWN", "called ${pressedKey.key}")
@@ -2299,6 +2490,24 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         }
                     }
 
+                    if (isDraggingSpaceKey) {
+                        isDraggingSpaceKey = false
+                        Log.d("TenKeyDrag", "ACTION_UP: Space key drag finished. isSpaceDownAnnounced=$isSpaceDownAnnounced")
+                        if (isSpaceDownAnnounced) {
+                            isSpaceDownAnnounced = false
+                            if (isInputComposing) {
+                                flickListener?.onFlick(
+                                    gestureType = GestureType.FlickBottom,
+                                    key = Key.SideKeySpace,
+                                    char = null
+                                )
+                            }
+                            resetAllKeys()
+                            popupWindowActive.hide()
+                            return false
+                        }
+                    }
+
                     // 2) Fast flick gesture fallback (if drag didn't confirm because of quick swipe & release)
                     if (pressedKey.key == Key.SideKeyCursorRight) {
                         val gestureType = getGestureType(event)
@@ -2405,6 +2614,22 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             resetAllKeys()
                             popupWindowActive.hide()
                             return false
+                        }
+                    }
+                    if (pressedKey.key == Key.SideKeySpace) {
+                        val gestureType = getGestureType(event)
+                        Log.d("TenKeyDrag", "ACTION_UP: Space key fast flick gesture detected: $gestureType")
+                        if (gestureType == GestureType.FlickBottom) {
+                            if (isInputComposing) {
+                                flickListener?.onFlick(
+                                    gestureType = GestureType.FlickBottom,
+                                    key = Key.SideKeySpace,
+                                    char = null
+                                )
+                                resetAllKeys()
+                                popupWindowActive.hide()
+                                return false
+                            }
                         }
                     }
                     if (isCursorMode) {
@@ -2727,6 +2952,45 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         }
                     }
 
+                    // Handle slide-in / slide-out state transition for SideKeySpace
+                    if (currentKey == Key.SideKeySpace) {
+                        if (!isDraggingSpaceKey) {
+                            if (spaceTouchSlideInEntryTime == 0L) {
+                                spaceTouchSlideInEntryTime = System.currentTimeMillis()
+                                spaceTouchSlideInEntryX = screenX
+                                spaceTouchSlideInEntryY = screenY
+                            } else {
+                                val movementThreshold = 10f
+                                val dx = screenX - spaceTouchSlideInEntryX
+                                val dy = screenY - spaceTouchSlideInEntryY
+                                if (abs(dx) > movementThreshold || abs(dy) > movementThreshold) {
+                                    spaceTouchSlideInEntryTime = System.currentTimeMillis()
+                                    spaceTouchSlideInEntryX = screenX
+                                    spaceTouchSlideInEntryY = screenY
+                                } else {
+                                    val elapsed = System.currentTimeMillis() - spaceTouchSlideInEntryTime
+                                    if (elapsed >= 500L) {
+                                        isDraggingSpaceKey = true
+                                        spaceKeyDragStartX = screenX
+                                        spaceKeyDragEndX = screenX
+                                        spaceKeyDragStartY = screenY
+                                        spaceKeyDragEndY = screenY
+                                        isSpaceDownAnnounced = false
+                                        spaceTouchSlideInEntryTime = 0L
+                                        Log.d("TenKeyDrag", "ACTION_MOVE: Slid onto Space key and remained stationary for 500ms. Starting drag tracking.")
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        spaceTouchSlideInEntryTime = 0L
+                        if (isDraggingSpaceKey) {
+                            Log.d("TenKeyDrag", "ACTION_MOVE: Slid off Space key to $currentKey. Drag cancelled.")
+                            isDraggingSpaceKey = false
+                            isSpaceDownAnnounced = false
+                        }
+                    }
+
                     if (isDraggingRightCursor) {
                         // Update peak coordinates before any trigger
                         if (!isLineStartAnnounced && !isLineEndAnnounced && !isLineUpAnnounced && !isLineDownAnnounced) {
@@ -2967,6 +3231,42 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         return true // Consume this event to bypass popups and other move gesture handlers!
                     }
 
+                    if (isDraggingSpaceKey) {
+                        val dyStart = screenY - spaceKeyDragStartY // positive when sliding down
+                        
+                        val threshold = 35f // Highly sensitive and responsive
+                        val cancelDownThreshold = 150f
+                        val cancelXThreshold = 60f
+                        
+                        Log.d("TenKeyDrag", "ACTION_MOVE: isDraggingSpaceKey=true, screenX=$screenX, screenY=$screenY, dyStart=$dyStart")
+                        
+                        if (dyStart > threshold && dyStart <= cancelDownThreshold && abs(screenX - spaceKeyDragStartX) <= cancelXThreshold) {
+                            if (!isSpaceDownAnnounced && isInputComposing) {
+                                isSpaceDownAnnounced = true
+                                val annText = "予測変換"
+                                Log.d("TenKeyDrag", "ACTION_MOVE: Space Down threshold reached! Announcing '$annText'")
+                                announceForAccessibility(annText)
+                                android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else {
+                            val shouldCancel = if (isSpaceDownAnnounced) {
+                                (dyStart <= threshold / 2f) || (dyStart > cancelDownThreshold) || (abs(screenX - spaceKeyDragStartX) > cancelXThreshold)
+                            } else {
+                                (dyStart > cancelDownThreshold) || (abs(screenX - spaceKeyDragStartX) > cancelXThreshold)
+                            }
+                            
+                            if (shouldCancel) {
+                                if (isSpaceDownAnnounced) {
+                                    Log.d("TenKeyDrag", "ACTION_MOVE: Resetting Space drag announcement (cancelled by drag out of bounds)")
+                                    isSpaceDownAnnounced = false
+                                }
+                                isDraggingSpaceKey = false
+                            }
+                        }
+                        return true // Consume this event to bypass popups and other move gesture handlers!
+                    }
+
                     val gestureType = if (event.pointerCount == 1) {
                         getGestureType(event, 0)
                     } else {
@@ -3000,6 +3300,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     isDraggingDeleteKey = false
                     isDeleteLeftAnnounced = false
                     isDeleteUpAnnounced = false
+                    isDraggingSpaceKey = false
+                    isSpaceDownAnnounced = false
                     if (isCursorMode) {
                         return true
                     }
