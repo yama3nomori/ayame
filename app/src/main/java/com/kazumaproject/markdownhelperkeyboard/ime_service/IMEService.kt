@@ -3837,6 +3837,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             Key.SideKeyDelete -> {
                 if (char == '\u0005') {
                     handleDeleteLeftDragOrFlick(insertString)
+                } else if (char == '\u0007') {
+                    handleDeleteRightDragOrFlick()
                 } else {
                     if (!isFlick) {
                         if (!deleteKeyLongKeyPressed.get()) {
@@ -4060,6 +4062,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             Key.SideKeyDelete -> {
                 if (char == '\u0005') {
                     handleDeleteLeftDragOrFlick(insertString)
+                } else if (char == '\u0007') {
+                    handleDeleteRightDragOrFlick()
                 } else {
                     if (!isFlick) {
                         if (!deleteKeyLongKeyPressed.get()) {
@@ -13504,6 +13508,41 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 android.widget.Toast.makeText(this, "一括削除", android.widget.Toast.LENGTH_SHORT).show()
                 vibrate()
             }
+        }
+    }
+
+    private fun handleDeleteRightDragOrFlick() {
+        val ic = currentInputConnection ?: return
+        val after = ic.getTextAfterCursor(10000, 0) ?: ""
+        if (after.isEmpty()) return
+        
+        val firstNewLine = after.indexOf('\n')
+        val charsToDelete = if (firstNewLine == -1) after.length else firstNewLine
+        if (charsToDelete > 0) {
+            val deletedText = after.take(charsToDelete)
+            
+            appPreference.undo_enable_preference?.let {
+                if (it) {
+                    deletedBuffer.append(deletedText)
+                    val drawable = ContextCompat.getDrawable(
+                        this@IMEService,
+                        com.kazumaproject.core.R.drawable.baseline_delete_24
+                    )
+                    mainLayoutBinding?.keyboardView?.setSideKeyPreviousDrawable(drawable)
+                    suggestionAdapter?.apply {
+                        setUndoEnabled(true)
+                        setUndoPreviewText(deletedBuffer.toString())
+                    }
+                }
+            }
+            
+            ic.beginBatchEdit()
+            ic.deleteSurroundingText(0, charsToDelete)
+            ic.endBatchEdit()
+            
+            announceText("行末まで削除")
+            android.widget.Toast.makeText(this, "行末まで削除", android.widget.Toast.LENGTH_SHORT).show()
+            vibrate()
         }
     }
 
