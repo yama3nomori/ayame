@@ -826,6 +826,52 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
     }
 
+    private fun readAloudCurrentLineDetailed() {
+        val ic = currentInputConnection ?: return
+        val composing = _inputString.value
+        val textToAnnounce: String
+        if (composing.isNotEmpty()) {
+            val detailed = tamachiRepository.getDetailedReading(composing) ?: composing
+            textToAnnounce = detailed
+        } else {
+            val textBefore = ic.getTextBeforeCursor(10000, 0) ?: ""
+            val textAfter = ic.getTextAfterCursor(1000, 0) ?: ""
+            val lineNumber = textBefore.count { it == '\n' } + 1
+            val lineStart = textBefore.lastIndexOf('\n').let { if (it == -1) 0 else it + 1 }
+            val lineEnd = textAfter.indexOf('\n').let { if (it == -1) textAfter.length else it }
+            val lineText = (textBefore.substring(lineStart) + textAfter.substring(0, lineEnd)).trim()
+            if (lineText.isEmpty()) {
+                textToAnnounce = "${lineNumber}行目、空行"
+            } else {
+                val detailed = tamachiRepository.getDetailedReading(lineText) ?: lineText
+                textToAnnounce = "${lineNumber}行目、${detailed}"
+            }
+        }
+        announceText(textToAnnounce)
+    }
+
+    private fun readAloudFullText() {
+        val ic = currentInputConnection ?: return
+        val textBefore = ic.getTextBeforeCursor(10000, 0) ?: ""
+        val textAfter = ic.getTextAfterCursor(10000, 0) ?: ""
+        val composing = _inputString.value
+        val fullText = (textBefore.toString() + composing + textAfter.toString()).trim()
+        val textToAnnounce = if (fullText.isEmpty()) "テキストはありません" else fullText
+        announceText(textToAnnounce)
+    }
+
+    private fun readAloudFromCursorToEnd() {
+        val ic = currentInputConnection ?: return
+        val textAfter = ic.getTextAfterCursor(10000, 0) ?: ""
+        val composing = _inputString.value
+        val textToAnnounce = (composing + textAfter.toString()).trim()
+        if (textToAnnounce.isEmpty()) {
+            announceText("末尾")
+        } else {
+            announceText(textToAnnounce)
+        }
+    }
+
     private fun announceCandidateItemHighlight(item: CandidateItem, index: Int, total: Int) {
         val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager ?: return
         if (am.isEnabled) {
@@ -3860,7 +3906,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             }
 
             Key.SideKeyReadAloud -> {
-                readAloudCurrentText()
+                when (char) {
+                    '\u0011' -> readAloudCurrentLineDetailed()
+                    '\u0012' -> readAloudFullText()
+                    '\u0013' -> readAloudFromCursorToEnd()
+                    else -> readAloudCurrentText()
+                }
             }
 
             Key.SideKeyPreviousChar -> {
@@ -4117,7 +4168,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             }
 
             Key.SideKeyReadAloud -> {
-                readAloudCurrentText()
+                when (char) {
+                    '\u0011' -> readAloudCurrentLineDetailed()
+                    '\u0012' -> readAloudFullText()
+                    '\u0013' -> readAloudFromCursorToEnd()
+                    else -> readAloudCurrentText()
+                }
             }
 
             Key.SideKeyPreviousChar -> {
