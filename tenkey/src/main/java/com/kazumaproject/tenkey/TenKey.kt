@@ -377,6 +377,17 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
     private var spaceHoverSlideInEntryX = 0f
     private var spaceHoverSlideInEntryY = 0f
 
+    // Hover drag tracking variables for character keys
+    private var isHoverDraggingCharKey = false
+    private var hoverCharKey: Key = Key.NotSelected
+    private var hoverCharKeyDragStartX = 0f
+    private var hoverCharKeyDragStartY = 0f
+    private var hoverActiveGesture: GestureType = GestureType.Tap
+    private var hoverLastAnnouncedChar: String? = null
+    private var charHoverSlideInEntryTime = 0L
+    private var charHoverSlideInEntryX = 0f
+    private var charHoverSlideInEntryY = 0f
+
     // Theme Variables (Initialized with defaults)
     private var themeMode: String = "default"
     private var isNightMode: Boolean = false
@@ -1372,23 +1383,42 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     isHoverDraggingRightCursor = false
                     isHoverDraggingLeftCursor = false
                     isHoverDraggingDeleteKey = false
+                    isHoverDraggingCharKey = false
+                    hoverCharKey = Key.NotSelected
                 } else {
-                    isHoverDraggingRightCursor = false
-                    isLineStartAnnounced = false
-                    isLineEndAnnounced = false
-                    isLineUpAnnounced = false
-                    isLineDownAnnounced = false
-                    isHoverDraggingLeftCursor = false
-                    isLeftLineStartAnnounced = false
-                    isLeftLineEndAnnounced = false
-                    isLeftLineUpAnnounced = false
-                    isLeftLineDownAnnounced = false
-                    isHoverDraggingDeleteKey = false
-                    isDeleteLeftAnnounced = false
-                    isDeleteRightAnnounced = false
-                    isDeleteUpAnnounced = false
-                    isHoverDraggingSpaceKey = false
-                    isSpaceDownAnnounced = false
+                    val keyInfo = currentInputMode.value.next(keyMap = keyMap, key = key, isTablet = false)
+                    if (keyInfo is KeyInfo.KeyTapFlickInfo) {
+                        isHoverDraggingCharKey = true
+                        hoverCharKey = key
+                        hoverCharKeyDragStartX = screenX
+                        hoverCharKeyDragStartY = screenY
+                        hoverActiveGesture = GestureType.Tap
+                        hoverLastAnnouncedChar = null
+                        isHoverDraggingRightCursor = false
+                        isHoverDraggingLeftCursor = false
+                        isHoverDraggingDeleteKey = false
+                        isHoverDraggingSpaceKey = false
+                        isSpaceDownAnnounced = false
+                    } else {
+                        isHoverDraggingRightCursor = false
+                        isLineStartAnnounced = false
+                        isLineEndAnnounced = false
+                        isLineUpAnnounced = false
+                        isLineDownAnnounced = false
+                        isHoverDraggingLeftCursor = false
+                        isLeftLineStartAnnounced = false
+                        isLeftLineEndAnnounced = false
+                        isLeftLineUpAnnounced = false
+                        isLeftLineDownAnnounced = false
+                        isHoverDraggingDeleteKey = false
+                        isDeleteLeftAnnounced = false
+                        isDeleteRightAnnounced = false
+                        isDeleteUpAnnounced = false
+                        isHoverDraggingSpaceKey = false
+                        isSpaceDownAnnounced = false
+                        isHoverDraggingCharKey = false
+                        hoverCharKey = Key.NotSelected
+                    }
                 }
 
                 if (key != currentHoverKey) {
@@ -1579,11 +1609,58 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     }
                 }
 
+                // Handle slide-in / slide-out state transition for Character Keys
+                val charKeyInfo = currentInputMode.value.next(keyMap = keyMap, key = key, isTablet = false)
+                if (charKeyInfo is KeyInfo.KeyTapFlickInfo) {
+                    if (isHoverDraggingCharKey && key != hoverCharKey) {
+                        Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid off active Char Key $hoverCharKey (Hover) to $key. Drag cancelled.")
+                        isHoverDraggingCharKey = false
+                        hoverCharKey = Key.NotSelected
+                    }
+                    if (!isHoverDraggingCharKey) {
+                        if (charHoverSlideInEntryTime == 0L) {
+                            charHoverSlideInEntryTime = System.currentTimeMillis()
+                            charHoverSlideInEntryX = screenX
+                            charHoverSlideInEntryY = screenY
+                            hoverCharKey = key
+                        } else {
+                            val movementThreshold = 10f
+                            val dx = screenX - charHoverSlideInEntryX
+                            val dy = screenY - charHoverSlideInEntryY
+                            if (abs(dx) > movementThreshold || abs(dy) > movementThreshold || key != hoverCharKey) {
+                                charHoverSlideInEntryTime = System.currentTimeMillis()
+                                charHoverSlideInEntryX = screenX
+                                charHoverSlideInEntryY = screenY
+                                hoverCharKey = key
+                            } else {
+                                val elapsed = System.currentTimeMillis() - charHoverSlideInEntryTime
+                                if (elapsed >= 500L) {
+                                    isHoverDraggingCharKey = true
+                                    hoverCharKey = key
+                                    hoverCharKeyDragStartX = screenX
+                                    hoverCharKeyDragStartY = screenY
+                                    hoverActiveGesture = GestureType.Tap
+                                    hoverLastAnnouncedChar = null
+                                    charHoverSlideInEntryTime = 0L
+                                    Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid onto Char Key $key (Hover) and remained stationary for 500ms. Starting drag.")
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    charHoverSlideInEntryTime = 0L
+                    if (isHoverDraggingCharKey) {
+                        Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid off active Char Key $hoverCharKey (Hover) to non-char key $key. Drag cancelled.")
+                        isHoverDraggingCharKey = false
+                        hoverCharKey = Key.NotSelected
+                    }
+                }
+
                 if (key != currentHoverKey) {
                     currentHoverKey = key
 
-                    // Only announce if we are not actively dragging Right/Left Cursor, Delete Key, or Space Key to prevent confusing user
-                    if (!isHoverDraggingRightCursor && !isHoverDraggingLeftCursor && !isHoverDraggingDeleteKey && !isHoverDraggingSpaceKey) {
+                    // Only announce if we are not actively dragging Right/Left Cursor, Delete Key, Space Key, or any Character Key to prevent confusing user
+                    if (!isHoverDraggingRightCursor && !isHoverDraggingLeftCursor && !isHoverDraggingDeleteKey && !isHoverDraggingSpaceKey && !isHoverDraggingCharKey) {
                         val targetView = getButtonFromKey(key)
                         if (targetView is View) {
                             if (accessibilityManager.isTouchExplorationEnabled) {
@@ -1900,6 +1977,59 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         }
                     }
                 }
+
+                if (isHoverDraggingCharKey && hoverCharKey != Key.NotSelected) {
+                    val activeKeyInfo = currentInputMode.value.next(keyMap = keyMap, key = hoverCharKey, isTablet = false)
+                    if (activeKeyInfo is KeyInfo.KeyTapFlickInfo) {
+                        val dx = screenX - hoverCharKeyDragStartX
+                        val dy = screenY - hoverCharKeyDragStartY
+                        
+                        val threshold = 35f // sensitve drag threshold
+                        val cancelThreshold = 150f // max distance to cancel
+                        
+                        val nextGesture = when {
+                            abs(dx) < threshold && abs(dy) < threshold -> GestureType.Tap
+                            abs(dx) > abs(dy) && dx < -threshold && abs(dx) <= cancelThreshold -> GestureType.FlickLeft
+                            abs(dx) <= abs(dy) && dy < -threshold && abs(dy) <= cancelThreshold -> GestureType.FlickTop
+                            abs(dx) > abs(dy) && dx > threshold && abs(dx) <= cancelThreshold -> GestureType.FlickRight
+                            abs(dx) <= abs(dy) && dy > threshold && abs(dy) <= cancelThreshold -> GestureType.FlickBottom
+                            else -> GestureType.Null
+                        }
+                        
+                        if (nextGesture == GestureType.Null) {
+                            Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Drag out of bounds on Char Key $hoverCharKey. Drag cancelled.")
+                            isHoverDraggingCharKey = false
+                            hoverCharKey = Key.NotSelected
+                            
+                            // Immediately announce the currently hovered key
+                            val targetView = getButtonFromKey(key)
+                            if (targetView is View) {
+                                if (accessibilityManager.isTouchExplorationEnabled) {
+                                    accessibilityManager.interrupt()
+                                }
+                                targetView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+                            }
+                        } else {
+                            val charToAnnounce = when (nextGesture) {
+                                GestureType.Tap -> activeKeyInfo.tap?.toString()
+                                GestureType.FlickLeft -> activeKeyInfo.flickLeft?.toString()
+                                GestureType.FlickTop -> activeKeyInfo.flickTop?.toString()
+                                GestureType.FlickRight -> activeKeyInfo.flickRight?.toString()
+                                GestureType.FlickBottom -> activeKeyInfo.flickBottom?.toString()
+                                else -> null
+                            }
+                            
+                            if (charToAnnounce != null && charToAnnounce != hoverLastAnnouncedChar) {
+                                hoverLastAnnouncedChar = charToAnnounce
+                                hoverActiveGesture = nextGesture
+                                Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Char Key gesture changed to $nextGesture. Announcing '$charToAnnounce'")
+                                announceForAccessibility(charToAnnounce)
+                                android.widget.Toast.makeText(context, charToAnnounce, android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        }
+                    }
+                }
             }
             MotionEvent.ACTION_HOVER_EXIT -> {
                 // Prevent accidental input when sliding off the keyboard edge.
@@ -2137,6 +2267,36 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 gestureType = GestureType.FlickBottom,
                                 key = Key.SideKeySpace,
                                 char = null
+                            )
+                        }
+                        currentHoverKey = Key.NotSelected
+                        return true
+                    }
+                }
+
+                if (isHoverDraggingCharKey && hoverCharKey != Key.NotSelected) {
+                    isHoverDraggingCharKey = false
+                    val activeKey = hoverCharKey
+                    hoverCharKey = Key.NotSelected
+                    Log.d("TenKeyDrag", "ACTION_HOVER_EXIT: hover Char drag finished on $activeKey. hoverActiveGesture=$hoverActiveGesture")
+                    
+                    val activeKeyInfo = currentInputMode.value.next(keyMap = keyMap, key = activeKey, isTablet = false)
+                    if (activeKeyInfo is KeyInfo.KeyTapFlickInfo) {
+                        val finalChar = when (hoverActiveGesture) {
+                            GestureType.Tap -> activeKeyInfo.tap
+                            GestureType.FlickLeft -> activeKeyInfo.flickLeft
+                            GestureType.FlickTop -> activeKeyInfo.flickTop
+                            GestureType.FlickRight -> activeKeyInfo.flickRight
+                            GestureType.FlickBottom -> activeKeyInfo.flickBottom
+                            else -> null
+                        }
+                        
+                        if (finalChar != null && !isSlideOff) {
+                            Log.d("TenKeyDrag", "ACTION_HOVER_EXIT: Dispatching flick event for $activeKey: $hoverActiveGesture -> $finalChar")
+                            flickListener?.onFlick(
+                                gestureType = hoverActiveGesture,
+                                key = activeKey,
+                                char = finalChar
                             )
                         }
                         currentHoverKey = Key.NotSelected
@@ -3302,6 +3462,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     isDeleteUpAnnounced = false
                     isDraggingSpaceKey = false
                     isSpaceDownAnnounced = false
+                    isHoverDraggingCharKey = false
+                    hoverCharKey = Key.NotSelected
                     if (isCursorMode) {
                         return true
                     }
