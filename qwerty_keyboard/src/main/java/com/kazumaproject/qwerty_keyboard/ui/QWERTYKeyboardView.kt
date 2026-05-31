@@ -109,6 +109,77 @@ class QWERTYKeyboardView @JvmOverloads constructor(
     private var enableDeleteLeftFlick = true
     private var isCursorMode = false
 
+    // Drag tracking variables for QWERTYKeyCursorRight
+    private var isDraggingRightCursor = false
+    private var rightCursorDragStartX = 0f
+    private var rightCursorDragEndX = 0f
+    private var rightCursorDragStartY = 0f
+    private var rightCursorDragEndY = 0f
+    private var rightCursorDragTopY = 0f
+    private var isLineStartAnnounced = false
+    private var isLineEndAnnounced = false
+    private var isLineUpAnnounced = false
+    private var isLineDownAnnounced = false
+    private var touchSlideInEntryTime = 0L
+    private var touchSlideInEntryX = 0f
+    private var touchSlideInEntryY = 0f
+
+    // Drag tracking variables for QWERTYKeyCursorLeft
+    private var isDraggingLeftCursor = false
+    private var leftCursorDragStartX = 0f
+    private var leftCursorDragEndX = 0f
+    private var leftCursorDragStartY = 0f
+    private var leftCursorDragEndY = 0f
+    private var leftCursorDragTopY = 0f
+    private var isLeftLineStartAnnounced = false
+    private var isLeftLineEndAnnounced = false
+    private var isLeftLineUpAnnounced = false
+    private var isLeftLineDownAnnounced = false
+    private var leftTouchSlideInEntryTime = 0L
+    private var leftTouchSlideInEntryX = 0f
+    private var leftTouchSlideInEntryY = 0f
+
+    // Drag tracking variables for QWERTYKeyDelete
+    private var isDraggingDeleteKey = false
+    private var deleteKeyDragStartX = 0f
+    private var deleteKeyDragEndX = 0f
+    private var deleteKeyDragStartY = 0f
+    private var deleteKeyDragEndY = 0f
+    private var deleteKeyDragTopY = 0f
+    private var isDeleteLeftAnnounced = false
+    private var isDeleteRightAnnounced = false
+    private var deleteTouchSlideInEntryTime = 0L
+    private var deleteTouchSlideInEntryX = 0f
+    private var deleteTouchSlideInEntryY = 0f
+
+    // Drag tracking variables for QWERTYKeySpace
+    private var isDraggingSpaceKey = false
+    private var spaceKeyDragStartX = 0f
+    private var spaceKeyDragEndX = 0f
+    private var spaceKeyDragStartY = 0f
+    private var spaceKeyDragEndY = 0f
+    private var isSpaceDownAnnounced = false
+    private var spaceTouchSlideInEntryTime = 0L
+    private var spaceTouchSlideInEntryX = 0f
+    private var spaceTouchSlideInEntryY = 0f
+
+    // Drag tracking variables for QWERTYKeyReadAloud
+    private var isDraggingReadAloudKey = false
+    private var readAloudKeyDragStartX = 0f
+    private var readAloudKeyDragEndX = 0f
+    private var readAloudKeyDragStartY = 0f
+    private var readAloudKeyDragEndY = 0f
+    private var readAloudKeyDragTopY = 0f
+    private var isReadAloudLeftAnnounced = false
+    private var isReadAloudUpAnnounced = false
+    private var isReadAloudRightAnnounced = false
+    private var readAloudTouchSlideInEntryTime = 0L
+    private var readAloudTouchSlideInEntryX = 0f
+    private var readAloudTouchSlideInEntryY = 0f
+
+    private var pressedKeyInitialX = 0f
+    private var pressedKeyInitialY = 0f
+
     private val _romajiModeState = MutableStateFlow(true)
     private val romajiModeState = _romajiModeState.asStateFlow()
 
@@ -543,6 +614,9 @@ class QWERTYKeyboardView @JvmOverloads constructor(
         val y = event.y.toInt()
         val target = findChildViewAt(x, y)
 
+        val screenX = try { event.rawX } catch (e: Exception) { event.x }
+        val screenY = try { event.rawY } catch (e: Exception) { event.y }
+
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
                 pendingInputJob?.cancel()
@@ -551,16 +625,559 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                     target?.let { view ->
                         qwertyButtonMap[view]?.let { key ->
                             qwertyKeyListener?.onPressedQWERTYKey(key)
+
+                            pressedKeyInitialX = screenX
+                            pressedKeyInitialY = screenY
+
+                            when (key) {
+                                QWERTYKey.QWERTYKeyCursorRight -> {
+                                    isDraggingRightCursor = true
+                                    isLineStartAnnounced = false
+                                    isLineEndAnnounced = false
+                                    isLineUpAnnounced = false
+                                    isLineDownAnnounced = false
+                                    rightCursorDragStartX = screenX
+                                    rightCursorDragEndX = screenX
+                                    rightCursorDragStartY = screenY
+                                    rightCursorDragEndY = screenY
+                                    rightCursorDragTopY = screenY
+
+                                    isDraggingLeftCursor = false
+                                    isDraggingDeleteKey = false
+                                    isDraggingSpaceKey = false
+                                    isSpaceDownAnnounced = false
+                                    isDraggingReadAloudKey = false
+                                }
+                                QWERTYKey.QWERTYKeyCursorLeft -> {
+                                    isDraggingLeftCursor = true
+                                    isLeftLineStartAnnounced = false
+                                    isLeftLineEndAnnounced = false
+                                    isLeftLineUpAnnounced = false
+                                    isLeftLineDownAnnounced = false
+                                    leftCursorDragStartX = screenX
+                                    leftCursorDragEndX = screenX
+                                    leftCursorDragStartY = screenY
+                                    leftCursorDragEndY = screenY
+                                    leftCursorDragTopY = screenY
+
+                                    isDraggingRightCursor = false
+                                    isDraggingDeleteKey = false
+                                    isDraggingSpaceKey = false
+                                    isSpaceDownAnnounced = false
+                                    isDraggingReadAloudKey = false
+                                }
+                                QWERTYKey.QWERTYKeyDelete -> {
+                                    isDraggingDeleteKey = true
+                                    isDeleteLeftAnnounced = false
+                                    isDeleteRightAnnounced = false
+                                    deleteKeyDragStartX = screenX
+                                    deleteKeyDragEndX = screenX
+                                    deleteKeyDragStartY = screenY
+                                    deleteKeyDragEndY = screenY
+                                    deleteKeyDragTopY = screenY
+
+                                    isDraggingRightCursor = false
+                                    isDraggingLeftCursor = false
+                                    isDraggingSpaceKey = false
+                                    isSpaceDownAnnounced = false
+                                    isDraggingReadAloudKey = false
+                                }
+                                QWERTYKey.QWERTYKeySpace -> {
+                                    isDraggingSpaceKey = true
+                                    isSpaceDownAnnounced = false
+                                    spaceKeyDragStartX = screenX
+                                    spaceKeyDragEndX = screenX
+                                    spaceKeyDragStartY = screenY
+                                    spaceKeyDragEndY = screenY
+
+                                    isDraggingRightCursor = false
+                                    isDraggingLeftCursor = false
+                                    isDraggingDeleteKey = false
+                                    isDraggingReadAloudKey = false
+                                }
+                                QWERTYKey.QWERTYKeyReadAloud -> {
+                                    isDraggingReadAloudKey = true
+                                    isReadAloudLeftAnnounced = false
+                                    isReadAloudUpAnnounced = false
+                                    isReadAloudRightAnnounced = false
+                                    readAloudKeyDragStartX = screenX
+                                    readAloudKeyDragEndX = screenX
+                                    readAloudKeyDragStartY = screenY
+                                    readAloudKeyDragEndY = screenY
+                                    readAloudKeyDragTopY = screenY
+
+                                    isDraggingRightCursor = false
+                                    isDraggingLeftCursor = false
+                                    isDraggingDeleteKey = false
+                                    isDraggingSpaceKey = false
+                                    isSpaceDownAnnounced = false
+                                }
+                                else -> {
+                                    resetDragVariables()
+                                }
+                            }
                         }
                         announceKey(view)
                     }
                 }
             }
             MotionEvent.ACTION_MOVE -> {
+                val currentKey = target?.let { qwertyButtonMap[it] }
+
+                // --- Slide-in / Slide-out transitions ---
+                if (currentKey == QWERTYKey.QWERTYKeyCursorRight) {
+                    if (!isDraggingRightCursor) {
+                        if (touchSlideInEntryTime == 0L) {
+                            touchSlideInEntryTime = System.currentTimeMillis()
+                            touchSlideInEntryX = screenX
+                            touchSlideInEntryY = screenY
+                        } else {
+                            val movementThreshold = 10f
+                            val dx = screenX - touchSlideInEntryX
+                            val dy = screenY - touchSlideInEntryY
+                            if (abs(dx) > movementThreshold || abs(dy) > movementThreshold) {
+                                touchSlideInEntryTime = System.currentTimeMillis()
+                                touchSlideInEntryX = screenX
+                                touchSlideInEntryY = screenY
+                            } else {
+                                val elapsed = System.currentTimeMillis() - touchSlideInEntryTime
+                                if (elapsed >= 500L) {
+                                    isDraggingRightCursor = true
+                                    rightCursorDragStartX = screenX
+                                    rightCursorDragEndX = screenX
+                                    rightCursorDragStartY = screenY
+                                    rightCursorDragEndY = screenY
+                                    rightCursorDragTopY = screenY
+                                    isLineStartAnnounced = false
+                                    isLineEndAnnounced = false
+                                    isLineUpAnnounced = false
+                                    isLineDownAnnounced = false
+                                    touchSlideInEntryTime = 0L
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    touchSlideInEntryTime = 0L
+                    if (isDraggingRightCursor && currentKey != null) {
+                        isDraggingRightCursor = false
+                        isLineStartAnnounced = false
+                        isLineEndAnnounced = false
+                        isLineUpAnnounced = false
+                        isLineDownAnnounced = false
+                    }
+                }
+
+                if (currentKey == QWERTYKey.QWERTYKeyCursorLeft) {
+                    if (!isDraggingLeftCursor) {
+                        if (leftTouchSlideInEntryTime == 0L) {
+                            leftTouchSlideInEntryTime = System.currentTimeMillis()
+                            leftTouchSlideInEntryX = screenX
+                            leftTouchSlideInEntryY = screenY
+                        } else {
+                            val movementThreshold = 10f
+                            val dx = screenX - leftTouchSlideInEntryX
+                            val dy = screenY - leftTouchSlideInEntryY
+                            if (abs(dx) > movementThreshold || abs(dy) > movementThreshold) {
+                                leftTouchSlideInEntryTime = System.currentTimeMillis()
+                                leftTouchSlideInEntryX = screenX
+                                leftTouchSlideInEntryY = screenY
+                            } else {
+                                val elapsed = System.currentTimeMillis() - leftTouchSlideInEntryTime
+                                if (elapsed >= 500L) {
+                                    isDraggingLeftCursor = true
+                                    leftCursorDragStartX = screenX
+                                    leftCursorDragEndX = screenX
+                                    leftCursorDragStartY = screenY
+                                    leftCursorDragEndY = screenY
+                                    leftCursorDragTopY = screenY
+                                    isLeftLineStartAnnounced = false
+                                    isLeftLineEndAnnounced = false
+                                    isLeftLineUpAnnounced = false
+                                    isLeftLineDownAnnounced = false
+                                    leftTouchSlideInEntryTime = 0L
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    leftTouchSlideInEntryTime = 0L
+                    if (isDraggingLeftCursor && currentKey != null) {
+                        isDraggingLeftCursor = false
+                        isLeftLineStartAnnounced = false
+                        isLeftLineEndAnnounced = false
+                        isLeftLineUpAnnounced = false
+                        isLeftLineDownAnnounced = false
+                    }
+                }
+
+                if (currentKey == QWERTYKey.QWERTYKeyDelete) {
+                    if (!isDraggingDeleteKey) {
+                        if (deleteTouchSlideInEntryTime == 0L) {
+                            deleteTouchSlideInEntryTime = System.currentTimeMillis()
+                            deleteTouchSlideInEntryX = screenX
+                            deleteTouchSlideInEntryY = screenY
+                        } else {
+                            val movementThreshold = 10f
+                            val dx = screenX - deleteTouchSlideInEntryX
+                            val dy = screenY - deleteTouchSlideInEntryY
+                            if (abs(dx) > movementThreshold || abs(dy) > movementThreshold) {
+                                deleteTouchSlideInEntryTime = System.currentTimeMillis()
+                                deleteTouchSlideInEntryX = screenX
+                                deleteTouchSlideInEntryY = screenY
+                            } else {
+                                val elapsed = System.currentTimeMillis() - deleteTouchSlideInEntryTime
+                                if (elapsed >= 500L) {
+                                    isDraggingDeleteKey = true
+                                    deleteKeyDragStartX = screenX
+                                    deleteKeyDragEndX = screenX
+                                    deleteKeyDragStartY = screenY
+                                    deleteKeyDragEndY = screenY
+                                    deleteKeyDragTopY = screenY
+                                    isDeleteLeftAnnounced = false
+                                    isDeleteRightAnnounced = false
+                                    deleteTouchSlideInEntryTime = 0L
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    deleteTouchSlideInEntryTime = 0L
+                    if (isDraggingDeleteKey && currentKey != null) {
+                        isDraggingDeleteKey = false
+                        isDeleteLeftAnnounced = false
+                        isDeleteRightAnnounced = false
+                    }
+                }
+
+                if (currentKey == QWERTYKey.QWERTYKeySpace) {
+                    if (!isDraggingSpaceKey) {
+                        if (spaceTouchSlideInEntryTime == 0L) {
+                            spaceTouchSlideInEntryTime = System.currentTimeMillis()
+                            spaceTouchSlideInEntryX = screenX
+                            spaceTouchSlideInEntryY = screenY
+                        } else {
+                            val movementThreshold = 10f
+                            val dx = screenX - spaceTouchSlideInEntryX
+                            val dy = screenY - spaceTouchSlideInEntryY
+                            if (abs(dx) > movementThreshold || abs(dy) > movementThreshold) {
+                                spaceTouchSlideInEntryTime = System.currentTimeMillis()
+                                spaceTouchSlideInEntryX = screenX
+                                spaceTouchSlideInEntryY = screenY
+                            } else {
+                                val elapsed = System.currentTimeMillis() - spaceTouchSlideInEntryTime
+                                if (elapsed >= 500L) {
+                                    isDraggingSpaceKey = true
+                                    spaceKeyDragStartX = screenX
+                                    spaceKeyDragEndX = screenX
+                                    spaceKeyDragStartY = screenY
+                                    spaceKeyDragEndY = screenY
+                                    isSpaceDownAnnounced = false
+                                    spaceTouchSlideInEntryTime = 0L
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    spaceTouchSlideInEntryTime = 0L
+                    if (isDraggingSpaceKey && currentKey != null) {
+                        isDraggingSpaceKey = false
+                        isSpaceDownAnnounced = false
+                    }
+                }
+
+                if (currentKey == QWERTYKey.QWERTYKeyReadAloud) {
+                    if (!isDraggingReadAloudKey) {
+                        if (readAloudTouchSlideInEntryTime == 0L) {
+                            readAloudTouchSlideInEntryTime = System.currentTimeMillis()
+                            readAloudTouchSlideInEntryX = screenX
+                            readAloudTouchSlideInEntryY = screenY
+                        } else {
+                            val movementThreshold = 10f
+                            val dx = screenX - readAloudTouchSlideInEntryX
+                            val dy = screenY - readAloudTouchSlideInEntryY
+                            if (abs(dx) > movementThreshold || abs(dy) > movementThreshold) {
+                                readAloudTouchSlideInEntryTime = System.currentTimeMillis()
+                                readAloudTouchSlideInEntryX = screenX
+                                readAloudTouchSlideInEntryY = screenY
+                            } else {
+                                val elapsed = System.currentTimeMillis() - readAloudTouchSlideInEntryTime
+                                if (elapsed >= 500L) {
+                                    isDraggingReadAloudKey = true
+                                    readAloudKeyDragStartX = screenX
+                                    readAloudKeyDragEndX = screenX
+                                    readAloudKeyDragStartY = screenY
+                                    readAloudKeyDragEndY = screenY
+                                    readAloudKeyDragTopY = screenY
+                                    isReadAloudLeftAnnounced = false
+                                    isReadAloudUpAnnounced = false
+                                    isReadAloudRightAnnounced = false
+                                    readAloudTouchSlideInEntryTime = 0L
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    readAloudTouchSlideInEntryTime = 0L
+                    if (isDraggingReadAloudKey && currentKey != null) {
+                        isDraggingReadAloudKey = false
+                        isReadAloudLeftAnnounced = false
+                        isReadAloudUpAnnounced = false
+                        isReadAloudRightAnnounced = false
+                    }
+                }
+
+                // --- Drag and Hold thresholds ---
+                val threshold = 35f
+                val cancelThreshold = 150f
+                val cancelXThreshold = 60f
+                val cancelYThreshold = 60f
+
+                if (isDraggingRightCursor) {
+                    if (!isLineStartAnnounced && !isLineEndAnnounced && !isLineUpAnnounced && !isLineDownAnnounced) {
+                        if (screenX > rightCursorDragStartX) rightCursorDragStartX = screenX
+                        if (screenX < rightCursorDragEndX) rightCursorDragEndX = screenX
+                        if (screenY > rightCursorDragEndY) rightCursorDragEndY = screenY
+                        if (screenY < rightCursorDragTopY) rightCursorDragTopY = screenY
+                    }
+                    val dxStart = screenX - rightCursorDragStartX
+                    val dxEnd = screenX - rightCursorDragEndX
+                    val dyUp = screenY - rightCursorDragEndY
+                    val dyDown = screenY - rightCursorDragTopY
+
+                    if (dxStart < -threshold && dxStart >= -cancelThreshold && abs(screenY - rightCursorDragStartY) <= cancelYThreshold) {
+                        if (!isLineStartAnnounced && !isLineEndAnnounced && !isLineUpAnnounced && !isLineDownAnnounced) {
+                            isLineStartAnnounced = true
+                            announceForAccessibility("行頭")
+                            android.widget.Toast.makeText(context, "行頭", android.widget.Toast.LENGTH_SHORT).show()
+                            performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                        }
+                    } else if (dxEnd > threshold && dxEnd <= cancelThreshold && abs(screenY - rightCursorDragStartY) <= cancelYThreshold) {
+                        if (!isLineStartAnnounced && !isLineEndAnnounced && !isLineUpAnnounced && !isLineDownAnnounced) {
+                            isLineEndAnnounced = true
+                            announceForAccessibility("行末")
+                            android.widget.Toast.makeText(context, "行末", android.widget.Toast.LENGTH_SHORT).show()
+                            performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                        }
+                    } else if (dyUp < -threshold && dyUp >= -cancelThreshold && abs(screenX - rightCursorDragStartX) <= cancelXThreshold) {
+                        if (!isLineStartAnnounced && !isLineEndAnnounced && !isLineUpAnnounced && !isLineDownAnnounced) {
+                            isLineUpAnnounced = true
+                            announceForAccessibility("上カーソル")
+                            android.widget.Toast.makeText(context, "上カーソル", android.widget.Toast.LENGTH_SHORT).show()
+                            performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                        }
+                    } else if (dyDown > threshold && dyDown <= cancelThreshold && abs(screenX - rightCursorDragStartX) <= cancelXThreshold) {
+                        if (!isLineStartAnnounced && !isLineEndAnnounced && !isLineUpAnnounced && !isLineDownAnnounced) {
+                            isLineDownAnnounced = true
+                            announceForAccessibility("下カーソル")
+                            android.widget.Toast.makeText(context, "下カーソル", android.widget.Toast.LENGTH_SHORT).show()
+                            performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                        }
+                    } else {
+                        val shouldCancel = if (isLineStartAnnounced) {
+                            (dxStart >= -threshold / 2f) || (dxStart < -cancelThreshold) || (abs(screenY - rightCursorDragStartY) > cancelYThreshold)
+                        } else if (isLineEndAnnounced) {
+                            (dxEnd <= threshold / 2f) || (dxEnd > cancelThreshold) || (abs(screenY - rightCursorDragStartY) > cancelYThreshold)
+                        } else if (isLineUpAnnounced) {
+                            (dyUp >= -threshold / 2f) || (dyUp < -cancelThreshold) || (abs(screenX - rightCursorDragStartX) > cancelXThreshold)
+                        } else if (isLineDownAnnounced) {
+                            (dyDown <= threshold / 2f) || (dyDown > cancelThreshold) || (abs(screenX - rightCursorDragStartX) > cancelXThreshold)
+                        } else {
+                            (dxStart < -cancelThreshold) || (dxEnd > cancelThreshold) || (dyUp < -cancelThreshold) || (dyDown > cancelThreshold) ||
+                            (abs(screenY - rightCursorDragStartY) > cancelYThreshold && abs(screenX - rightCursorDragStartX) > cancelXThreshold)
+                        }
+                        if (shouldCancel) {
+                            isLineStartAnnounced = false
+                            isLineEndAnnounced = false
+                            isLineUpAnnounced = false
+                            isLineDownAnnounced = false
+                            isDraggingRightCursor = false
+                        }
+                    }
+                }
+
+                if (isDraggingLeftCursor) {
+                    if (!isLeftLineStartAnnounced && !isLeftLineEndAnnounced && !isLeftLineUpAnnounced && !isLeftLineDownAnnounced) {
+                        if (screenX > leftCursorDragStartX) leftCursorDragStartX = screenX
+                        if (screenX < leftCursorDragEndX) leftCursorDragEndX = screenX
+                        if (screenY > leftCursorDragEndY) leftCursorDragEndY = screenY
+                        if (screenY < leftCursorDragTopY) leftCursorDragTopY = screenY
+                    }
+                    val dxStart = screenX - leftCursorDragStartX
+                    val dxEnd = screenX - leftCursorDragEndX
+                    val dyUp = screenY - leftCursorDragEndY
+                    val dyDown = screenY - leftCursorDragTopY
+
+                    if (dxStart < -threshold && dxStart >= -cancelThreshold && abs(screenY - leftCursorDragStartY) <= cancelYThreshold) {
+                        if (!isLeftLineStartAnnounced && !isLeftLineEndAnnounced && !isLeftLineUpAnnounced && !isLeftLineDownAnnounced) {
+                            isLeftLineStartAnnounced = true
+                            announceForAccessibility("行頭")
+                            android.widget.Toast.makeText(context, "行頭", android.widget.Toast.LENGTH_SHORT).show()
+                            performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                        }
+                    } else if (dxEnd > threshold && dxEnd <= cancelThreshold && abs(screenY - leftCursorDragStartY) <= cancelYThreshold) {
+                        if (!isLeftLineStartAnnounced && !isLeftLineEndAnnounced && !isLeftLineUpAnnounced && !isLeftLineDownAnnounced) {
+                            isLeftLineEndAnnounced = true
+                            announceForAccessibility("行末")
+                            android.widget.Toast.makeText(context, "行末", android.widget.Toast.LENGTH_SHORT).show()
+                            performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                        }
+                    } else if (dyUp < -threshold && dyUp >= -cancelThreshold && abs(screenX - leftCursorDragStartX) <= cancelXThreshold) {
+                        if (!isLeftLineStartAnnounced && !isLeftLineEndAnnounced && !isLeftLineUpAnnounced && !isLeftLineDownAnnounced) {
+                            isLeftLineUpAnnounced = true
+                            announceForAccessibility("上カーソル")
+                            android.widget.Toast.makeText(context, "上カーソル", android.widget.Toast.LENGTH_SHORT).show()
+                            performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                        }
+                    } else if (dyDown > threshold && dyDown <= cancelThreshold && abs(screenX - leftCursorDragStartX) <= cancelXThreshold) {
+                        if (!isLeftLineStartAnnounced && !isLeftLineEndAnnounced && !isLeftLineUpAnnounced && !isLeftLineDownAnnounced) {
+                            isLeftLineDownAnnounced = true
+                            announceForAccessibility("下カーソル")
+                            android.widget.Toast.makeText(context, "下カーソル", android.widget.Toast.LENGTH_SHORT).show()
+                            performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                        }
+                    } else {
+                        val shouldCancel = if (isLeftLineStartAnnounced) {
+                            (dxStart >= -threshold / 2f) || (dxStart < -cancelThreshold) || (abs(screenY - leftCursorDragStartY) > cancelYThreshold)
+                        } else if (isLeftLineEndAnnounced) {
+                            (dxEnd <= threshold / 2f) || (dxEnd > cancelThreshold) || (abs(screenY - leftCursorDragStartY) > cancelYThreshold)
+                        } else if (isLeftLineUpAnnounced) {
+                            (dyUp >= -threshold / 2f) || (dyUp < -cancelThreshold) || (abs(screenX - leftCursorDragStartX) > cancelXThreshold)
+                        } else if (isLeftLineDownAnnounced) {
+                            (dyDown <= threshold / 2f) || (dyDown > cancelThreshold) || (abs(screenX - leftCursorDragStartX) > cancelXThreshold)
+                        } else {
+                            (dxStart < -cancelThreshold) || (dxEnd > cancelThreshold) || (dyUp < -cancelThreshold) || (dyDown > cancelThreshold) ||
+                            (abs(screenY - leftCursorDragStartY) > cancelYThreshold && abs(screenX - leftCursorDragStartX) > cancelXThreshold)
+                        }
+                        if (shouldCancel) {
+                            isLeftLineStartAnnounced = false
+                            isLeftLineEndAnnounced = false
+                            isLeftLineUpAnnounced = false
+                            isLeftLineDownAnnounced = false
+                            isDraggingLeftCursor = false
+                        }
+                    }
+                }
+
+                if (isDraggingDeleteKey) {
+                    if (!isDeleteLeftAnnounced && !isDeleteRightAnnounced) {
+                        if (screenX < deleteKeyDragEndX) deleteKeyDragEndX = screenX
+                    }
+                    val dxStart = screenX - deleteKeyDragStartX
+
+                    if (dxStart < -threshold && dxStart >= -cancelThreshold && abs(screenY - deleteKeyDragStartY) <= cancelYThreshold) {
+                        if (!isDeleteLeftAnnounced && !isDeleteRightAnnounced) {
+                            isDeleteLeftAnnounced = true
+                            val annText = "一括削除"
+                            announceForAccessibility(annText)
+                            android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
+                            performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                        }
+                    } else if (dxStart > threshold && dxStart <= cancelThreshold && abs(screenY - deleteKeyDragStartY) <= cancelYThreshold) {
+                        if (!isDeleteRightAnnounced && !isDeleteLeftAnnounced) {
+                            isDeleteRightAnnounced = true
+                            val annText = "行末まで削除"
+                            announceForAccessibility(annText)
+                            android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
+                            performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                        }
+                    } else {
+                        val shouldCancel = if (isDeleteLeftAnnounced) {
+                            (dxStart >= -threshold / 2f) || (dxStart < -cancelThreshold) || (abs(screenY - deleteKeyDragStartY) > cancelYThreshold)
+                        } else if (isDeleteRightAnnounced) {
+                            (dxStart <= threshold / 2f) || (dxStart > cancelThreshold) || (abs(screenY - deleteKeyDragStartY) > cancelYThreshold)
+                        } else {
+                            (dxStart < -cancelThreshold) || (dxStart > cancelThreshold) || (abs(screenY - deleteKeyDragStartY) > cancelYThreshold)
+                        }
+                        if (shouldCancel) {
+                            isDeleteLeftAnnounced = false
+                            isDeleteRightAnnounced = false
+                            isDraggingDeleteKey = false
+                        }
+                    }
+                }
+
+                if (isDraggingSpaceKey) {
+                    val dyStart = screenY - spaceKeyDragStartY
+                    if (dyStart > threshold && dyStart <= cancelThreshold && abs(screenX - spaceKeyDragStartX) <= cancelXThreshold) {
+                        if (!isSpaceDownAnnounced) {
+                            isSpaceDownAnnounced = true
+                            val annText = "予測変換"
+                            announceForAccessibility(annText)
+                            android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
+                            performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                        }
+                    } else {
+                        val shouldCancel = if (isSpaceDownAnnounced) {
+                            (dyStart <= threshold / 2f) || (dyStart > cancelThreshold) || (abs(screenX - spaceKeyDragStartX) > cancelXThreshold)
+                        } else {
+                            (dyStart > cancelThreshold) || (abs(screenX - spaceKeyDragStartX) > cancelXThreshold)
+                        }
+                        if (shouldCancel) {
+                            isSpaceDownAnnounced = false
+                            isDraggingSpaceKey = false
+                        }
+                    }
+                }
+
+                if (isDraggingReadAloudKey) {
+                    if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced) {
+                        if (screenX > readAloudKeyDragStartX) readAloudKeyDragStartX = screenX
+                        if (screenX < readAloudKeyDragEndX) readAloudKeyDragEndX = screenX
+                        if (screenY > readAloudKeyDragEndY) readAloudKeyDragEndY = screenY
+                        if (screenY < readAloudKeyDragTopY) readAloudKeyDragTopY = screenY
+                    }
+                    val dxStart = screenX - readAloudKeyDragStartX
+                    val dxEnd = screenX - readAloudKeyDragEndX
+                    val dyUp = screenY - readAloudKeyDragEndY
+
+                    if (dxStart < -threshold && dxStart >= -cancelThreshold && abs(screenY - readAloudKeyDragStartY) <= cancelYThreshold) {
+                        if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced) {
+                            isReadAloudLeftAnnounced = true
+                            val annText = "詳細読み上げ"
+                            announceForAccessibility(annText)
+                            android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
+                            performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                        }
+                    } else if (dxEnd > threshold && dxEnd <= cancelThreshold && abs(screenY - readAloudKeyDragStartY) <= cancelYThreshold) {
+                        if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced) {
+                            isReadAloudRightAnnounced = true
+                            val annText = "文末まで読み上げ"
+                            announceForAccessibility(annText)
+                            android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
+                            performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                        }
+                    } else if (dyUp < -threshold && dyUp >= -cancelThreshold && abs(screenX - readAloudKeyDragStartX) <= cancelXThreshold) {
+                        if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced) {
+                            isReadAloudUpAnnounced = true
+                            val annText = "文頭から読み上げ"
+                            announceForAccessibility(annText)
+                            android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
+                            performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                        }
+                    } else {
+                        val shouldCancel = if (isReadAloudLeftAnnounced) {
+                            (dxStart >= -threshold / 2f) || (dxStart < -cancelThreshold) || (abs(screenY - readAloudKeyDragStartY) > cancelYThreshold)
+                        } else if (isReadAloudRightAnnounced) {
+                            (dxEnd <= threshold / 2f) || (dxEnd > cancelThreshold) || (abs(screenY - readAloudKeyDragStartY) > cancelYThreshold)
+                        } else if (isReadAloudUpAnnounced) {
+                            (dyUp >= -threshold / 2f) || (dyUp < -cancelThreshold) || (abs(screenX - readAloudKeyDragStartX) > cancelXThreshold)
+                        } else {
+                            (dxStart < -cancelThreshold) || (dxEnd > cancelThreshold) || (dyUp < -cancelThreshold) ||
+                            (abs(screenY - readAloudKeyDragStartY) > cancelYThreshold && abs(screenX - readAloudKeyDragStartX) > cancelXThreshold)
+                        }
+                        if (shouldCancel) {
+                            isReadAloudLeftAnnounced = false
+                            isReadAloudUpAnnounced = false
+                            isReadAloudRightAnnounced = false
+                            isDraggingReadAloudKey = false
+                        }
+                    }
+                }
+
                 if (target != null && target != currentTargetView) {
                     currentTargetView = target
                     target.let { view ->
-                        // 新しいキーに入った瞬間にクリック感をフィードバック (DTalker風)
                         if (accessibilityManager.isTouchExplorationEnabled) {
                             view.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                         }
@@ -573,17 +1190,120 @@ class QWERTYKeyboardView @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_UP -> {
+                var handledGesture = false
+                var gestureChar: Char? = null
+
+                val activeKey = currentTargetView?.let { qwertyButtonMap[it] }
+
+                if (activeKey != null) {
+                    // 1) Check Drag and Hold confirmation
+                    when (activeKey) {
+                        QWERTYKey.QWERTYKeyCursorRight -> {
+                            if (isDraggingRightCursor) {
+                                isDraggingRightCursor = false
+                                if (isLineStartAnnounced) {
+                                    gestureChar = '\u0001'
+                                    handledGesture = true
+                                } else if (isLineEndAnnounced) {
+                                    gestureChar = '\u0002'
+                                    handledGesture = true
+                                } else if (isLineUpAnnounced) {
+                                    gestureChar = '\u0003'
+                                    handledGesture = true
+                                } else if (isLineDownAnnounced) {
+                                    gestureChar = '\u0004'
+                                    handledGesture = true
+                                }
+                            }
+                        }
+                        QWERTYKey.QWERTYKeyCursorLeft -> {
+                            if (isDraggingLeftCursor) {
+                                isDraggingLeftCursor = false
+                                if (isLeftLineStartAnnounced) {
+                                    gestureChar = '\u0001'
+                                    handledGesture = true
+                                } else if (isLeftLineEndAnnounced) {
+                                    gestureChar = '\u0002'
+                                    handledGesture = true
+                                } else if (isLeftLineUpAnnounced) {
+                                    gestureChar = '\u0003'
+                                    handledGesture = true
+                                } else if (isLeftLineDownAnnounced) {
+                                    gestureChar = '\u0004'
+                                    handledGesture = true
+                                }
+                            }
+                        }
+                        QWERTYKey.QWERTYKeyDelete -> {
+                            if (isDraggingDeleteKey) {
+                                isDraggingDeleteKey = false
+                                if (isDeleteLeftAnnounced) {
+                                    gestureChar = '\u0005'
+                                    handledGesture = true
+                                } else if (isDeleteRightAnnounced) {
+                                    gestureChar = '\u0007'
+                                    handledGesture = true
+                                }
+                            }
+                        }
+                        QWERTYKey.QWERTYKeySpace -> {
+                            if (isDraggingSpaceKey) {
+                                isDraggingSpaceKey = false
+                                if (isSpaceDownAnnounced) {
+                                    gestureChar = '\u0014'
+                                    handledGesture = true
+                                }
+                            }
+                        }
+                        QWERTYKey.QWERTYKeyReadAloud -> {
+                            if (isDraggingReadAloudKey) {
+                                isDraggingReadAloudKey = false
+                                if (isReadAloudLeftAnnounced) {
+                                    gestureChar = '\u0011'
+                                    handledGesture = true
+                                } else if (isReadAloudUpAnnounced) {
+                                    gestureChar = '\u0012'
+                                    handledGesture = true
+                                } else if (isReadAloudRightAnnounced) {
+                                    gestureChar = '\u0013'
+                                    handledGesture = true
+                                }
+                            }
+                        }
+                        else -> {}
+                    }
+
+                    // 2) Fast flick fallback if drag gesture wasn't already confirmed
+                    if (!handledGesture) {
+                        val fastFlickChar = getFastFlickChar(event, activeKey)
+                        if (fastFlickChar != null) {
+                            gestureChar = fastFlickChar
+                            handledGesture = true
+                        }
+                    }
+                }
+
+                // Reset drag states
+                resetDragVariables()
+
                 if (accessibilityManager.isTouchExplorationEnabled) {
-                    // TalkBack exploration use currentTargetView for robust release recognition
                     currentTargetView?.let { view ->
                         qwertyButtonMap[view]?.let { key ->
-                            performKeyInput(view, key)
+                            if (handledGesture) {
+                                qwertyKeyListener?.onReleasedQWERTYKey(key, gestureChar, null)
+                            } else {
+                                performKeyInput(view, key)
+                            }
                         }
                     }
                 } else {
                     target?.let { view ->
                         qwertyButtonMap[view]?.let { key ->
-                            performKeyInput(view, key)
+                            if (handledGesture) {
+                                qwertyKeyListener?.onReleasedQWERTYKey(key, gestureChar, null)
+                            } else {
+                                performKeyInput(view, key)
+                            }
                         }
                     }
                 }
@@ -592,6 +1312,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_CANCEL -> {
+                resetDragVariables()
                 isCalledFromHoverEvent = false
                 currentTargetView = null
             }
@@ -611,6 +1332,82 @@ class QWERTYKeyboardView @JvmOverloads constructor(
             }
             // TalkBackのフォーカス移動を維持
             view.sendAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+        }
+    }
+
+    private fun resetDragVariables() {
+        isDraggingRightCursor = false
+        isLineStartAnnounced = false
+        isLineEndAnnounced = false
+        isLineUpAnnounced = false
+        isLineDownAnnounced = false
+        touchSlideInEntryTime = 0L
+
+        isDraggingLeftCursor = false
+        isLeftLineStartAnnounced = false
+        isLeftLineEndAnnounced = false
+        isLeftLineUpAnnounced = false
+        isLeftLineDownAnnounced = false
+        leftTouchSlideInEntryTime = 0L
+
+        isDraggingDeleteKey = false
+        isDeleteLeftAnnounced = false
+        isDeleteRightAnnounced = false
+        deleteTouchSlideInEntryTime = 0L
+
+        isDraggingSpaceKey = false
+        isSpaceDownAnnounced = false
+        spaceTouchSlideInEntryTime = 0L
+
+        isDraggingReadAloudKey = false
+        isReadAloudLeftAnnounced = false
+        isReadAloudUpAnnounced = false
+        isReadAloudRightAnnounced = false
+        readAloudTouchSlideInEntryTime = 0L
+    }
+
+    private fun getFastFlickChar(event: MotionEvent, key: QWERTYKey): Char? {
+        val screenX = try { event.rawX } catch (e: Exception) { event.x }
+        val screenY = try { event.rawY } catch (e: Exception) { event.y }
+        val dx = screenX - pressedKeyInitialX
+        val dy = screenY - pressedKeyInitialY
+        val threshold = 35f
+        val cancelThreshold = 60f
+
+        return when (key) {
+            QWERTYKey.QWERTYKeyCursorRight, QWERTYKey.QWERTYKeyCursorLeft -> {
+                if (abs(dy) <= cancelThreshold) {
+                    if (dx < -threshold) '\u0001'
+                    else if (dx > threshold) '\u0002'
+                    else null
+                } else if (abs(dx) <= cancelThreshold) {
+                    if (dy < -threshold) '\u0003'
+                    else if (dy > threshold) '\u0004'
+                    else null
+                } else null
+            }
+            QWERTYKey.QWERTYKeyDelete -> {
+                if (abs(dy) <= cancelThreshold) {
+                    if (dx < -threshold) '\u0005'
+                    else if (dx > threshold) '\u0007'
+                    else null
+                } else null
+            }
+            QWERTYKey.QWERTYKeySpace -> {
+                if (abs(dx) <= cancelThreshold && dy > threshold) {
+                    '\u0014'
+                } else null
+            }
+            QWERTYKey.QWERTYKeyReadAloud -> {
+                if (abs(dy) <= cancelThreshold) {
+                    if (dx < -threshold) '\u0011'
+                    else if (dx > threshold) '\u0013'
+                    else null
+                } else if (abs(dx) <= cancelThreshold && dy < -threshold) {
+                    '\u0012'
+                } else null
+            }
+            else -> null
         }
     }
 

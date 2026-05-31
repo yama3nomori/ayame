@@ -3964,6 +3964,21 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                                             mainView, finalSuggestions, insertString
                                         )
                                     }
+                                } else {
+                                    val filtered = suggestions.filter { it.length.toInt() > insertString.length }
+                                    val finalSuggestions = if (filtered.isNotEmpty()) {
+                                        suggestionAdapter?.suggestions = filtered
+                                        suggestionAdapterFull?.suggestions = filtered
+                                        filteredCandidateList = filtered
+                                        filtered
+                                    } else {
+                                        suggestions
+                                    }
+                                    if (finalSuggestions.isNotEmpty()) {
+                                        handleJapaneseModeSpaceKey(
+                                            mainView, finalSuggestions, insertString
+                                        )
+                                    }
                                 }
                             }
                         } else if (gestureType == GestureType.FlickLeft) {
@@ -4218,6 +4233,21 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                                                 floatingKeyboardLayoutBinding, finalSuggestions, insertString
                                             )
                                         } else {
+                                            handleJapaneseModeSpaceKeyFloating(
+                                                floatingKeyboardLayoutBinding, finalSuggestions, insertString
+                                            )
+                                        }
+                                    } else {
+                                        val filtered = suggestions.filter { it.length.toInt() > insertString.length }
+                                        val finalSuggestions = if (filtered.isNotEmpty()) {
+                                            suggestionAdapter?.suggestions = filtered
+                                            suggestionAdapterFull?.suggestions = filtered
+                                            filteredCandidateList = filtered
+                                            filtered
+                                        } else {
+                                            suggestions
+                                        }
+                                        if (finalSuggestions.isNotEmpty()) {
                                             handleJapaneseModeSpaceKeyFloating(
                                                 floatingKeyboardLayoutBinding, finalSuggestions, insertString
                                             )
@@ -9601,8 +9631,14 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                         }
 
                         QWERTYKey.QWERTYKeyDelete -> {
-                            if (!deleteKeyLongKeyPressed.get()) {
-                                handleDeleteKeyTap(insertString, suggestionList)
+                            if (tap == '\u0005') {
+                                handleDeleteLeftDragOrFlick(insertString)
+                            } else if (tap == '\u0007') {
+                                handleDeleteRightDragOrFlick()
+                            } else {
+                                if (!deleteKeyLongKeyPressed.get()) {
+                                    handleDeleteKeyTap(insertString, suggestionList)
+                                }
                             }
                             stopDeleteLongPress()
                             if (isDefaultRomajiHenkanMap) {
@@ -9631,14 +9667,54 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                         QWERTYKey.QWERTYKeySpace -> {
                             Timber.d("onReleasedQWERTYKey: QWERTYKeySpace $isSpaceKeyLongPressed")
-                            if (!isSpaceKeyLongPressed) {
-                                handleSpaceKeyClickInQWERTY(insertString, mainView, suggestionList)
+                            if (tap == '\u0014') {
+                                if (insertString.isNotBlank() && suggestionList.isNotEmpty()) {
+                                    val isJapanese = mainView.qwertyView.getRomajiMode()
+                                    val finalSuggestions = if (!isHenkan.get()) {
+                                        val filtered = suggestionList.filter { it.length.toInt() > insertString.length }
+                                        if (filtered.isNotEmpty()) {
+                                            suggestionAdapter?.suggestions = filtered
+                                            suggestionAdapterFull?.suggestions = filtered
+                                            filteredCandidateList = filtered
+                                            filtered
+                                        } else {
+                                            suggestionList
+                                        }
+                                    } else {
+                                        suggestionList
+                                    }
+                                    if (isJapanese) {
+                                        if (bunsetsuSeparation == true) {
+                                            handleJapaneseModeSpaceKeyWithBunsetsu(
+                                                mainView, finalSuggestions, insertString
+                                            )
+                                        } else {
+                                            handleJapaneseModeSpaceKey(
+                                                mainView, finalSuggestions, insertString
+                                            )
+                                        }
+                                    } else {
+                                        handleJapaneseModeSpaceKey(
+                                            mainView, finalSuggestions, insertString
+                                        )
+                                    }
+                                    isHenkan.set(true)
+                                }
+                            } else {
+                                if (!isSpaceKeyLongPressed) {
+                                    handleSpaceKeyClickInQWERTY(insertString, mainView, suggestionList)
+                                }
                             }
                             isSpaceKeyLongPressed = false
                         }
 
                         QWERTYKey.QWERTYKeyReadAloud -> {
-                            readAloudCurrentText()
+                            when (tap) {
+                                '\u0011' -> readAloudCurrentLineDetailed()
+                                '\u0012' -> readAloudFullText()
+                                '\u0013' -> readAloudFromCursorToEnd()
+                                else -> readAloudCurrentText()
+                            }
                         }
 
                         QWERTYKey.QWERTYKeyReturn -> {
@@ -9651,12 +9727,22 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                         QWERTYKey.QWERTYKeyCursorLeft -> {
                             Timber.d("QWERTYKey.QWERTYKeyCursorLeft")
-                            if (!leftCursorKeyLongKeyPressed.get()) {
-                                if (isHenkan.get()) {
-                                    val suggestions = suggestionAdapter?.suggestions ?: emptyList()
-                                    handleDeleteKeyInHenkan(suggestions, insertString)
-                                } else {
-                                    handleLeftCursor(GestureType.Tap, insertString)
+                            if (tap == '\u0001') {
+                                moveCursorToStartOfLine()
+                            } else if (tap == '\u0002') {
+                                moveCursorToEndOfLine()
+                            } else if (tap == '\u0003') {
+                                moveCursorToPrevLineAndReadAloud()
+                            } else if (tap == '\u0004') {
+                                moveCursorToNextLineAndReadAloud()
+                            } else {
+                                if (!leftCursorKeyLongKeyPressed.get()) {
+                                    if (isHenkan.get()) {
+                                        val suggestions = suggestionAdapter?.suggestions ?: emptyList()
+                                        handleDeleteKeyInHenkan(suggestions, insertString)
+                                    } else {
+                                        handleLeftCursor(GestureType.Tap, insertString)
+                                    }
                                 }
                             }
                             onLeftKeyLongPressUp.set(true)
@@ -9668,14 +9754,24 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                         QWERTYKey.QWERTYKeyCursorRight -> {
                             Timber.d("QWERTYKey.QWERTYKeyCursorRight")
-                            if (!rightCursorKeyLongKeyPressed.get()) {
-                                if (isHenkan.get()) {
-                                    val suggestions = suggestionAdapter?.suggestions ?: emptyList()
-                                    handleJapaneseModeSpaceKey(
-                                        mainView, suggestions, insertString
-                                    )
-                                } else {
-                                    actionInRightKeyPressed(GestureType.Tap, insertString)
+                            if (tap == '\u0001') {
+                                moveCursorToStartOfLine()
+                            } else if (tap == '\u0002') {
+                                moveCursorToEndOfLine()
+                            } else if (tap == '\u0003') {
+                                moveCursorToPrevLineAndReadAloud()
+                            } else if (tap == '\u0004') {
+                                moveCursorToNextLineAndReadAloud()
+                            } else {
+                                if (!rightCursorKeyLongKeyPressed.get()) {
+                                    if (isHenkan.get()) {
+                                        val suggestions = suggestionAdapter?.suggestions ?: emptyList()
+                                        handleJapaneseModeSpaceKey(
+                                            mainView, suggestions, insertString
+                                        )
+                                    } else {
+                                        actionInRightKeyPressed(GestureType.Tap, insertString)
+                                    }
                                 }
                             }
                             onRightKeyLongPressUp.set(true)
@@ -12063,7 +12159,13 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                                 suggestionAdapter?.updateHighlightPosition(-1)
                             }
 
-                            else -> setSpaceKeyActionEnglishAndNumberNotEmpty(insertString)
+                            else -> {
+                                if (isHenkan.get() && finalSuggestions.isNotEmpty()) {
+                                    handleJapaneseModeSpaceKey(this, finalSuggestions, insertString)
+                                } else {
+                                    setSpaceKeyActionEnglishAndNumberNotEmpty(insertString)
+                                }
+                            }
                         }
                     }
                 } else {
@@ -12090,7 +12192,17 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                                 suggestionAdapter?.updateHighlightPosition(-1)
                             }
 
-                            else -> setSpaceKeyActionEnglishAndNumberNotEmpty(insertString)
+                            else -> {
+                                if (isHenkan.get() && finalSuggestions.isNotEmpty()) {
+                                    if (bunsetsuSeparation == true) {
+                                        handleJapaneseModeSpaceKeyWithBunsetsu(this, finalSuggestions, insertString)
+                                    } else {
+                                        handleJapaneseModeSpaceKey(this, finalSuggestions, insertString)
+                                    }
+                                } else {
+                                    setSpaceKeyActionEnglishAndNumberNotEmpty(insertString)
+                                }
+                            }
                         }
                     }
                 }
@@ -12147,7 +12259,21 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                         }
                     }
 
-                    else -> setSpaceKeyActionEnglishAndNumberNotEmpty(insertString)
+                    else -> {
+                        if (isHenkan.get() && finalSuggestions.isNotEmpty()) {
+                            if (bunsetsuSeparation == true) {
+                                handleJapaneseModeSpaceKeyWithBunsetsuFloating(
+                                    floatingKeyboardLayoutBinding, finalSuggestions, insertString
+                                )
+                            } else {
+                                handleJapaneseModeSpaceKeyFloating(
+                                    floatingKeyboardLayoutBinding, finalSuggestions, insertString
+                                )
+                            }
+                        } else {
+                            setSpaceKeyActionEnglishAndNumberNotEmpty(insertString)
+                        }
+                    }
                 }
             }
         } else {
@@ -12162,48 +12288,56 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     ) {
         if (insertString.isNotBlank()) {
             mainView.apply {
-                when (mainView.keyboardView.currentInputMode.value) {
-                    InputMode.ModeJapanese -> {
-                        val insertStringEndWithN = if (isDefaultRomajiHenkanMap) {
-                            romajiConverter?.flushZenkaku(insertString)?.first
-                        } else {
-                            romajiConverter?.flush(insertString)?.first
-                        }
-                        if (insertStringEndWithN == null) {
-                            _inputString.update { insertString }
-                            if (suggestions.isNotEmpty()) {
-                                if (bunsetsuSeparation == true) {
-                                    handleJapaneseModeSpaceKeyWithBunsetsu(
-                                        this, suggestions, insertString
-                                    )
-                                } else {
-                                    handleJapaneseModeSpaceKey(
-                                        this, suggestions, insertString
-                                    )
-                                }
+                if (isHenkan.get()) {
+                    if (suggestions.isNotEmpty()) {
+                        handleJapaneseModeSpaceKey(
+                            this, suggestions, insertString
+                        )
+                    }
+                } else {
+                    when (mainView.keyboardView.currentInputMode.value) {
+                        InputMode.ModeJapanese -> {
+                            val insertStringEndWithN = if (isDefaultRomajiHenkanMap) {
+                                romajiConverter?.flushZenkaku(insertString)?.first
+                            } else {
+                                romajiConverter?.flush(insertString)?.first
                             }
-                        } else {
-                            _inputString.update { insertStringEndWithN }
-                            scope.launch {
-                                delay(64)
-                                val newSuggestionList =
-                                    suggestionAdapter?.suggestions ?: emptyList()
-                                if (newSuggestionList.isNotEmpty()) {
+                            if (insertStringEndWithN == null) {
+                                _inputString.update { insertString }
+                                if (suggestions.isNotEmpty()) {
                                     if (bunsetsuSeparation == true) {
                                         handleJapaneseModeSpaceKeyWithBunsetsu(
-                                            mainView, newSuggestionList, insertString
+                                            this, suggestions, insertString
                                         )
                                     } else {
                                         handleJapaneseModeSpaceKey(
-                                            mainView, newSuggestionList, insertString
+                                            this, suggestions, insertString
                                         )
+                                    }
+                                }
+                            } else {
+                                _inputString.update { insertStringEndWithN }
+                                scope.launch {
+                                    delay(64)
+                                    val newSuggestionList =
+                                        suggestionAdapter?.suggestions ?: emptyList()
+                                    if (newSuggestionList.isNotEmpty()) {
+                                        if (bunsetsuSeparation == true) {
+                                            handleJapaneseModeSpaceKeyWithBunsetsu(
+                                                mainView, newSuggestionList, insertString
+                                            )
+                                        } else {
+                                            handleJapaneseModeSpaceKey(
+                                                mainView, newSuggestionList, insertString
+                                            )
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
 
-                    else -> setSpaceKeyActionEnglishAndNumberNotEmpty(insertString)
+                        else -> setSpaceKeyActionEnglishAndNumberNotEmpty(insertString)
+                    }
                 }
             }
         } else {
