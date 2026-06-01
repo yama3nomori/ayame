@@ -291,6 +291,14 @@ class QWERTYKeyboardView @JvmOverloads constructor(
             androidx.core.view.ViewCompat.setAccessibilityDelegate(view, object : androidx.core.view.AccessibilityDelegateCompat() {
                 override fun onInitializeAccessibilityNodeInfo(host: View, info: androidx.core.view.accessibility.AccessibilityNodeInfoCompat) {
                     super.onInitializeAccessibilityNodeInfo(host, info)
+                    
+                    // テンキーと同様に、現在のテキスト/説明を明示的にアクセシビリティ情報にセット
+                    val description = host.contentDescription ?: (host as? TextView)?.text
+                    if (!description.isNullOrEmpty()) {
+                        info.text = description
+                        info.contentDescription = description
+                    }
+
                     // クラス名を空にし、役割記述をゼロ幅スペースにすることで「ボタン」の読み込みを完全に阻止する
                     info.className = ""
                     info.setRoleDescription("\u200B")
@@ -1175,16 +1183,18 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                     }
                 }
 
-                if (target != null && target != currentTargetView) {
+                if (target != currentTargetView) {
                     currentTargetView = target
-                    target.let { view ->
-                        if (accessibilityManager.isTouchExplorationEnabled) {
-                            view.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                    if (target != null) {
+                        target.let { view ->
+                            if (accessibilityManager.isTouchExplorationEnabled) {
+                                view.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                            qwertyButtonMap[view]?.let { key ->
+                                qwertyKeyListener?.onPressedQWERTYKey(key)
+                            }
+                            announceKey(view)
                         }
-                        qwertyButtonMap[view]?.let { key ->
-                            qwertyKeyListener?.onPressedQWERTYKey(key)
-                        }
-                        announceKey(view)
                     }
                 }
             }
@@ -1422,11 +1432,25 @@ class QWERTYKeyboardView @JvmOverloads constructor(
             }
         }
 
+        // 1) 最初に、完全に矩形内に指があるかチェック（従来通りの厳格判定）
         cachedKeyRects?.forEach { (rect, child) ->
             if (rect.contains(x, y)) {
                 return child
             }
         }
+
+        // 2) TalkBackでのなぞり操作中の場合のみ、最も近いキーを探索（テンキー同等の近接アルゴリズム）
+        if (accessibilityManager.isTouchExplorationEnabled && isCalledFromHoverEvent) {
+            val nearest = cachedKeyRects?.minByOrNull { (rect, _) ->
+                val cx = (rect.left + rect.right) / 2
+                val cy = (rect.top + rect.bottom) / 2
+                val dx = x - cx
+                val dy = y - cy
+                (dx * dx + dy * dy)
+            }?.second
+            return nearest
+        }
+
         return null
     }
 }
