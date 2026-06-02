@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Flick action IDs -->
+    <item name="action_flick_left" type="id" />
+    <item name="action_flick_top" type="id" />
+    <item name="action_flick_right" type="id" />
+    <item name="action_flick_bottom" type="id" />
+    <item name="action_flick_center" type="id" />
+
+    <!-- QWERTY variation action IDs -->
+    <item name="action_qwerty_variation_0" type="id" />
+    <item name="action_qwerty_variation_1" type="id" />
+    <item name="action_qwerty_variation_2" type="id" />
+    <item name="action_qwerty_variation_3" type="id" />
+    <item name="action_qwerty_variation_4" type="id" />
+    <item name="action_qwerty_variation_5" type="id" />
+    <item name="action_qwerty_variation_6" type="id" />
+    <item name="action_qwerty_variation_7" type="id" />
+    <item name="action_qwerty_variation_8" type="id" />
+    <item name="action_qwerty_variation_9" type="id" />
+    <item name="action_qwerty_variation_10" type="id" />
+    <item name="action_qwerty_variation_11" type="id" />
+    <item name="action_qwerty_variation_12" type="id" />
+    <item name="action_qwerty_variation_13" type="id" />
+    <item name="action_qwerty_variation_14" type="id" />
+    <item name="action_qwerty_variation_15" type="id" />
+</resources>

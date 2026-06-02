@@ -193,6 +193,12 @@ class QWERTYKeyboardView @JvmOverloads constructor(
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
+    var isAyameMode: Boolean = false
+        set(value) {
+            field = value
+            setupAccessibilityDelegates(this)
+        }
+
     private val accessibilityManager: AccessibilityManager =
         context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
 
@@ -279,7 +285,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
             view.isClickable = true
             view.isFocusable = true
             view.setOnClickListener {
-                if (accessibilityManager.isTouchExplorationEnabled) {
+                if (isAyameMode || accessibilityManager.isTouchExplorationEnabled) {
                     performKeyInput(view, key)
                 }
             }
@@ -288,22 +294,192 @@ class QWERTYKeyboardView @JvmOverloads constructor(
 
     private fun setupAccessibilityDelegates(view: View) {
         if (view is android.widget.Button || view is android.widget.ImageButton || view is QWERTYButton) {
+            val key = qwertyButtonMap[view]
+            if (key != null) {
+                view.isClickable = true
+                view.isFocusable = true
+                view.setOnClickListener {
+                    if (isAyameMode || accessibilityManager.isTouchExplorationEnabled) {
+                        performKeyInput(view, key)
+                    }
+                }
+            }
+
             androidx.core.view.ViewCompat.setAccessibilityDelegate(view, object : androidx.core.view.AccessibilityDelegateCompat() {
                 override fun onInitializeAccessibilityNodeInfo(host: View, info: androidx.core.view.accessibility.AccessibilityNodeInfoCompat) {
                     super.onInitializeAccessibilityNodeInfo(host, info)
                     
-                    // テンキーと同様に、現在のテキスト/説明を明示的にアクセシビリティ情報にセット
                     val description = host.contentDescription ?: (host as? TextView)?.text
                     if (!description.isNullOrEmpty()) {
                         info.text = description
                         info.contentDescription = description
                     }
 
-                    // クラス名を空にし、役割記述をゼロ幅スペースにすることで「ボタン」の読み込みを完全に阻止する
-                    info.className = ""
-                    info.setRoleDescription("\u200B")
-                    // OS側で「ボタン」としての挙動を認識させない
-                    info.isClickable = false
+                    if (isAyameMode) {
+                        info.className = "android.widget.Button"
+                        info.isClickable = true
+                        info.isLongClickable = true
+
+                        if (key != null) {
+                            when (key) {
+                                QWERTYKey.QWERTYKeyCursorRight, QWERTYKey.QWERTYKeyCursorLeft -> {
+                                    info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_left, "行頭移動 (左フリック)"))
+                                    info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_right, "行末移動 (右フリック)"))
+                                    info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_top, "前行移動 (上フリック)"))
+                                    info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_bottom, "次行移動 (下フリック)"))
+                                }
+                                QWERTYKey.QWERTYKeyDelete -> {
+                                    info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_left, "一括削除 (左フリック)"))
+                                    info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_right, "行末まで削除 (右フリック)"))
+                                }
+                                QWERTYKey.QWERTYKeySpace -> {
+                                    info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_bottom, "予測変換 (下フリック)"))
+                                }
+                                QWERTYKey.QWERTYKeyReadAloud -> {
+                                    info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_left, "詳細読み上げ (左フリック)"))
+                                    info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_top, "文頭から読み上げ (上フリック)"))
+                                    info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_right, "文末まで読み上げ (右フリック)"))
+                                }
+                                else -> {
+                                    val romajiMode = romajiModeState.value
+                                    val qMode = qwertyMode.value
+                                    val qKeyInfo = when (qMode) {
+                                        is QWERTYMode.Default -> if (romajiMode) qwertyKeyMap.getKeyInfoDefaultJP(key) else qwertyKeyMap.getKeyInfoDefault(key)
+                                        is QWERTYMode.Number -> if (romajiMode) qwertyKeyMap.getKeyInfoNumberJP(key) else qwertyKeyMap.getKeyInfoNumber(key)
+                                        is QWERTYMode.Symbol -> if (romajiMode) qwertyKeyMap.getKeyInfoSymbolJP(key) else qwertyKeyMap.getKeyInfoSymbol(key)
+                                    }
+
+                                    if (qKeyInfo is QWERTYKeyInfo.QWERTYVariation) {
+                                        val isUpper = (host as? TextView)?.text?.toString()?.firstOrNull()?.isUpperCase() == true
+                                        val tapChar = if (isUpper) qKeyInfo.capChar ?: qKeyInfo.tap else qKeyInfo.tap
+                                        if (tapChar != null) {
+                                            info.addAction(
+                                                androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(
+                                                    com.kazumaproject.core.R.id.action_flick_center,
+                                                    "$tapChar (タップ)"
+                                                )
+                                            )
+                                        }
+                                        val variationsList = (if (isUpper) qKeyInfo.capVariations ?: qKeyInfo.variations else qKeyInfo.variations) ?: emptyList()
+                                        
+                                        val variationActionIds = listOf(
+                                            com.kazumaproject.core.R.id.action_qwerty_variation_0,
+                                            com.kazumaproject.core.R.id.action_qwerty_variation_1,
+                                            com.kazumaproject.core.R.id.action_qwerty_variation_2,
+                                            com.kazumaproject.core.R.id.action_qwerty_variation_3,
+                                            com.kazumaproject.core.R.id.action_qwerty_variation_4,
+                                            com.kazumaproject.core.R.id.action_qwerty_variation_5,
+                                            com.kazumaproject.core.R.id.action_qwerty_variation_6,
+                                            com.kazumaproject.core.R.id.action_qwerty_variation_7,
+                                            com.kazumaproject.core.R.id.action_qwerty_variation_8,
+                                            com.kazumaproject.core.R.id.action_qwerty_variation_9,
+                                            com.kazumaproject.core.R.id.action_qwerty_variation_10,
+                                            com.kazumaproject.core.R.id.action_qwerty_variation_11,
+                                            com.kazumaproject.core.R.id.action_qwerty_variation_12,
+                                            com.kazumaproject.core.R.id.action_qwerty_variation_13,
+                                            com.kazumaproject.core.R.id.action_qwerty_variation_14,
+                                            com.kazumaproject.core.R.id.action_qwerty_variation_15
+                                        )
+
+                                        variationsList.forEachIndexed { idx, vChar ->
+                                            if (idx < variationActionIds.size) {
+                                                info.addAction(
+                                                    androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(
+                                                        variationActionIds[idx],
+                                                        "$vChar (選択)"
+                                                    )
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        info.className = ""
+                        info.setRoleDescription("\u200B")
+                        info.isClickable = false
+                        info.removeAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_CLICK)
+                        info.removeAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_LONG_CLICK)
+                    }
+                }
+
+                override fun performAccessibilityAction(
+                    host: View,
+                    action: Int,
+                    args: android.os.Bundle?
+                ): Boolean {
+                    if (isAyameMode && key != null) {
+                        if (action == com.kazumaproject.core.R.id.action_flick_center) {
+                            val romajiMode = romajiModeState.value
+                            val qMode = qwertyMode.value
+                            val qKeyInfo = when (qMode) {
+                                is QWERTYMode.Default -> if (romajiMode) qwertyKeyMap.getKeyInfoDefaultJP(key) else qwertyKeyMap.getKeyInfoDefault(key)
+                                is QWERTYMode.Number -> if (romajiMode) qwertyKeyMap.getKeyInfoNumberJP(key) else qwertyKeyMap.getKeyInfoNumber(key)
+                                is QWERTYMode.Symbol -> if (romajiMode) qwertyKeyMap.getKeyInfoSymbolJP(key) else qwertyKeyMap.getKeyInfoSymbol(key)
+                            }
+                            if (qKeyInfo is QWERTYKeyInfo.QWERTYVariation) {
+                                val isUpper = (host as? TextView)?.text?.toString()?.firstOrNull()?.isUpperCase() == true
+                                val tapChar = if (isUpper) qKeyInfo.capChar ?: qKeyInfo.tap else qKeyInfo.tap
+                                if (tapChar != null) {
+                                    qwertyKeyListener?.onReleasedQWERTYKey(key, tapChar, null)
+                                    return true
+                                }
+                            }
+                        }
+                        val variationActionIds = listOf(
+                            com.kazumaproject.core.R.id.action_qwerty_variation_0,
+                            com.kazumaproject.core.R.id.action_qwerty_variation_1,
+                            com.kazumaproject.core.R.id.action_qwerty_variation_2,
+                            com.kazumaproject.core.R.id.action_qwerty_variation_3,
+                            com.kazumaproject.core.R.id.action_qwerty_variation_4,
+                            com.kazumaproject.core.R.id.action_qwerty_variation_5,
+                            com.kazumaproject.core.R.id.action_qwerty_variation_6,
+                            com.kazumaproject.core.R.id.action_qwerty_variation_7,
+                            com.kazumaproject.core.R.id.action_qwerty_variation_8,
+                            com.kazumaproject.core.R.id.action_qwerty_variation_9,
+                            com.kazumaproject.core.R.id.action_qwerty_variation_10,
+                            com.kazumaproject.core.R.id.action_qwerty_variation_11,
+                            com.kazumaproject.core.R.id.action_qwerty_variation_12,
+                            com.kazumaproject.core.R.id.action_qwerty_variation_13,
+                            com.kazumaproject.core.R.id.action_qwerty_variation_14,
+                            com.kazumaproject.core.R.id.action_qwerty_variation_15
+                        )
+
+                        val varIndex = variationActionIds.indexOf(action)
+                        if (varIndex >= 0) {
+                            val romajiMode = romajiModeState.value
+                            val qMode = qwertyMode.value
+                            val qKeyInfo = when (qMode) {
+                                is QWERTYMode.Default -> if (romajiMode) qwertyKeyMap.getKeyInfoDefaultJP(key) else qwertyKeyMap.getKeyInfoDefault(key)
+                                is QWERTYMode.Number -> if (romajiMode) qwertyKeyMap.getKeyInfoNumberJP(key) else qwertyKeyMap.getKeyInfoNumber(key)
+                                is QWERTYMode.Symbol -> if (romajiMode) qwertyKeyMap.getKeyInfoSymbolJP(key) else qwertyKeyMap.getKeyInfoSymbol(key)
+                            }
+
+                            if (qKeyInfo is QWERTYKeyInfo.QWERTYVariation) {
+                                val isUpper = (host as? TextView)?.text?.toString()?.firstOrNull()?.isUpperCase() == true
+                                val variationsList = (if (isUpper) qKeyInfo.capVariations ?: qKeyInfo.variations else qKeyInfo.variations) ?: emptyList()
+                                if (varIndex < variationsList.size) {
+                                    val targetChar = variationsList[varIndex]
+                                    qwertyKeyListener?.onReleasedQWERTYKey(key, targetChar, null)
+                                    return true
+                                }
+                            }
+                        }
+
+                        val gesture = when (action) {
+                            com.kazumaproject.core.R.id.action_flick_left -> com.kazumaproject.core.domain.state.GestureType.FlickLeft
+                            com.kazumaproject.core.R.id.action_flick_top -> com.kazumaproject.core.domain.state.GestureType.FlickTop
+                            com.kazumaproject.core.R.id.action_flick_right -> com.kazumaproject.core.domain.state.GestureType.FlickRight
+                            com.kazumaproject.core.R.id.action_flick_bottom -> com.kazumaproject.core.domain.state.GestureType.FlickBottom
+                            else -> null
+                        }
+                        if (gesture != null) {
+                            triggerAyameFlickAction(key, gesture)
+                            return true
+                        }
+                    }
+                    return super.performAccessibilityAction(host, action, args)
                 }
             })
         }
@@ -311,6 +487,50 @@ class QWERTYKeyboardView @JvmOverloads constructor(
             for (i in 0 until view.childCount) {
                 setupAccessibilityDelegates(view.getChildAt(i))
             }
+        }
+    }
+
+    private fun triggerAyameFlickAction(key: QWERTYKey, gesture: com.kazumaproject.core.domain.state.GestureType) {
+        when (key) {
+            QWERTYKey.QWERTYKeyCursorRight, QWERTYKey.QWERTYKeyCursorLeft -> {
+                val charCode = when (gesture) {
+                    com.kazumaproject.core.domain.state.GestureType.FlickLeft -> '\u0001'
+                    com.kazumaproject.core.domain.state.GestureType.FlickRight -> '\u0002'
+                    com.kazumaproject.core.domain.state.GestureType.FlickTop -> '\u0003'
+                    com.kazumaproject.core.domain.state.GestureType.FlickBottom -> '\u0004'
+                    else -> null
+                }
+                if (charCode != null) {
+                    qwertyKeyListener?.onReleasedQWERTYKey(key, charCode, null)
+                }
+            }
+            QWERTYKey.QWERTYKeyDelete -> {
+                val charCode = when (gesture) {
+                    com.kazumaproject.core.domain.state.GestureType.FlickLeft -> '\u0005'
+                    com.kazumaproject.core.domain.state.GestureType.FlickRight -> '\u0007'
+                    else -> null
+                }
+                if (charCode != null) {
+                    qwertyKeyListener?.onReleasedQWERTYKey(key, charCode, null)
+                }
+            }
+            QWERTYKey.QWERTYKeySpace -> {
+                if (gesture == com.kazumaproject.core.domain.state.GestureType.FlickBottom) {
+                    qwertyKeyListener?.onReleasedQWERTYKey(key, '\u0014', null)
+                }
+            }
+            QWERTYKey.QWERTYKeyReadAloud -> {
+                val charCode = when (gesture) {
+                    com.kazumaproject.core.domain.state.GestureType.FlickLeft -> '\u0011'
+                    com.kazumaproject.core.domain.state.GestureType.FlickTop -> '\u0012'
+                    com.kazumaproject.core.domain.state.GestureType.FlickRight -> '\u0013'
+                    else -> null
+                }
+                if (charCode != null) {
+                    qwertyKeyListener?.onReleasedQWERTYKey(key, charCode, null)
+                }
+            }
+            else -> {}
         }
     }
 
@@ -571,6 +791,9 @@ class QWERTYKeyboardView @JvmOverloads constructor(
     fun setMaterialYouTheme(isNight: Boolean, isDynamic: Boolean) {}
 
     override fun onInterceptHoverEvent(event: MotionEvent): Boolean {
+        if (isAyameMode) {
+            return false
+        }
         if (accessibilityManager.isTouchExplorationEnabled) {
             return true
         }
@@ -578,6 +801,9 @@ class QWERTYKeyboardView @JvmOverloads constructor(
     }
 
     override fun onHoverEvent(event: MotionEvent): Boolean {
+        if (isAyameMode) {
+            return super.onHoverEvent(event)
+        }
         if (accessibilityManager.isTouchExplorationEnabled && event.pointerCount == 1) {
             val action = when (event.action) {
                 MotionEvent.ACTION_HOVER_ENTER -> MotionEvent.ACTION_DOWN
@@ -612,6 +838,9 @@ class QWERTYKeyboardView @JvmOverloads constructor(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (isAyameMode) {
+            return false
+        }
         // If TalkBack is enabled, we only process touches that came from onHoverEvent conversion.
         // This implements "Confirm on Lift" (Slide to type).
         if (accessibilityManager.isTouchExplorationEnabled && !isCalledFromHoverEvent) {

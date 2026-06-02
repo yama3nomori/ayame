@@ -4388,7 +4388,17 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             sendCharTap(
                 charToSend = it, insertString = insertString, sb = sb
             )
-            announceChar(it)
+            val currentKeyboard = keyboardOrder.getOrNull(currentKeyboardOrder)
+            if (currentKeyboard == KeyboardType.AYAME_TENKEY) {
+                val lastChar = inputString.value.lastOrNull()
+                if (lastChar != null) {
+                    announceChar(lastChar)
+                } else {
+                    announceChar(it)
+                }
+            } else {
+                announceChar(it)
+            }
         }
     }
 
@@ -4408,7 +4418,17 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             sendCharTap(
                 charToSend = it, insertString = insertString, sb = sb
             )
-            announceChar(it)
+            val currentKeyboard = keyboardOrder.getOrNull(currentKeyboardOrder)
+            if (currentKeyboard == KeyboardType.AYAME_TENKEY) {
+                val lastChar = inputString.value.lastOrNull()
+                if (lastChar != null) {
+                    announceChar(lastChar)
+                } else {
+                    announceChar(it)
+                }
+            } else {
+                announceChar(it)
+            }
         }
     }
 
@@ -4596,6 +4616,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     KeyboardType.QWERTY -> "英語"
                     KeyboardType.ROMAJI -> "ローマ字入力"
                     KeyboardType.CUSTOM -> "カスタム"
+                    KeyboardType.AYAME_TENKEY -> "アヤメテンキー"
+                    KeyboardType.AYAME_QWERTY -> "アヤメ英語"
+                    KeyboardType.AYAME_ROMAJI -> "アヤメローマ字入力"
                 }
                 RowItem.Internal(type = type, title = title)
             }
@@ -4687,7 +4710,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                         val nextType = row.type
                         when (nextType) {
-                            KeyboardType.TENKEY -> {
+                            KeyboardType.TENKEY, KeyboardType.AYAME_TENKEY -> {
                                 mainView.keyboardView.setCurrentMode(InputMode.ModeJapanese)
                             }
 
@@ -4695,12 +4718,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                                 mainView.keyboardView.setCurrentMode(InputMode.ModeJapanese)
                             }
 
-                            KeyboardType.ROMAJI -> {
+                            KeyboardType.ROMAJI, KeyboardType.AYAME_ROMAJI -> {
                                 mainView.keyboardView.setCurrentMode(InputMode.ModeJapanese)
                                 mainView.qwertyView.setSwitchNumberLayoutKeyVisibility(false)
                             }
 
-                            KeyboardType.QWERTY -> {
+                            KeyboardType.QWERTY, KeyboardType.AYAME_QWERTY -> {
                                 mainView.keyboardView.setCurrentMode(InputMode.ModeEnglish)
                                 mainView.qwertyView.setSwitchNumberLayoutKeyVisibility(false)
                             }
@@ -5151,8 +5174,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         hideAllKeyboards()
         Timber.d("showKeyboard called: $type")
         mainLayoutBinding?.apply {
+            keyboardView.isAyameMode = type == KeyboardType.AYAME_TENKEY
+            qwertyView.isAyameMode = type == KeyboardType.AYAME_QWERTY || type == KeyboardType.AYAME_ROMAJI
+
             when (type) {
-                KeyboardType.TENKEY -> {
+                KeyboardType.TENKEY, KeyboardType.AYAME_TENKEY -> {
                     if (qwertyMode.value != TenKeyQWERTYMode.Number) {
                         if (isTablet == true && tabletGojuonLayoutPreference == true) {
                             tabletView.isVisible = true
@@ -5173,7 +5199,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     }
                 }
 
-                KeyboardType.QWERTY -> {
+                KeyboardType.QWERTY, KeyboardType.AYAME_QWERTY -> {
                     if (qwertyMode.value != TenKeyQWERTYMode.Number) {
                         qwertyView.isVisible = true
                         keyboardView.isVisible = false
@@ -5192,7 +5218,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     }
                 }
 
-                KeyboardType.ROMAJI -> {
+                KeyboardType.ROMAJI, KeyboardType.AYAME_ROMAJI -> {
                     if (qwertyMode.value != TenKeyQWERTYMode.Number) {
                         qwertyView.isVisible = true
                         keyboardView.isVisible = false
@@ -5311,6 +5337,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 KeyboardType.ROMAJI -> "ローマ字入力"
                 KeyboardType.SUMIRE -> "スミレ入力"
                 KeyboardType.CUSTOM -> "カスタム"
+                KeyboardType.AYAME_TENKEY -> "アヤメテンキー"
+                KeyboardType.AYAME_QWERTY -> "アヤメ英語"
+                KeyboardType.AYAME_ROMAJI -> "アヤメローマ字入力"
             }
             root.announceForAccessibility(announcement)
         }
@@ -9006,9 +9035,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             val firstItem = keyboardOrder.first()
             when (firstItem) {
                 KeyboardType.TENKEY -> _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Default }
+                KeyboardType.AYAME_TENKEY -> _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Default }
                 KeyboardType.SUMIRE -> _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Sumire }
                 KeyboardType.QWERTY -> _tenKeyQWERTYMode.update { TenKeyQWERTYMode.TenKeyQWERTY }
+                KeyboardType.AYAME_QWERTY -> _tenKeyQWERTYMode.update { TenKeyQWERTYMode.TenKeyQWERTY }
                 KeyboardType.ROMAJI -> _tenKeyQWERTYMode.update { TenKeyQWERTYMode.TenKeyQWERTYRomaji }
+                KeyboardType.AYAME_ROMAJI -> _tenKeyQWERTYMode.update { TenKeyQWERTYMode.TenKeyQWERTYRomaji }
                 KeyboardType.CUSTOM -> _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Custom }
             }
         }
@@ -13309,7 +13341,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         val nextType = keyboardOrder[nextIndex]
 
         when (nextType) {
-            KeyboardType.TENKEY -> {
+            KeyboardType.TENKEY, KeyboardType.AYAME_TENKEY -> {
                 mainLayoutBinding?.keyboardView?.setCurrentMode(InputMode.ModeJapanese)
             }
 
@@ -13317,11 +13349,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 mainLayoutBinding?.keyboardView?.setCurrentMode(InputMode.ModeJapanese)
             }
 
-            KeyboardType.ROMAJI -> {
+            KeyboardType.ROMAJI, KeyboardType.AYAME_ROMAJI -> {
                 mainLayoutBinding?.keyboardView?.setCurrentMode(InputMode.ModeJapanese)
             }
 
-            KeyboardType.QWERTY -> {
+            KeyboardType.QWERTY, KeyboardType.AYAME_QWERTY -> {
                 mainLayoutBinding?.keyboardView?.setCurrentMode(InputMode.ModeEnglish)
             }
 
@@ -13339,9 +13371,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         if (qwertyMode.value == TenKeyQWERTYMode.Number) {
             val type = when (nextType) {
                 KeyboardType.TENKEY -> TenKeyQWERTYMode.Default
+                KeyboardType.AYAME_TENKEY -> TenKeyQWERTYMode.Default
                 KeyboardType.SUMIRE -> TenKeyQWERTYMode.Sumire
                 KeyboardType.QWERTY -> TenKeyQWERTYMode.TenKeyQWERTY
+                KeyboardType.AYAME_QWERTY -> TenKeyQWERTYMode.TenKeyQWERTY
                 KeyboardType.ROMAJI -> TenKeyQWERTYMode.TenKeyQWERTYRomaji
+                KeyboardType.AYAME_ROMAJI -> TenKeyQWERTYMode.TenKeyQWERTYRomaji
                 KeyboardType.CUSTOM -> TenKeyQWERTYMode.Custom
             }
             _tenKeyQWERTYMode.update { type }

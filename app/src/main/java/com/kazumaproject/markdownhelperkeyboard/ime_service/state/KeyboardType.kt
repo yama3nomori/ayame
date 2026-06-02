@@ -1,5 +1,5 @@
 package com.kazumaproject.markdownhelperkeyboard.ime_service.state
 
 enum class KeyboardType {
-    TENKEY, SUMIRE, QWERTY, ROMAJI, CUSTOM
+    TENKEY, SUMIRE, QWERTY, ROMAJI, CUSTOM, AYAME_TENKEY, AYAME_QWERTY, AYAME_ROMAJI
 }

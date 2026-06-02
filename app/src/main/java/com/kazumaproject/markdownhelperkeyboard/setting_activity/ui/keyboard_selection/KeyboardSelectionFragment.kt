@@ -176,7 +176,7 @@ class KeyboardSelectionFragment : Fragment() {
     }
 
     private fun showAddKeyboardDialog() {
-        val allKeyboardTypes = KeyboardType.entries.toTypedArray()
+        val allKeyboardTypes = KeyboardType.entries.filter { it != KeyboardType.SUMIRE }.toTypedArray()
         val currentKeyboards = viewModel.uiState.value.keyboards
         val availableKeyboards = allKeyboardTypes.filter { it !in currentKeyboards }
 
@@ -214,5 +214,8 @@ fun getKeyboardDisplayName(keyboardType: KeyboardType): String {
         KeyboardType.ROMAJI -> "日本語 - ローマ字"
         KeyboardType.SUMIRE -> "日本語 - スミレ入力 β"
         KeyboardType.CUSTOM -> "カスタム - ユーザー定義"
+        KeyboardType.AYAME_TENKEY -> "アヤメテンキー"
+        KeyboardType.AYAME_QWERTY -> "アヤメ英語(QWERTY)"
+        KeyboardType.AYAME_ROMAJI -> "アヤメ日本語 - ローマ字"
     }
 }

@@ -702,6 +702,12 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
         }
     }
 
+    var isAyameMode: Boolean = false
+        set(value) {
+            field = value
+            setupAccessibility()
+        }
+
     fun setLanguageEnableKeyState(state: Boolean) {
         this.isLanguageIconEnabled = state
     }
@@ -1327,6 +1333,9 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
     /** Intercept all touch events so we can handle them manually in onTouch **/
     override fun onInterceptTouchEvent(event: MotionEvent?): Boolean {
+        if (isAyameMode) {
+            return false
+        }
         if (accessibilityManager.isTouchExplorationEnabled) {
             return true
         }
@@ -1334,6 +1343,9 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
     }
 
     override fun onInterceptHoverEvent(event: MotionEvent): Boolean {
+        if (isAyameMode) {
+            return false
+        }
         if (accessibilityManager.isTouchExplorationEnabled) {
             return true
         }
@@ -1341,6 +1353,9 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
     }
 
     override fun onHoverEvent(event: MotionEvent): Boolean {
+        if (isAyameMode) {
+            return super.onHoverEvent(event)
+        }
         if (!accessibilityManager.isTouchExplorationEnabled || event.pointerCount != 1) {
             return super.onHoverEvent(event)
         }
@@ -2606,6 +2621,9 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouch(view: View?, event: MotionEvent?): Boolean {
+        if (isAyameMode) {
+            return false
+        }
         if (view != null && event != null) {
             if (accessibilityManager.isTouchExplorationEnabled && !isCalledFromHoverEvent) {
                 return true
@@ -5195,8 +5213,12 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                 view.isFocusable = true
                 view.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
                 view.setOnClickListener {
-                    if (accessibilityManager.isTouchExplorationEnabled) {
+                    if (isAyameMode) {
                         performKeyInput(key)
+                    } else {
+                        if (accessibilityManager.isTouchExplorationEnabled) {
+                            performKeyInput(key)
+                        }
                     }
                 }
                 ViewCompat.setAccessibilityDelegate(view, object : AccessibilityDelegateCompat() {
@@ -5222,16 +5244,148 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 info.contentDescription = fallback
                             }
                         }
-                        // クラス名を空にし、役割記述をゼロ幅スペースにすることで「ボタン」の読み込みを完全に阻止する
-                        info.className = ""
-                        info.roleDescription = "\u200B"
-                        // OS側で「ボタン」としての挙動を認識させない（QWERTYと同様）
-                        info.isClickable = false
-                        info.isLongClickable = false
-                        info.removeAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_CLICK)
-                        info.removeAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_LONG_CLICK)
+
+                        if (isAyameMode) {
+                            info.className = "android.widget.Button"
+                            info.isClickable = true
+                            info.isLongClickable = true
+
+                            when (key) {
+                                Key.SideKeyCursorRight, Key.SideKeyCursorLeft -> {
+                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_left, "行頭移動 (左フリック)"))
+                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_right, "行末移動 (右フリック)"))
+                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_top, "前行移動 (上フリック)"))
+                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_bottom, "次行移動 (下フリック)"))
+                                }
+                                Key.SideKeyDelete -> {
+                                    val leftLabel = if (isInputComposing) "一括削除 (左フリック)" else "行頭まで削除 (左フリック)"
+                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_left, leftLabel))
+                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_right, "行末まで削除 (右フリック)"))
+                                }
+                                Key.SideKeySpace -> {
+                                    if (isInputComposing) {
+                                        info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_bottom, "変換候補選択 (下フリック)"))
+                                    }
+                                }
+                                Key.SideKeyReadAloud -> {
+                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_left, "詳細読み (左フリック)"))
+                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_top, "切り取り (上フリック)"))
+                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_right, "コピー (右フリック)"))
+                                }
+                                else -> {
+                                    val keyInfo = currentInputMode.value.next(keyMap = keyMap, key = key, isTablet = false)
+                                    if (keyInfo is KeyInfo.KeyTapFlickInfo) {
+                                        keyInfo.tap?.let {
+                                            info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_center, "$it (タップ)"))
+                                        }
+                                        keyInfo.flickLeft?.let {
+                                            info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_left, "$it (左フリック)"))
+                                        }
+                                        keyInfo.flickTop?.let {
+                                            info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_top, "$it (上フリック)"))
+                                        }
+                                        keyInfo.flickRight?.let {
+                                            info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_right, "$it (右フリック)"))
+                                        }
+                                        keyInfo.flickBottom?.let {
+                                            info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_bottom, "$it (下フリック)"))
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            // クラス名を空にし、役割記述をゼロ幅スペースにすることで「ボタン」の読み込みを完全に阻止する
+                            info.className = ""
+                            info.roleDescription = "\u200B"
+                            // OS側で「ボタン」としての挙動を認識させない（QWERTYと同様）
+                            info.isClickable = false
+                            info.isLongClickable = false
+                            info.removeAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_CLICK)
+                            info.removeAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_LONG_CLICK)
+                        }
+                    }
+
+                    override fun performAccessibilityAction(
+                        host: View,
+                        action: Int,
+                        args: android.os.Bundle?
+                    ): Boolean {
+                        if (isAyameMode) {
+                            val gesture = when (action) {
+                                com.kazumaproject.core.R.id.action_flick_center -> GestureType.Tap
+                                com.kazumaproject.core.R.id.action_flick_left -> GestureType.FlickLeft
+                                com.kazumaproject.core.R.id.action_flick_top -> GestureType.FlickTop
+                                com.kazumaproject.core.R.id.action_flick_right -> GestureType.FlickRight
+                                com.kazumaproject.core.R.id.action_flick_bottom -> GestureType.FlickBottom
+                                else -> null
+                            }
+                            if (gesture != null) {
+                                triggerAyameFlickAction(key, gesture)
+                                return true
+                            }
+                        }
+                        return super.performAccessibilityAction(host, action, args)
                     }
                 })
+            }
+        }
+    }
+
+    private fun triggerAyameFlickAction(key: Key, gesture: GestureType) {
+        when (key) {
+            Key.SideKeyCursorRight, Key.SideKeyCursorLeft -> {
+                val charCode = when (gesture) {
+                    GestureType.FlickLeft -> '\u0001'
+                    GestureType.FlickRight -> '\u0002'
+                    GestureType.FlickTop -> '\u0003'
+                    GestureType.FlickBottom -> '\u0004'
+                    else -> null
+                }
+                if (charCode != null) {
+                    flickListener?.onFlick(GestureType.Tap, key, charCode)
+                }
+            }
+            Key.SideKeyDelete -> {
+                val charCode = when (gesture) {
+                    GestureType.FlickLeft -> '\u0005'
+                    GestureType.FlickRight -> '\u0007'
+                    else -> null
+                }
+                if (charCode != null) {
+                    flickListener?.onFlick(GestureType.Tap, key, charCode)
+                }
+            }
+            Key.SideKeySpace -> {
+                if (gesture == GestureType.FlickBottom) {
+                    flickListener?.onFlick(GestureType.FlickBottom, key, null)
+                }
+            }
+            Key.SideKeyReadAloud -> {
+                val charCode = when (gesture) {
+                    GestureType.FlickLeft -> '\u0011'
+                    GestureType.FlickTop -> '\u0012'
+                    GestureType.FlickRight -> '\u0013'
+                    else -> null
+                }
+                if (charCode != null) {
+                    flickListener?.onFlick(GestureType.Tap, key, charCode)
+                }
+            }
+            else -> {
+                val keyInfo = currentInputMode.value.next(keyMap = keyMap, key = key, isTablet = false)
+                if (keyInfo is KeyInfo.KeyTapFlickInfo) {
+                    val targetChar = when (gesture) {
+                        GestureType.Tap -> keyInfo.tap
+                        GestureType.FlickLeft -> keyInfo.flickLeft
+                        GestureType.FlickTop -> keyInfo.flickTop
+                        GestureType.FlickRight -> keyInfo.flickRight
+                        GestureType.FlickBottom -> keyInfo.flickBottom
+                        else -> null
+                    }
+                    if (targetChar != null) {
+                        flickListener?.onFlick(gesture, key, targetChar)
+                    }
+                }
             }
         }
     }
