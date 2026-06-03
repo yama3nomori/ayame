@@ -351,15 +351,6 @@ class QWERTYKeyboardView @JvmOverloads constructor(
 
                                     if (qKeyInfo is QWERTYKeyInfo.QWERTYVariation) {
                                         val isUpper = (host as? TextView)?.text?.toString()?.firstOrNull()?.isUpperCase() == true
-                                        val tapChar = if (isUpper) qKeyInfo.capChar ?: qKeyInfo.tap else qKeyInfo.tap
-                                        if (tapChar != null) {
-                                            info.addAction(
-                                                androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(
-                                                    com.kazumaproject.core.R.id.action_flick_center,
-                                                    "$tapChar (タップ)"
-                                                )
-                                            )
-                                        }
                                         val variationsList = (if (isUpper) qKeyInfo.capVariations ?: qKeyInfo.variations else qKeyInfo.variations) ?: emptyList()
                                         
                                         val variationActionIds = listOf(
@@ -410,23 +401,6 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                     args: android.os.Bundle?
                 ): Boolean {
                     if (isAyameMode && key != null) {
-                        if (action == com.kazumaproject.core.R.id.action_flick_center) {
-                            val romajiMode = romajiModeState.value
-                            val qMode = qwertyMode.value
-                            val qKeyInfo = when (qMode) {
-                                is QWERTYMode.Default -> if (romajiMode) qwertyKeyMap.getKeyInfoDefaultJP(key) else qwertyKeyMap.getKeyInfoDefault(key)
-                                is QWERTYMode.Number -> if (romajiMode) qwertyKeyMap.getKeyInfoNumberJP(key) else qwertyKeyMap.getKeyInfoNumber(key)
-                                is QWERTYMode.Symbol -> if (romajiMode) qwertyKeyMap.getKeyInfoSymbolJP(key) else qwertyKeyMap.getKeyInfoSymbol(key)
-                            }
-                            if (qKeyInfo is QWERTYKeyInfo.QWERTYVariation) {
-                                val isUpper = (host as? TextView)?.text?.toString()?.firstOrNull()?.isUpperCase() == true
-                                val tapChar = if (isUpper) qKeyInfo.capChar ?: qKeyInfo.tap else qKeyInfo.tap
-                                if (tapChar != null) {
-                                    qwertyKeyListener?.onReleasedQWERTYKey(key, tapChar, null)
-                                    return true
-                                }
-                            }
-                        }
                         val variationActionIds = listOf(
                             com.kazumaproject.core.R.id.action_qwerty_variation_0,
                             com.kazumaproject.core.R.id.action_qwerty_variation_1,

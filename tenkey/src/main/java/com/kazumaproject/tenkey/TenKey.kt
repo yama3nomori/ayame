@@ -5275,9 +5275,6 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 else -> {
                                     val keyInfo = currentInputMode.value.next(keyMap = keyMap, key = key, isTablet = false)
                                     if (keyInfo is KeyInfo.KeyTapFlickInfo) {
-                                        keyInfo.tap?.let {
-                                            info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_center, "$it (タップ)"))
-                                        }
                                         keyInfo.flickLeft?.let {
                                             info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_left, "$it (左フリック)"))
                                         }
@@ -5312,7 +5309,6 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     ): Boolean {
                         if (isAyameMode) {
                             val gesture = when (action) {
-                                com.kazumaproject.core.R.id.action_flick_center -> GestureType.Tap
                                 com.kazumaproject.core.R.id.action_flick_left -> GestureType.FlickLeft
                                 com.kazumaproject.core.R.id.action_flick_top -> GestureType.FlickTop
                                 com.kazumaproject.core.R.id.action_flick_right -> GestureType.FlickRight
@@ -5375,7 +5371,6 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                 val keyInfo = currentInputMode.value.next(keyMap = keyMap, key = key, isTablet = false)
                 if (keyInfo is KeyInfo.KeyTapFlickInfo) {
                     val targetChar = when (gesture) {
-                        GestureType.Tap -> keyInfo.tap
                         GestureType.FlickLeft -> keyInfo.flickLeft
                         GestureType.FlickTop -> keyInfo.flickTop
                         GestureType.FlickRight -> keyInfo.flickRight
