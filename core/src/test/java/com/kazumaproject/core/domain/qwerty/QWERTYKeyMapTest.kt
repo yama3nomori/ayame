@@ -38,4 +38,30 @@ class QWERTYKeyMapTest {
         assertTrue("QWERTYKeyL in listDefault should be a QWERTYVariation", infoL is QWERTYKeyInfo.QWERTYVariation)
         assertEquals('l', (infoL as QWERTYKeyInfo.QWERTYVariation).tap)
     }
+
+    @Test
+    fun testSymbolAndNumberMapping() {
+        val keyMap = QWERTYKeyMap()
+
+        val lists = listOf(
+            Pair(keyMap.keysNumber, keyMap::getKeyInfoNumber),
+            Pair(keyMap.keysSymbol, keyMap::getKeyInfoSymbol),
+            Pair(keyMap.keysNumberJP, keyMap::getKeyInfoNumberJP),
+            Pair(keyMap.keysSymbolJP, keyMap::getKeyInfoSymbolJP)
+        )
+
+        for ((keys, getKeyInfo) in lists) {
+            // Verify QWERTYKeyV maps to KeyEqual ('=')
+            assertTrue("QWERTYKeyV should be in key set", keys.contains(QWERTYKey.QWERTYKeyV))
+            val infoV = getKeyInfo(QWERTYKey.QWERTYKeyV)
+            assertTrue("QWERTYKeyV should map to a variation", infoV is QWERTYKeyInfo.QWERTYVariation)
+            assertEquals('=', (infoV as QWERTYKeyInfo.QWERTYVariation).tap)
+
+            // Verify QWERTYKeyB maps to KeyAsterisk ('*')
+            assertTrue("QWERTYKeyB should be in key set", keys.contains(QWERTYKey.QWERTYKeyB))
+            val infoB = getKeyInfo(QWERTYKey.QWERTYKeyB)
+            assertTrue("QWERTYKeyB should map to a variation", infoB is QWERTYKeyInfo.QWERTYVariation)
+            assertEquals('*', (infoB as QWERTYKeyInfo.QWERTYVariation).tap)
+        }
+    }
 }

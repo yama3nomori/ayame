@@ -153,6 +153,8 @@ class QWERTYKeyMap : QWERTYKeyMapHolder {
         QWERTYKey.QWERTYKeyZ to QWERTYKeyInfo.KeyDot,
         QWERTYKey.QWERTYKeyX to QWERTYKeyInfo.KeyComma,
         QWERTYKey.QWERTYKeyC to QWERTYKeyInfo.KeyQuestion,
+        QWERTYKey.QWERTYKeyV to QWERTYKeyInfo.KeyEqual,
+        QWERTYKey.QWERTYKeyB to QWERTYKeyInfo.KeyAsterisk,
         QWERTYKey.QWERTYKeyN to QWERTYKeyInfo.KeyExclamation,
         QWERTYKey.QWERTYKeyM to QWERTYKeyInfo.KeyApostrophe,
 
@@ -197,6 +199,8 @@ class QWERTYKeyMap : QWERTYKeyMapHolder {
         QWERTYKey.QWERTYKeyZ to QWERTYKeyInfo.KeyDot,
         QWERTYKey.QWERTYKeyX to QWERTYKeyInfo.KeyComma,
         QWERTYKey.QWERTYKeyC to QWERTYKeyInfo.KeyQuestion,
+        QWERTYKey.QWERTYKeyV to QWERTYKeyInfo.KeyEqual,
+        QWERTYKey.QWERTYKeyB to QWERTYKeyInfo.KeyAsterisk,
         QWERTYKey.QWERTYKeyN to QWERTYKeyInfo.KeyExclamation,
         QWERTYKey.QWERTYKeyM to QWERTYKeyInfo.KeyApostrophe,
 
@@ -300,6 +304,8 @@ class QWERTYKeyMap : QWERTYKeyMapHolder {
         QWERTYKey.QWERTYKeyZ to QWERTYKeyInfo.KeyDotJP,
         QWERTYKey.QWERTYKeyX to QWERTYKeyInfo.KeyCommaJP,
         QWERTYKey.QWERTYKeyC to QWERTYKeyInfo.KeyQuestion,
+        QWERTYKey.QWERTYKeyV to QWERTYKeyInfo.KeyEqual,
+        QWERTYKey.QWERTYKeyB to QWERTYKeyInfo.KeyAsterisk,
         QWERTYKey.QWERTYKeyN to QWERTYKeyInfo.KeyExclamation,
         QWERTYKey.QWERTYKeyM to QWERTYKeyInfo.KeyApostrophe,
 
@@ -344,6 +350,8 @@ class QWERTYKeyMap : QWERTYKeyMapHolder {
         QWERTYKey.QWERTYKeyZ to QWERTYKeyInfo.KeyDot,
         QWERTYKey.QWERTYKeyX to QWERTYKeyInfo.KeyComma,
         QWERTYKey.QWERTYKeyC to QWERTYKeyInfo.KeyQuestion,
+        QWERTYKey.QWERTYKeyV to QWERTYKeyInfo.KeyEqual,
+        QWERTYKey.QWERTYKeyB to QWERTYKeyInfo.KeyAsterisk,
         QWERTYKey.QWERTYKeyN to QWERTYKeyInfo.KeyExclamation,
         QWERTYKey.QWERTYKeyM to QWERTYKeyInfo.KeyMiddleDot,
 
