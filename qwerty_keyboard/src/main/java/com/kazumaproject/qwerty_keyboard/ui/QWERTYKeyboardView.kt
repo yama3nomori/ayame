@@ -80,7 +80,6 @@ class QWERTYKeyboardView @JvmOverloads constructor(
     private lateinit var binding: QwertyLayoutBinding
     private val qwertyKeyMap = QWERTYKeyMap()
     private var capsLockState = CapsLockState()
-    private var lastShiftPressTime = 0L
 
     private var themeMode: String = "default"
     private var isNightMode: Boolean = false
@@ -552,17 +551,20 @@ class QWERTYKeyboardView @JvmOverloads constructor(
     }
 
     private fun handleShiftClick() {
-        val currentTime = System.currentTimeMillis()
-        val isDoubleTap = currentTime - lastShiftPressTime < 300L
-        lastShiftPressTime = currentTime
-
         capsLockState = when {
-            isDoubleTap -> CapsLockState(shiftOn = false, capsLockOn = true)
-            capsLockState.shiftOn || capsLockState.capsLockOn -> CapsLockState(shiftOn = false, capsLockOn = false)
+            capsLockState.shiftOn -> CapsLockState(shiftOn = false, capsLockOn = true)
+            capsLockState.capsLockOn -> CapsLockState(shiftOn = false, capsLockOn = false)
             else -> CapsLockState(shiftOn = true, capsLockOn = false)
         }
         updateShiftKeyAppearance()
         applyContentForMode(qwertyMode.value)
+
+        val announceText = when {
+            capsLockState.capsLockOn -> "キャプスロックオン"
+            capsLockState.shiftOn -> "シフトオン"
+            else -> "シフトオフ"
+        }
+        announceForAccessibility(announceText)
     }
 
     private fun updateShiftKeyAppearance() {
@@ -574,6 +576,13 @@ class QWERTYKeyboardView @JvmOverloads constructor(
         binding.keyShift.setImageResource(iconRes)
         val tintColor = context.getColor(com.kazumaproject.core.R.color.keyboard_icon_color)
         binding.keyShift.setColorFilter(tintColor)
+
+        val description = when {
+            capsLockState.capsLockOn -> "キャプスロックオン"
+            capsLockState.shiftOn -> "シフトオン"
+            else -> "シフトキー"
+        }
+        binding.keyShift.contentDescription = description
     }
 
     private fun applyLayoutForMode(mode: QWERTYMode) {
