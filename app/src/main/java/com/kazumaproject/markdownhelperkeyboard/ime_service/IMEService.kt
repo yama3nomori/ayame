@@ -5332,7 +5332,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
             // TalkBackレイアウト読み上げ
             val announcement = when (type) {
-                KeyboardType.TENKEY -> "日本語 かな"
+                KeyboardType.TENKEY -> "テンキー"
                 KeyboardType.QWERTY -> "英語"
                 KeyboardType.ROMAJI -> "ローマ字入力"
                 KeyboardType.SUMIRE -> "スミレ入力"
@@ -5341,7 +5341,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 KeyboardType.AYAME_QWERTY -> "アヤメ英語"
                 KeyboardType.AYAME_ROMAJI -> "アヤメローマ字入力"
             }
-            root.announceForAccessibility(announcement)
+            announceText(announcement, delayMs = 150)
         }
     }
 
@@ -13921,7 +13921,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         vibrate()
     }
 
-    private fun announceText(text: String) {
+    private fun announceText(text: String, delayMs: Long = 10) {
         if (text.isEmpty()) return
         val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager ?: return
         if (am.isEnabled) {
@@ -13947,7 +13947,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     } catch (e: Exception) {
                         Timber.e(e, "Failed to send accessibility announcement")
                     }
-                }, 10)
+                }, delayMs)
             }
         }
     }
