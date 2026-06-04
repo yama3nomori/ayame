@@ -79,6 +79,8 @@ class QWERTYKeyboardView @JvmOverloads constructor(
 
     private lateinit var binding: QwertyLayoutBinding
     private val qwertyKeyMap = QWERTYKeyMap()
+    private var capsLockState = CapsLockState()
+    private var lastShiftPressTime = 0L
 
     private var themeMode: String = "default"
     private var isNightMode: Boolean = false
@@ -290,6 +292,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                 }
             }
         }
+        updateShiftKeyAppearance()
     }
 
     private fun setupAccessibilityDelegates(view: View) {
@@ -511,6 +514,11 @@ class QWERTYKeyboardView @JvmOverloads constructor(
     private fun performKeyInput(view: View, key: QWERTYKey) {
         pendingInputJob?.cancel()
 
+        if (key == QWERTYKey.QWERTYKeyShift) {
+            handleShiftClick()
+            return
+        }
+
         if (accessibilityManager.isTouchExplorationEnabled && isCalledFromHoverEvent) {
             // TalkBackでの「指を離して確定」の場合は、わずかに遅延させてから確定する。
             pendingInputJob = scope.launch {
@@ -519,6 +527,12 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                 val char = text.firstOrNull()
                 qwertyKeyListener?.onReleasedQWERTYKey(key, char, null)
                 announceKey(view)
+
+                if (capsLockState.shiftOn) {
+                    capsLockState = CapsLockState(shiftOn = false, capsLockOn = false)
+                    updateShiftKeyAppearance()
+                    applyContentForMode(qwertyMode.value)
+                }
             }
         } else {
             // ダブルタップやTalkBackオフ時は即座に確定
@@ -528,7 +542,38 @@ class QWERTYKeyboardView @JvmOverloads constructor(
             if (accessibilityManager.isTouchExplorationEnabled) {
                 announceKey(view)
             }
+
+            if (capsLockState.shiftOn) {
+                capsLockState = CapsLockState(shiftOn = false, capsLockOn = false)
+                updateShiftKeyAppearance()
+                applyContentForMode(qwertyMode.value)
+            }
         }
+    }
+
+    private fun handleShiftClick() {
+        val currentTime = System.currentTimeMillis()
+        val isDoubleTap = currentTime - lastShiftPressTime < 300L
+        lastShiftPressTime = currentTime
+
+        capsLockState = when {
+            isDoubleTap -> CapsLockState(shiftOn = false, capsLockOn = true)
+            capsLockState.shiftOn || capsLockState.capsLockOn -> CapsLockState(shiftOn = false, capsLockOn = false)
+            else -> CapsLockState(shiftOn = true, capsLockOn = false)
+        }
+        updateShiftKeyAppearance()
+        applyContentForMode(qwertyMode.value)
+    }
+
+    private fun updateShiftKeyAppearance() {
+        val iconRes = when {
+            capsLockState.capsLockOn -> com.kazumaproject.core.R.drawable.caps_lock
+            capsLockState.shiftOn -> com.kazumaproject.core.R.drawable.shift_fill_24px
+            else -> com.kazumaproject.core.R.drawable.shift_24px
+        }
+        binding.keyShift.setImageResource(iconRes)
+        val tintColor = context.getColor(com.kazumaproject.core.R.color.keyboard_icon_color)
+        binding.keyShift.setColorFilter(tintColor)
     }
 
     private fun applyLayoutForMode(mode: QWERTYMode) {
@@ -594,7 +639,13 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                         }
                     } else {
                         info.tap?.let {
-                            view.text = it.toString()
+                            val isShift = capsLockState.shiftOn || capsLockState.capsLockOn
+                            val text = if (isShift && mode is QWERTYMode.Default) {
+                                it.uppercaseChar().toString()
+                            } else {
+                                it.toString()
+                            }
+                            view.text = text
                         }
                     }
                 }
