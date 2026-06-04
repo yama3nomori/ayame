@@ -275,6 +275,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
             qwertyMode.collectLatest { state ->
                 applyLayoutForMode(state)
                 applyContentForMode(state)
+                updateShiftKeyAppearance()
             }
         }
 
@@ -551,6 +552,17 @@ class QWERTYKeyboardView @JvmOverloads constructor(
     }
 
     private fun handleShiftClick() {
+        val currentMode = qwertyMode.value
+        if (currentMode is QWERTYMode.Number) {
+            setQwertyMode(QWERTYMode.Symbol)
+            announceForAccessibility("他の記号を表示")
+            return
+        } else if (currentMode is QWERTYMode.Symbol) {
+            setQwertyMode(QWERTYMode.Number)
+            announceForAccessibility("数字と記号を表示")
+            return
+        }
+
         capsLockState = when {
             capsLockState.shiftOn -> CapsLockState(shiftOn = false, capsLockOn = true)
             capsLockState.capsLockOn -> CapsLockState(shiftOn = false, capsLockOn = false)
@@ -568,6 +580,22 @@ class QWERTYKeyboardView @JvmOverloads constructor(
     }
 
     private fun updateShiftKeyAppearance() {
+        val mode = qwertyMode.value
+        if (mode is QWERTYMode.Number || mode is QWERTYMode.Symbol) {
+            val iconRes = if (mode is QWERTYMode.Symbol) {
+                com.kazumaproject.core.R.drawable.shift_fill_24px
+            } else {
+                com.kazumaproject.core.R.drawable.shift_24px
+            }
+            binding.keyShift.setImageResource(iconRes)
+            val tintColor = context.getColor(com.kazumaproject.core.R.color.keyboard_icon_color)
+            binding.keyShift.setColorFilter(tintColor)
+
+            val description = if (mode is QWERTYMode.Symbol) "数字と記号" else "他の記号"
+            binding.keyShift.contentDescription = description
+            return
+        }
+
         val iconRes = when {
             capsLockState.capsLockOn -> com.kazumaproject.core.R.drawable.caps_lock
             capsLockState.shiftOn -> com.kazumaproject.core.R.drawable.shift_fill_24px
@@ -661,13 +689,13 @@ class QWERTYKeyboardView @JvmOverloads constructor(
             }
         }
 
-        if (mode !is QWERTYMode.Symbol) {
-            if (romajiMode) {
-                binding.keySpace.text = resources.getString(com.kazumaproject.core.R.string.space_japanese)
-                binding.switchNumberLayout?.text = "あa1"
-                binding.keyKuten.text = "。"
-                binding.keyTouten.text = "、"
-                // 4段目の記号（日本語モード）
+        if (romajiMode) {
+            binding.keySpace.text = resources.getString(com.kazumaproject.core.R.string.space_japanese)
+            binding.switchNumberLayout?.text = "あa1"
+            binding.keyKuten.text = "。"
+            binding.keyTouten.text = "、"
+            binding.key0.text = "エンター"
+            if (mode !is QWERTYMode.Symbol) {
                 binding.key2.text = "@"
                 binding.key3.text = ":"
                 binding.key4.text = "("
@@ -676,13 +704,14 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                 binding.key7.text = ","
                 binding.key8.text = "."
                 binding.key9.text = "/"
-                binding.key0.text = "エンター"
-            } else {
-                binding.keySpace.text = resources.getString(com.kazumaproject.core.R.string.space_english)
-                binding.switchNumberLayout?.text = "123"
-                binding.keyKuten.text = "."
-                binding.keyTouten.text = ","
-                // 4段目の記号（アルファベットモード）: @ : ( ) - , . /
+            }
+        } else {
+            binding.keySpace.text = resources.getString(com.kazumaproject.core.R.string.space_english)
+            binding.switchNumberLayout?.text = "123"
+            binding.keyKuten.text = "."
+            binding.keyTouten.text = ","
+            binding.key0.text = "Enter"
+            if (mode !is QWERTYMode.Symbol) {
                 binding.key2.text = "@"
                 binding.key3.text = ":"
                 binding.key4.text = "("
@@ -691,7 +720,6 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                 binding.key7.text = ","
                 binding.key8.text = "."
                 binding.key9.text = "/"
-                binding.key0.text = "Enter"
             }
         }
         setRomajiEnglishSwitchKeyTextWithStyle(romajiMode)

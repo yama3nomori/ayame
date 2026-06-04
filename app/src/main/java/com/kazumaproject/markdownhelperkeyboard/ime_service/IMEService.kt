@@ -9690,7 +9690,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                         QWERTYKey.QWERTYKeySwitchMode -> {
                             val currentMode = mainView.qwertyView.qwertyMode.value
-                            if (currentMode is QWERTYMode.Number) {
+                            if (currentMode is QWERTYMode.Number || currentMode is QWERTYMode.Symbol) {
                                 mainView.qwertyView.setQwertyMode(QWERTYMode.Default)
                             } else {
                                 mainView.qwertyView.setQwertyMode(QWERTYMode.Number)
