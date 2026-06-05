@@ -692,10 +692,10 @@ class QWERTYKeyboardView @JvmOverloads constructor(
         if (romajiMode) {
             binding.keySpace.text = resources.getString(com.kazumaproject.core.R.string.space_japanese)
             binding.switchNumberLayout?.text = "あa1"
-            binding.keyKuten.text = "。"
-            binding.keyTouten.text = "、"
             binding.key0.text = "エンター"
-            if (mode !is QWERTYMode.Symbol) {
+            if (mode is QWERTYMode.Default) {
+                binding.keyKuten.text = "。"
+                binding.keyTouten.text = "、"
                 binding.key2.text = "@"
                 binding.key3.text = ":"
                 binding.key4.text = "("
@@ -704,6 +704,9 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                 binding.key7.text = ","
                 binding.key8.text = "."
                 binding.key9.text = "/"
+            } else {
+                binding.keyKuten.text = "."
+                binding.keyTouten.text = ","
             }
         } else {
             binding.keySpace.text = resources.getString(com.kazumaproject.core.R.string.space_english)
@@ -711,7 +714,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
             binding.keyKuten.text = "."
             binding.keyTouten.text = ","
             binding.key0.text = "Enter"
-            if (mode !is QWERTYMode.Symbol) {
+            if (mode is QWERTYMode.Default) {
                 binding.key2.text = "@"
                 binding.key3.text = ":"
                 binding.key4.text = "("

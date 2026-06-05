@@ -295,14 +295,14 @@ class QWERTYKeyMap : QWERTYKeyMapHolder {
         QWERTYKey.QWERTYKeyF to QWERTYKeyInfo.KeyAtMark,
         QWERTYKey.QWERTYKeyG to QWERTYKeyInfo.KeyParenOpen,
         QWERTYKey.QWERTYKeyH to QWERTYKeyInfo.KeyParenClose,
-        QWERTYKey.QWERTYKeyJ to QWERTYKeyInfo.KeyBracketLeftJP,
-        QWERTYKey.QWERTYKeyK to QWERTYKeyInfo.KeyBracketRightJP,
+        QWERTYKey.QWERTYKeyJ to QWERTYKeyInfo.KeyBracketOpen,
+        QWERTYKey.QWERTYKeyK to QWERTYKeyInfo.KeyBracketClose,
         QWERTYKey.QWERTYKeyAtMark to QWERTYKeyInfo.KeyYen,
         QWERTYKey.QWERTYKeyL to QWERTYKeyInfo.KeyAmpersand,
 
         // ─── Bottom row (Z X C N M) ───
-        QWERTYKey.QWERTYKeyZ to QWERTYKeyInfo.KeyDotJP,
-        QWERTYKey.QWERTYKeyX to QWERTYKeyInfo.KeyCommaJP,
+        QWERTYKey.QWERTYKeyZ to QWERTYKeyInfo.KeyDot,
+        QWERTYKey.QWERTYKeyX to QWERTYKeyInfo.KeyComma,
         QWERTYKey.QWERTYKeyC to QWERTYKeyInfo.KeyQuestion,
         QWERTYKey.QWERTYKeyV to QWERTYKeyInfo.KeyEqual,
         QWERTYKey.QWERTYKeyB to QWERTYKeyInfo.KeyAsterisk,
@@ -317,8 +317,8 @@ class QWERTYKeyMap : QWERTYKeyMapHolder {
         QWERTYKey.QWERTYKeySpace to QWERTYKeyInfo.KeySpace,
         QWERTYKey.QWERTYKeyReturn to QWERTYKeyInfo.KeyReturn,
 
-        QWERTYKey.QWERTYKeyKuten to QWERTYKeyInfo.KeyDotJP,
-        QWERTYKey.QWERTYKeyTouten to QWERTYKeyInfo.KeyCommaJP
+        QWERTYKey.QWERTYKeyKuten to QWERTYKeyInfo.KeyDot,
+        QWERTYKey.QWERTYKeyTouten to QWERTYKeyInfo.KeyComma
     )
 
     private val listSymbolJP: Map<QWERTYKey, QWERTYKeyInfo> = mapOf(
@@ -363,8 +363,8 @@ class QWERTYKeyMap : QWERTYKeyMapHolder {
         QWERTYKey.QWERTYKeySpace to QWERTYKeyInfo.KeySpace,
         QWERTYKey.QWERTYKeyReturn to QWERTYKeyInfo.KeyReturn,
 
-        QWERTYKey.QWERTYKeyKuten to QWERTYKeyInfo.KeyDotJP,
-        QWERTYKey.QWERTYKeyTouten to QWERTYKeyInfo.KeyCommaJP,
+        QWERTYKey.QWERTYKeyKuten to QWERTYKeyInfo.KeyDot,
+        QWERTYKey.QWERTYKeyTouten to QWERTYKeyInfo.KeyComma,
 
         QWERTYKey.QWERTYKeySymbol2 to QWERTYKeyInfo.Key2,
         QWERTYKey.QWERTYKeySymbol3 to QWERTYKeyInfo.Key3,
