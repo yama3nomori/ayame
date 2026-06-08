@@ -92,6 +92,7 @@ import com.kazumaproject.core.data.clicked_symbol.SymbolMode
 import com.kazumaproject.core.data.clipboard.ClipboardItem
 import com.kazumaproject.core.data.floating_candidate.CandidateItem
 import com.kazumaproject.core.domain.extensions.dpToPx
+import com.kazumaproject.core.domain.extensions.toAccessibilityName
 import com.kazumaproject.core.domain.extensions.hiraganaToKatakana
 import com.kazumaproject.core.domain.extensions.setDrawableAlpha
 import com.kazumaproject.core.domain.extensions.setDrawableSolidColor
@@ -388,6 +389,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private var mainLayoutBinding: MainLayoutBinding? = null
     private val _inputString = MutableStateFlow("")
     private val inputString = _inputString.asStateFlow()
+    private val accessibilityScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private var previousInputStringForAnnounce: String = ""
     private var stringInTail = AtomicReference("")
     private val _dakutenPressed = MutableStateFlow(false)
     private val _suggestionFlag = MutableSharedFlow<CandidateShowFlag>(replay = 0)
@@ -557,6 +560,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
     private var qwertySwitchNumberKeyWithoutNumberPreference: Boolean? = false
     private var volumeKeyCursorMovePreference: Boolean? = false
+    private var isIMEWindowShown = false
 
     private val _ngWordsList = MutableStateFlow<List<NgWord>>(emptyList())
     private val ngWordsList: StateFlow<List<NgWord>> = _ngWordsList
@@ -892,6 +896,14 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
         lifecycleRegistry = LifecycleRegistry(this)
         lifecycleRegistry.currentState = Lifecycle.State.CREATED
+
+        accessibilityScope.launch {
+            var prevValue = ""
+            inputString.collect { value ->
+                previousInputStringForAnnounce = prevValue
+                prevValue = value
+            }
+        }
 
         zenzEngine = providesZenzEngine(this)
 
@@ -1253,22 +1265,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         mediaSession?.isActive = volumeKeyCursorMovePreference == true || isTalkBackEnabled
         if (volumeKeyCursorMovePreference == true || isTalkBackEnabled) {
             if (volumeKeyCursorMovePreference == true) {
-                mediaSession?.setPlaybackToRemote(object : VolumeProviderCompat(
-                    VolumeProviderCompat.VOLUME_CONTROL_RELATIVE, 100, 50
-                ) {
-                    override fun onAdjustVolume(direction: Int) {
-                        if (!isInputViewShown()) return
-                        try {
-                            audioManager.adjustStreamVolume(
-                                AudioManager.STREAM_MUSIC,
-                                AudioManager.ADJUST_SAME,
-                                AudioManager.FLAG_REMOVE_SOUND_AND_VIBRATE
-                            )
-                        } catch (e: Exception) {
-                            // ignore
-                        }
-                    }
-                })
+                mediaSession?.setPlaybackToRemote(createVolumeProvider())
             } else {
                 mediaSession?.setPlaybackToLocal(AudioManager.STREAM_MUSIC)
             }
@@ -1709,6 +1706,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
     override fun onWindowShown() {
         super.onWindowShown()
+        isIMEWindowShown = true
         Timber.d("onWindowShown")
         // hijackWindowCallback() // Remove potentially conflicting hijacking
         val isTalkBackEnabled = isTalkBackActive()
@@ -1778,6 +1776,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
     override fun onWindowHidden() {
         super.onWindowHidden()
+        isIMEWindowShown = false
         Timber.d("onWindowHidden")
         stopSilentAudio()
         abandonVolumeControlFocus()
@@ -1803,6 +1802,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
     override fun onDestroy() {
         super.onDestroy()
+        accessibilityScope.cancel()
+        isIMEWindowShown = false
         Timber.d("onUpdate onDestroy")
         releaseMediaSession()
         mainLayoutBinding?.apply {
@@ -2622,33 +2623,46 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private fun announceChar(char: Char?) {
         if (char == null) return
         val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager ?: return
+        android.util.Log.d("IMEServiceAccessibility", "announceChar called: char=$char, am.isEnabled=${am.isEnabled}")
         if (am.isEnabled) {
-            val announcement = char.toString()
+            val announcement = char.toAccessibilityName()
             val targetView = if (isKeyboardFloatingMode == true) {
                 floatingKeyboardBinding?.root
             } else {
                 mainLayoutBinding?.root
             }
-            targetView?.let { view ->
-                // 強力に割り込みをかける
-                am.interrupt()
+            android.util.Log.d("IMEServiceAccessibility", "announceChar: targetView isNotNull=${targetView != null}")
+            
+            val currentInput = _inputString.value
+            val isReplacement = currentInput.length == previousInputStringForAnnounce.length &&
+                    currentInput != previousInputStringForAnnounce &&
+                    previousInputStringForAnnounce.isNotEmpty()
 
-                // TYPE_ANNOUNCEMENTを直接送信
-                val event = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT)
-                event.text.add(announcement)
-                event.packageName = packageName
-                event.className = javaClass.name
-                event.isEnabled = true
-                
-                // ディレイを10msに微増させ、システムの自動読み上げが完全に開始された瞬間を叩く
-                view.postDelayed({
-                    try {
-                        view.sendAccessibilityEventUnchecked(event)
-                    } catch (e: Exception) {
-                        Timber.e(e, "Failed to send accessibility announcement")
+            android.util.Log.d("IMEServiceAccessibility", "announceChar: currentInput='$currentInput', prev='$previousInputStringForAnnounce', isReplacement=$isReplacement")
+
+            // TYPE_ANNOUNCEMENTを直接送信
+            val event = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT)
+            event.text.add(announcement)
+            event.packageName = packageName
+            event.className = javaClass.name
+            event.isEnabled = true
+            
+            val delay = if (isReplacement) 150L else 10L
+            val handler = targetView?.handler ?: android.os.Handler(android.os.Looper.getMainLooper())
+            
+            handler.postDelayed({
+                try {
+                    android.util.Log.d("IMEServiceAccessibility", "announceChar posting announcement: '$announcement' (delay=$delay)")
+                    am.interrupt() // ターゲットアプリ側の「〜に変更しました」などの読み上げを強制停止
+                    if (targetView != null) {
+                        targetView.sendAccessibilityEventUnchecked(event)
+                    } else {
+                        am.sendAccessibilityEvent(event)
                     }
-                }, 10)
-            }
+                } catch (e: Exception) {
+                    android.util.Log.e("IMEServiceAccessibility", "Failed to send accessibility announcement", e)
+                }
+            }, delay)
         }
     }
 
@@ -2748,7 +2762,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
-            if (volumeKeyCursorMovePreference == true && isInputViewShown()) {
+            if (volumeKeyCursorMovePreference == true && (isIMEWindowShown || isInputViewShown())) {
+                val now = android.os.SystemClock.uptimeMillis()
+                lastVolumeKeyDownTime.set(now)
+                if (now - lastVolumeAdjustTime.get() < 200) {
+                    return true
+                }
                 Timber.d("onKeyDown: Volume key detected: $keyCode repeatCount=${event?.repeatCount}")
 
                 if (event?.action == KeyEvent.ACTION_DOWN) {
@@ -4389,7 +4408,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 charToSend = it, insertString = insertString, sb = sb
             )
             val currentKeyboard = keyboardOrder.getOrNull(currentKeyboardOrder)
-            if (currentKeyboard == KeyboardType.AYAME_TENKEY) {
+            if (currentKeyboard == KeyboardType.AYAME_TENKEY || currentKeyboard == KeyboardType.TENKEY) {
                 val lastChar = inputString.value.lastOrNull()
                 if (lastChar != null) {
                     announceChar(lastChar)
@@ -4419,7 +4438,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 charToSend = it, insertString = insertString, sb = sb
             )
             val currentKeyboard = keyboardOrder.getOrNull(currentKeyboardOrder)
-            if (currentKeyboard == KeyboardType.AYAME_TENKEY) {
+            if (currentKeyboard == KeyboardType.AYAME_TENKEY || currentKeyboard == KeyboardType.TENKEY) {
                 val lastChar = inputString.value.lastOrNull()
                 if (lastChar != null) {
                     announceChar(lastChar)
@@ -10663,22 +10682,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     }
                 }, Handler(mainLooper))
                 if (volumeKeyCursorMovePreference == true) {
-                    setPlaybackToRemote(object : VolumeProviderCompat(
-                        VolumeProviderCompat.VOLUME_CONTROL_RELATIVE, 100, 50
-                    ) {
-                        override fun onAdjustVolume(direction: Int) {
-                            if (!isInputViewShown()) return
-                            try {
-                                audioManager.adjustStreamVolume(
-                                    AudioManager.STREAM_MUSIC,
-                                    AudioManager.ADJUST_SAME,
-                                    AudioManager.FLAG_REMOVE_SOUND_AND_VIBRATE
-                                )
-                            } catch (e: Exception) {
-                                // ignore
-                            }
-                        }
-                    })
+                    setPlaybackToRemote(createVolumeProvider())
                 } else {
                     setPlaybackToLocal(AudioManager.STREAM_MUSIC)
                 }
@@ -10751,6 +10755,56 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         mediaSession?.isActive = false
         mediaSession?.release()
         mediaSession = null
+    }
+
+    private fun createVolumeProvider(): VolumeProviderCompat {
+        return object : VolumeProviderCompat(
+            VolumeProviderCompat.VOLUME_CONTROL_RELATIVE, 100, 50
+        ) {
+            override fun onAdjustVolume(direction: Int) {
+                if (!isIMEWindowShown && !isInputViewShown()) return
+                try {
+                    audioManager.adjustStreamVolume(
+                        AudioManager.STREAM_MUSIC,
+                        AudioManager.ADJUST_SAME,
+                        AudioManager.FLAG_REMOVE_SOUND_AND_VIBRATE
+                    )
+                } catch (e: Exception) {
+                    // ignore
+                }
+
+                val now = android.os.SystemClock.uptimeMillis()
+                if (now - lastVolumeKeyDownTime.get() < 200) {
+                    return
+                }
+
+                volumeLongPressHandler.post {
+                    val lastTime = lastVolumeAdjustTime.get()
+                    val diff = now - lastTime
+                    lastVolumeAdjustTime.set(now)
+
+                    if (diff > 300) {
+                        // New press sequence
+                        isVolumeKeyLongPressTriggered.set(false)
+                        if (direction > 0) {
+                            moveCursorRight()
+                        } else if (direction < 0) {
+                            moveCursorLeft()
+                        }
+                    } else {
+                        // Repeated volume key press / hold sequence
+                        if (!isVolumeKeyLongPressTriggered.get()) {
+                            isVolumeKeyLongPressTriggered.set(true)
+                            if (direction > 0) {
+                                moveCursorToEndOfLine()
+                            } else if (direction < 0) {
+                                moveCursorToStartOfLine()
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
 

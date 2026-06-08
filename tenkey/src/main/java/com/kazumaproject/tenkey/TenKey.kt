@@ -28,6 +28,7 @@ import androidx.core.widget.ImageViewCompat
 import androidx.core.widget.TextViewCompat
 import com.google.android.material.textview.MaterialTextView
 import com.kazumaproject.core.domain.extensions.hide
+import com.kazumaproject.core.domain.extensions.toAccessibilityName
 import com.kazumaproject.core.domain.extensions.layoutXPosition
 import com.kazumaproject.core.domain.extensions.layoutYPosition
 import com.kazumaproject.core.domain.extensions.setBorder
@@ -2208,11 +2209,11 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             }
                         } else {
                             val charToAnnounce = when (nextGesture) {
-                                GestureType.Tap -> activeKeyInfo.tap?.toString()
-                                GestureType.FlickLeft -> activeKeyInfo.flickLeft?.toString()
-                                GestureType.FlickTop -> activeKeyInfo.flickTop?.toString()
-                                GestureType.FlickRight -> activeKeyInfo.flickRight?.toString()
-                                GestureType.FlickBottom -> activeKeyInfo.flickBottom?.toString()
+                                GestureType.Tap -> activeKeyInfo.tap?.toAccessibilityName()
+                                GestureType.FlickLeft -> activeKeyInfo.flickLeft?.toAccessibilityName()
+                                GestureType.FlickTop -> activeKeyInfo.flickTop?.toAccessibilityName()
+                                GestureType.FlickRight -> activeKeyInfo.flickRight?.toAccessibilityName()
+                                GestureType.FlickBottom -> activeKeyInfo.flickBottom?.toAccessibilityName()
                                 else -> null
                             }
                             
@@ -5276,16 +5277,16 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                     val keyInfo = currentInputMode.value.next(keyMap = keyMap, key = key, isTablet = false)
                                     if (keyInfo is KeyInfo.KeyTapFlickInfo) {
                                         keyInfo.flickLeft?.let {
-                                            info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_left, "$it (左フリック)"))
+                                            info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_left, "${it.toAccessibilityName()} (左フリック)"))
                                         }
                                         keyInfo.flickTop?.let {
-                                            info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_top, "$it (上フリック)"))
+                                            info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_top, "${it.toAccessibilityName()} (上フリック)"))
                                         }
                                         keyInfo.flickRight?.let {
-                                            info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_right, "$it (右フリック)"))
+                                            info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_right, "${it.toAccessibilityName()} (右フリック)"))
                                         }
                                         keyInfo.flickBottom?.let {
-                                            info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_bottom, "$it (下フリック)"))
+                                            info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_bottom, "${it.toAccessibilityName()} (下フリック)"))
                                         }
                                     }
                                 }

@@ -58,3 +58,12 @@ fun Char.toZenkaku(): Char {
         else -> this
     }
 }
+
+fun Char.toAccessibilityName(): String {
+    return when (this) {
+        'ー' -> "長音"
+        '〜', '～' -> "波線"
+        else -> this.toString()
+    }
+}
+

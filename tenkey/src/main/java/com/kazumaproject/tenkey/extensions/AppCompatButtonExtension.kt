@@ -280,7 +280,7 @@ fun AppCompatButton.setTenKeyTextJapaneseWithFlickGuide(
             left = "を",
             top = "ん",
             right = "ー", // 好みで変更
-            bottom = "〜"
+            bottom = "～"
         )
         // 記号キー(key_12)は従来どおり getSpannableStringForKigouButtonJapanese を使う
         R.id.key_12 -> null

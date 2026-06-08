@@ -150,7 +150,7 @@ sealed class KeyInfo {
         override val flickRight: Char
             get() = 'ー'
         override val flickBottom: Char
-            get() = '〜'
+            get() = '～'
     }
 
     object KeyKigouJapanese : KeyTapFlickInfo() {
