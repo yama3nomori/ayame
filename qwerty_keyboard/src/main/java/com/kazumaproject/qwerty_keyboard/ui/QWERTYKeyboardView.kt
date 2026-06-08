@@ -255,7 +255,6 @@ class QWERTYKeyboardView @JvmOverloads constructor(
             put(binding.keySpace, QWERTYKey.QWERTYKeySpace)
             put(binding.keyTouten, QWERTYKey.QWERTYKeyTouten)
             put(binding.keyKuten, QWERTYKey.QWERTYKeyKuten)
-            binding.keySelect?.let { put(it, QWERTYKey.QWERTYKeySelect) }
             binding.cursorLeft?.let { put(it, QWERTYKey.QWERTYKeyCursorLeft) }
             binding.cursorRight?.let { put(it, QWERTYKey.QWERTYKeyCursorRight) }
             binding.switchRomajiEnglish?.let { put(it, QWERTYKey.QWERTYKeySwitchRomajiEnglish) }
@@ -644,7 +643,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
             binding.key6, binding.key7, binding.key8, binding.key9, binding.key0,
             binding.keyAtMark, binding.keySpace, binding.keyTouten, binding.keyKuten
         ) + listOfNotNull(
-            binding.keySelect, binding.cursorLeft, binding.cursorRight,
+            binding.cursorLeft, binding.cursorRight,
             binding.switchRomajiEnglish, binding.switchNumberLayout,
             binding.keyReadAloud, binding.keyEmoji
         )
