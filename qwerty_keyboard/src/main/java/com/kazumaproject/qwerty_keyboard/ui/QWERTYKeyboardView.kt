@@ -292,6 +292,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
             }
         }
         updateShiftKeyAppearance()
+        setEmojiKeyMode(false)
     }
 
     private fun setupAccessibilityDelegates(view: View) {
@@ -389,11 +390,17 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                             }
                         }
                     } else {
-                        info.className = ""
-                        info.setRoleDescription("\u200B")
-                        info.isClickable = false
-                        info.removeAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_CLICK)
-                        info.removeAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_LONG_CLICK)
+                        if (key == QWERTYKey.QWERTYKeyEmoji) {
+                            info.className = "android.widget.Button"
+                            info.isClickable = true
+                            info.isLongClickable = true
+                        } else {
+                            info.className = ""
+                            info.setRoleDescription("\u200B")
+                            info.isClickable = false
+                            info.removeAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_CLICK)
+                            info.removeAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_LONG_CLICK)
+                        }
                     }
                 }
 
@@ -790,6 +797,22 @@ class QWERTYKeyboardView @JvmOverloads constructor(
         binding.keyTouten?.isVisible = showKutouten
     }
 
+    fun setEmojiKeyMode(isInputting: Boolean) {
+        val btn = binding.keyEmoji ?: return
+        if (isInputting) {
+            btn.text = "スペース"
+            btn.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+            btn.contentDescription = "スペース"
+        } else {
+            btn.text = ""
+            val drawable = ContextCompat.getDrawable(context, com.kazumaproject.core.R.drawable.baseline_emoji_emotions_24)
+            drawable?.setTint(ContextCompat.getColor(context, com.kazumaproject.core.R.color.keyboard_icon_color))
+            btn.setCompoundDrawablesWithIntrinsicBounds(drawable, null, null, null)
+            btn.contentDescription = context.getString(com.kazumaproject.core.R.string.string_emoji)
+        }
+        btn.sendAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
+    }
+
     fun updateSymbolKeymapState(state: Boolean) { this.isSymbolKeymapShow = state }
     fun updateNumberKeyState(state: Boolean) {
         this.isNumberKeysShow = state
@@ -846,6 +869,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
     fun setRomajiMode(state: Boolean) {
         _romajiModeState.update { state }
         applyContentForMode(qwertyMode.value)
+        setEmojiKeyMode(false)
     }
     fun getRomajiMode(): Boolean = romajiModeState.value
     fun setQwertyMode(mode: QWERTYMode) { _qwertyMode.update { mode } }
@@ -1624,9 +1648,12 @@ class QWERTYKeyboardView @JvmOverloads constructor(
     }
 
     private fun announceKey(view: View) {
-        val announcement = (view as? TextView)?.text?.toString()
-            ?: view.contentDescription?.toString()
-            ?: return
+        val textStr = (view as? TextView)?.text?.toString()
+        val announcement = if (!textStr.isNullOrEmpty()) {
+            textStr
+        } else {
+            view.contentDescription?.toString()
+        } ?: return
         
         if (announcement.isNotEmpty()) {
             if (accessibilityManager.isTouchExplorationEnabled) {

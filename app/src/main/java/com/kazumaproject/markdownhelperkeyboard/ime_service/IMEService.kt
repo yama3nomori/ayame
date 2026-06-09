@@ -7237,13 +7237,18 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                         updateUIinHenkan(mainView, insertString)
                     }
                     setSumireKeyboardSwitchNumberAndKatakanaKey(1)
-                    if (qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTYRomaji && mainView.keyboardView.currentInputMode.value == InputMode.ModeJapanese) {
+                    val isQWERTYRomaji = mainView.qwertyView.isVisible && mainView.qwertyView.getRomajiMode()
+                    if (isQWERTYRomaji) {
                         mainView.qwertyView.apply {
                             setSpaceKeyText("変換")
                             setReturnKeyText("確定")
+                            setEmojiKeyMode(true)
                         }
-                    } else if ((qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTY && mainView.keyboardView.currentInputMode.value == InputMode.ModeEnglish) || qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTYRomaji && mainView.keyboardView.currentInputMode.value == InputMode.ModeEnglish) {
-                        mainView.qwertyView.setReturnKeyText("done")
+                    } else if (mainView.qwertyView.isVisible) {
+                        mainView.qwertyView.apply {
+                            setReturnKeyText("done")
+                            setEmojiKeyMode(false)
+                        }
                     }
                     if (mainView.customLayoutDefault.isVisible) {
                         setSumireKeyboardDakutenKey()
@@ -7288,16 +7293,21 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                             if (mainView.customLayoutDefault.isVisible) {
                                 resetSumireKeyboardDakutenMode()
                             }
-                            if (qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTYRomaji && mainView.keyboardView.currentInputMode.value == InputMode.ModeJapanese) {
+                            val isQWERTYRomaji = mainView.qwertyView.isVisible && mainView.qwertyView.getRomajiMode()
+                            if (isQWERTYRomaji) {
                                 mainView.qwertyView.apply {
                                     setSpaceKeyText("空白")
                                     val qwertyEnterKeyText =
                                         currentInputType.getQWERTYReturnTextInJp()
                                     setReturnKeyText(qwertyEnterKeyText)
+                                    setEmojiKeyMode(false)
                                 }
-                            } else if ((qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTY && mainView.keyboardView.currentInputMode.value == InputMode.ModeEnglish) || qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTYRomaji && mainView.keyboardView.currentInputMode.value == InputMode.ModeEnglish) {
+                            } else if (mainView.qwertyView.isVisible) {
                                 val qwertyEnterKeyText = currentInputType.getQWERTYReturnTextInEn()
-                                mainView.qwertyView.setReturnKeyText(qwertyEnterKeyText)
+                                mainView.qwertyView.apply {
+                                    setReturnKeyText(qwertyEnterKeyText)
+                                    setEmojiKeyMode(false)
+                                }
                             }
                             setKeyboardHeightDefault(mainView)
                             setSumireKeyboardSwitchNumberAndKatakanaKey(0)
@@ -9757,6 +9767,38 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                                 }
                             }
                             isSpaceKeyLongPressed = false
+                        }
+
+                        QWERTYKey.QWERTYKeyEmoji -> {
+                            val isJapaneseRomaji = mainView.qwertyView.getRomajiMode()
+                            if (isJapaneseRomaji && insertString.isNotEmpty()) {
+                                val spaceChar = if (qwertyEnableZenkakuSpacePreference == true) "　" else " "
+                                if (stringInTail.get().isNotEmpty()) {
+                                    val extractedText = getExtractedText(ExtractedTextRequest(), 0)
+                                    val currentCursorPosition = extractedText?.selectionEnd ?: 0
+                                    commitText("$insertString$spaceChar$stringInTail", 1)
+                                    val newCursorPosition =
+                                        (currentCursorPosition - stringInTail.get().length + 1).coerceAtLeast(0)
+                                    stringInTail.set("")
+                                    setSelection(newCursorPosition, newCursorPosition)
+                                } else {
+                                    commitText("$insertString$spaceChar", 1)
+                                }
+                                _inputString.update { "" }
+                                if (isHenkan.get()) {
+                                    suggestionAdapter?.suggestions = emptyList()
+                                    isHenkan.set(false)
+                                    henkanPressedWithBunsetsuDetect = false
+                                    suggestionClickNum = 0
+                                    suggestionAdapter?.updateHighlightPosition(-1)
+                                }
+                            } else {
+                                _keyboardSymbolViewState.value = !_keyboardSymbolViewState.value
+                                stringInTail.set("")
+                                finishComposingText()
+                                setComposingText("", 0)
+                                _inputString.update { "" }
+                            }
                         }
 
                         QWERTYKey.QWERTYKeyReadAloud -> {
