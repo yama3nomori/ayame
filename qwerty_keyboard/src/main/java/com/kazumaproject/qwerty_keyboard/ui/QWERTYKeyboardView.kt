@@ -674,11 +674,11 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                 }
 
                 if (info is QWERTYKeyInfo.QWERTYVariation) {
-                    // 「記号切替」ボタン（key1）はモードに応じて表示を変える
+                    // 「数字」ボタン（key1）はモードに応じて表示を変える
                     if (key == QWERTYKey.QWERTYKeySwitchMode) {
                         view.text = when (mode) {
-                            is QWERTYMode.Number -> if (romajiMode) "あa" else "ABC"
-                            else -> "記号切替"
+                            is QWERTYMode.Number, is QWERTYMode.Symbol -> "文字"
+                            else -> "数字"
                         }
                     } else {
                         info.tap?.let {

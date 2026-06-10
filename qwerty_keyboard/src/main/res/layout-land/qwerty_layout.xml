@@ -40,7 +40,7 @@
         android:background="@drawable/ten_keys_center_bg"
         android:elevation="@dimen/qwerty_side_key_elevation_size"
         android:gravity="center"
-        android:text="記号切替"
+        android:text="数字"
         android:textAllCaps="false"
         android:textColor="@color/keyboard_icon_color"
         android:textSize="12sp"
