@@ -194,9 +194,14 @@ class QWERTYKeyboardView @JvmOverloads constructor(
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
+    private var lastClickedKey: QWERTYKey? = null
+    private var lastClickedTime: Long = 0L
+
     var isAyameMode: Boolean = false
         set(value) {
             field = value
+            lastClickedKey = null
+            lastClickedTime = 0L
             setupAccessibilityDelegates(this)
         }
 
@@ -286,7 +291,21 @@ class QWERTYKeyboardView @JvmOverloads constructor(
             view.isClickable = true
             view.isFocusable = true
             view.setOnClickListener {
-                if (isAyameMode || accessibilityManager.isTouchExplorationEnabled) {
+                if (isAyameMode) {
+                    if (accessibilityManager.isTouchExplorationEnabled) {
+                        performKeyInput(view, key)
+                    } else {
+                        val currentTime = SystemClock.uptimeMillis()
+                        if (key == lastClickedKey && currentTime - lastClickedTime < 500) {
+                            performKeyInput(view, key)
+                            lastClickedKey = null
+                            lastClickedTime = 0L
+                        } else {
+                            lastClickedKey = key
+                            lastClickedTime = currentTime
+                        }
+                    }
+                } else if (accessibilityManager.isTouchExplorationEnabled) {
                     performKeyInput(view, key)
                 }
             }
@@ -302,7 +321,21 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                 view.isClickable = true
                 view.isFocusable = true
                 view.setOnClickListener {
-                    if (isAyameMode || accessibilityManager.isTouchExplorationEnabled) {
+                    if (isAyameMode) {
+                        if (accessibilityManager.isTouchExplorationEnabled) {
+                            performKeyInput(view, key)
+                        } else {
+                            val currentTime = SystemClock.uptimeMillis()
+                            if (key == lastClickedKey && currentTime - lastClickedTime < 500) {
+                                performKeyInput(view, key)
+                                lastClickedKey = null
+                                lastClickedTime = 0L
+                            } else {
+                                lastClickedKey = key
+                                lastClickedTime = currentTime
+                            }
+                        }
+                    } else if (accessibilityManager.isTouchExplorationEnabled) {
                         performKeyInput(view, key)
                     }
                 }

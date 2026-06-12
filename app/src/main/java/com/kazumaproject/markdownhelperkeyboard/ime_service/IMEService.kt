@@ -5193,8 +5193,14 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         hideAllKeyboards()
         Timber.d("showKeyboard called: $type")
         mainLayoutBinding?.apply {
+            val isAyame = type == KeyboardType.AYAME_TENKEY || type == KeyboardType.AYAME_QWERTY || type == KeyboardType.AYAME_ROMAJI
+            Timber.d("showKeyboard: isAyame=$isAyame, type=$type")
             keyboardView.isAyameMode = type == KeyboardType.AYAME_TENKEY
             qwertyView.isAyameMode = type == KeyboardType.AYAME_QWERTY || type == KeyboardType.AYAME_ROMAJI
+            Timber.d("setting isAyameMode on suggestionAdapter: current=${suggestionAdapter?.isAyameMode}")
+            suggestionAdapter?.isAyameMode = isAyame
+            suggestionAdapterFull?.isAyameMode = isAyame
+            shortcutAdapter?.isAyameMode = isAyame
 
             when (type) {
                 KeyboardType.TENKEY, KeyboardType.AYAME_TENKEY -> {

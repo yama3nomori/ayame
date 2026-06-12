@@ -1,6 +1,8 @@
 package com.kazumaproject.markdownhelperkeyboard.ime_service.adapters
 
+import android.content.Context
 import android.graphics.PorterDuff
+import android.os.SystemClock
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -13,6 +15,16 @@ import com.kazumaproject.markdownhelperkeyboard.short_cut.ShortcutType
 import timber.log.Timber
 
 class ShortcutAdapter : ListAdapter<ShortcutType, ShortcutAdapter.ViewHolder>(DiffCallback) {
+
+    var isAyameMode: Boolean = false
+        set(value) {
+            Timber.d("ShortcutAdapter isAyameMode set to: $value")
+            field = value
+            lastClickedPosition = -1
+            lastClickedTime = 0L
+        }
+    private var lastClickedPosition: Int = -1
+    private var lastClickedTime: Long = 0L
 
     /**
      * A listener that gets called when an item is clicked.
@@ -34,7 +46,29 @@ class ShortcutAdapter : ListAdapter<ShortcutType, ShortcutAdapter.ViewHolder>(Di
             itemView.setOnClickListener {
                 val position = bindingAdapterPosition
                 if (position != RecyclerView.NO_POSITION) {
-                    onItemClicked?.invoke(getItem(position))
+                    val accessibilityManager = itemView.context.getSystemService(Context.ACCESSIBILITY_SERVICE) as android.view.accessibility.AccessibilityManager
+                    Timber.d("ShortcutAdapter click: isAyameMode=$isAyameMode, position=$position, lastClickedPosition=$lastClickedPosition, isTouchExplorationEnabled=${accessibilityManager.isTouchExplorationEnabled}")
+                    if (isAyameMode) {
+                        if (accessibilityManager.isEnabled && accessibilityManager.isTouchExplorationEnabled) {
+                            Timber.d("ShortcutAdapter click: TalkBack bypass immediate invoke")
+                            onItemClicked?.invoke(getItem(position))
+                        } else {
+                            val currentTime = SystemClock.uptimeMillis()
+                            Timber.d("ShortcutAdapter click: diff=${currentTime - lastClickedTime}")
+                            if (position == lastClickedPosition && currentTime - lastClickedTime < 500) {
+                                Timber.d("ShortcutAdapter click: double-tap matched! invoke")
+                                onItemClicked?.invoke(getItem(position))
+                                lastClickedPosition = -1
+                                lastClickedTime = 0L
+                            } else {
+                                Timber.d("ShortcutAdapter click: single-tap recorded")
+                                lastClickedPosition = position
+                                lastClickedTime = currentTime
+                            }
+                        }
+                    } else {
+                        onItemClicked?.invoke(getItem(position))
+                    }
                 }
             }
         }

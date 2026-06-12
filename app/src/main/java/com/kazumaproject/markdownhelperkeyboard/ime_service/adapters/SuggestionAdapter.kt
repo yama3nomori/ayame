@@ -35,6 +35,16 @@ import timber.log.Timber
 
 class SuggestionAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
+    var isAyameMode: Boolean = false
+        set(value) {
+            timber.log.Timber.d("SuggestionAdapter isAyameMode set to: $value")
+            field = value
+            lastClickedId = -1
+            lastClickedTime = 0L
+        }
+    private var lastClickedId: Int = -1
+    private var lastClickedTime: Long = 0L
+
     companion object {
         const val VIEW_TYPE_EMPTY = 0
         const val VIEW_TYPE_SUGGESTION = 1
@@ -369,7 +379,24 @@ class SuggestionAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                 }
                 isVisible = isUndoEnabled
                 setOnClickListener {
-                    onItemHelperIconClickListener?.invoke(HelperIcon.UNDO)
+                    val accessibilityManager = context.getSystemService(android.content.Context.ACCESSIBILITY_SERVICE) as android.view.accessibility.AccessibilityManager
+                    if (isAyameMode) {
+                        if (accessibilityManager.isEnabled && accessibilityManager.isTouchExplorationEnabled) {
+                            onItemHelperIconClickListener?.invoke(HelperIcon.UNDO)
+                        } else {
+                            val currentTime = android.os.SystemClock.uptimeMillis()
+                            if (id == lastClickedId && currentTime - lastClickedTime < 500) {
+                                onItemHelperIconClickListener?.invoke(HelperIcon.UNDO)
+                                lastClickedId = -1
+                                lastClickedTime = 0L
+                            } else {
+                                lastClickedId = id
+                                lastClickedTime = currentTime
+                            }
+                        }
+                    } else {
+                        onItemHelperIconClickListener?.invoke(HelperIcon.UNDO)
+                    }
                 }
                 setOnLongClickListener {
                     onItemHelperIconLongClickListener?.invoke(HelperIcon.UNDO)
@@ -383,7 +410,24 @@ class SuggestionAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
             pasteIconParent?.apply {
                 setOnClickListener {
-                    onItemHelperIconClickListener?.invoke(HelperIcon.PASTE)
+                    val accessibilityManager = context.getSystemService(android.content.Context.ACCESSIBILITY_SERVICE) as android.view.accessibility.AccessibilityManager
+                    if (isAyameMode) {
+                        if (accessibilityManager.isEnabled && accessibilityManager.isTouchExplorationEnabled) {
+                            onItemHelperIconClickListener?.invoke(HelperIcon.PASTE)
+                        } else {
+                            val currentTime = android.os.SystemClock.uptimeMillis()
+                            if (id == lastClickedId && currentTime - lastClickedTime < 500) {
+                                onItemHelperIconClickListener?.invoke(HelperIcon.PASTE)
+                                lastClickedId = -1
+                                lastClickedTime = 0L
+                            } else {
+                                lastClickedId = id
+                                lastClickedTime = currentTime
+                            }
+                        }
+                    } else {
+                        onItemHelperIconClickListener?.invoke(HelperIcon.PASTE)
+                    }
                 }
                 setOnLongClickListener {
                     onItemHelperIconLongClickListener?.invoke(HelperIcon.PASTE)
@@ -551,7 +595,29 @@ class SuggestionAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         }
         holder.itemView.isPressed = position == highlightedPosition
         holder.itemView.setOnClickListener {
-            onItemClickListener?.invoke(suggestion, position)
+            val accessibilityManager = holder.itemView.context.getSystemService(android.content.Context.ACCESSIBILITY_SERVICE) as android.view.accessibility.AccessibilityManager
+            timber.log.Timber.d("SuggestionAdapter click: isAyameMode=$isAyameMode, position=$position, lastClickedId=$lastClickedId, isTouchExplorationEnabled=${accessibilityManager.isTouchExplorationEnabled}")
+            if (isAyameMode) {
+                if (accessibilityManager.isEnabled && accessibilityManager.isTouchExplorationEnabled) {
+                    timber.log.Timber.d("SuggestionAdapter click: TalkBack bypass immediate invoke")
+                    onItemClickListener?.invoke(suggestion, position)
+                } else {
+                    val currentTime = android.os.SystemClock.uptimeMillis()
+                    timber.log.Timber.d("SuggestionAdapter click: diff=${currentTime - lastClickedTime}")
+                    if (position == lastClickedId && currentTime - lastClickedTime < 500) {
+                        timber.log.Timber.d("SuggestionAdapter click: double-tap matched! invoke")
+                        onItemClickListener?.invoke(suggestion, position)
+                        lastClickedId = -1
+                        lastClickedTime = 0L
+                    } else {
+                        timber.log.Timber.d("SuggestionAdapter click: single-tap recorded")
+                        lastClickedId = position
+                        lastClickedTime = currentTime
+                    }
+                }
+            } else {
+                onItemClickListener?.invoke(suggestion, position)
+            }
         }
         holder.itemView.setOnLongClickListener {
             onItemLongClickListener?.invoke(suggestion, position)
@@ -563,7 +629,24 @@ class SuggestionAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         val layoutItem = customLayouts[position]
         holder.nameTextView.text = layoutItem.name
         holder.itemView.setOnClickListener {
-            onCustomLayoutItemClickListener?.invoke(position)
+            val accessibilityManager = holder.itemView.context.getSystemService(android.content.Context.ACCESSIBILITY_SERVICE) as android.view.accessibility.AccessibilityManager
+            if (isAyameMode) {
+                if (accessibilityManager.isEnabled && accessibilityManager.isTouchExplorationEnabled) {
+                    onCustomLayoutItemClickListener?.invoke(position)
+                } else {
+                    val currentTime = android.os.SystemClock.uptimeMillis()
+                    if (position == lastClickedId && currentTime - lastClickedTime < 500) {
+                        onCustomLayoutItemClickListener?.invoke(position)
+                        lastClickedId = -1
+                        lastClickedTime = 0L
+                    } else {
+                        lastClickedId = position
+                        lastClickedTime = currentTime
+                    }
+                }
+            } else {
+                onCustomLayoutItemClickListener?.invoke(position)
+            }
         }
     }
 
