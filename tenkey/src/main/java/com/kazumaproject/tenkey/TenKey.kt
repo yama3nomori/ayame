@@ -703,9 +703,14 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
         }
     }
 
+    private var lastClickedKey: Key? = null
+    private var lastClickedTime: Long = 0L
+
     var isAyameMode: Boolean = false
         set(value) {
             field = value
+            lastClickedKey = null
+            lastClickedTime = 0L
             setupAccessibility()
         }
 
@@ -5215,7 +5220,19 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                 view.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
                 view.setOnClickListener {
                     if (isAyameMode) {
-                        performKeyInput(key)
+                        if (accessibilityManager.isTouchExplorationEnabled) {
+                            performKeyInput(key)
+                        } else {
+                            val currentTime = android.os.SystemClock.uptimeMillis()
+                            if (key == lastClickedKey && currentTime - lastClickedTime < 500) {
+                                performKeyInput(key)
+                                lastClickedKey = null
+                                lastClickedTime = 0L
+                            } else {
+                                lastClickedKey = key
+                                lastClickedTime = currentTime
+                            }
+                        }
                     } else {
                         if (accessibilityManager.isTouchExplorationEnabled) {
                             performKeyInput(key)
@@ -5231,8 +5248,22 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         val description = host.contentDescription ?: (host as? TextView)?.text
 
                         if (!description.isNullOrEmpty()) {
-                            info.text = description
-                            info.contentDescription = description
+                            val mappedDescription = if ((currentInputMode.value == InputMode.ModeEnglish || currentInputMode.value == InputMode.ModeNumber)
+                                && key in listOf(
+                                    Key.KeyA, Key.KeyKA, Key.KeySA,
+                                    Key.KeyTA, Key.KeyNA, Key.KeyHA,
+                                    Key.KeyMA, Key.KeyYA, Key.KeyRA,
+                                    Key.KeyWA, Key.KeyKutouten
+                                )
+                            ) {
+                                description.filter { !it.isWhitespace() }
+                                    .map { it.toAccessibilityName() }
+                                    .joinToString(" ")
+                            } else {
+                                description.toString()
+                            }
+                            info.text = mappedDescription
+                            info.contentDescription = mappedDescription
                         } else {
                             // Fallback for Read Aloud if somehow cleared
                             if (host == binding.sideKeyReadAloud) {
