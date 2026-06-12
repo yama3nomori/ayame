@@ -26,7 +26,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.kazumaproject.markdownhelperkeyboard"
+        applicationId "jp.yama3nomori.ayame"
         minSdk 24
         targetSdk 36
         versionCode 683

@@ -7,7 +7,7 @@
 <p align="center">あなたの手に、プライバシーと自由を。</p>
 
 <p align="center">
-  <a href="https://play.google.com/store/apps/details?id=com.kazumaproject.markdownhelperkeyboard"><img alt="Google Play で手に入れよう" src="https://cdn.rawgit.com/steverichey/google-play-badge-svg/master/img/ja_get.svg" height="60"></a>
+  <a href="https://play.google.com/store/apps/details?id=jp.yama3nomori.ayame"><img alt="Google Play で手に入れよう" src="https://cdn.rawgit.com/steverichey/google-play-badge-svg/master/img/ja_get.svg" height="60"></a>
   <a href="https://github.com/KazumaProject/JapaneseKeyboard/releases"><img src="https://img.shields.io/github/v/release/KazumaProject/JapaneseKeyboard?style=for-the-badge" alt="GitHub release"></a>
 </p>
 

@@ -9,7 +9,7 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="com.kazumaproject.markdownhelperkeyboard" />
+                  <option name="appId" value="jp.yama3nomori.ayame" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
