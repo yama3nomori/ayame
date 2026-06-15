@@ -1375,6 +1375,19 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
         when (event.action) {
             MotionEvent.ACTION_HOVER_ENTER -> {
+                // 1. Interrupt any previous announcement first
+                if (accessibilityManager.isTouchExplorationEnabled) {
+                    accessibilityManager.interrupt()
+                }
+                // 2. Update current hover key and move focus
+                if (key != currentHoverKey) {
+                    currentHoverKey = key
+                    val targetView = getButtonFromKey(key) as? View
+                    if (targetView is View) {
+                        targetView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+                    }
+                }
+                // 3. Immediately announce the character upon touch
                 if (key == Key.SideKeyCursorRight) {
                     isHoverDraggingRightCursor = true
                     hoverRightCursorDragStartX = screenX
@@ -1454,7 +1467,18 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         hoverCharKeyDragStartX = screenX
                         hoverCharKeyDragStartY = screenY
                         hoverActiveGesture = GestureType.Tap
-                        hoverLastAnnouncedChar = null
+                        
+                        val charToAnnounce = keyInfo.tap?.toAccessibilityName()
+
+                        if (charToAnnounce != null) {
+                            hoverLastAnnouncedChar = charToAnnounce
+                            announceForAccessibility(charToAnnounce)
+                            android.widget.Toast.makeText(context, charToAnnounce, android.widget.Toast.LENGTH_SHORT).show()
+                            performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                        } else {
+                            hoverLastAnnouncedChar = null
+                        }
+
                         isHoverDraggingRightCursor = false
                         isHoverDraggingLeftCursor = false
                         isHoverDraggingDeleteKey = false
@@ -1489,20 +1513,6 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         hoverCharKey = Key.NotSelected
                     }
                 }
-
-                if (key != currentHoverKey) {
-                    currentHoverKey = key
-                    // Announce the newly-entered key to TalkBack immediately
-                    val targetView = getButtonFromKey(key)
-                    if (targetView is View) {
-                        // 強制的にこれまでの読み上げを中断する
-                        if (accessibilityManager.isTouchExplorationEnabled) {
-                            accessibilityManager.interrupt()
-                        }
-                        // TalkBackのフォーカス移動を維持
-                        targetView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
-                    }
-                }
             }
             MotionEvent.ACTION_HOVER_MOVE -> {
                 // Handle slide-in / slide-out state transition for SideKeyCursorRight
@@ -1522,7 +1532,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 hoverSlideInEntryY = screenY
                             } else {
                                 val elapsed = System.currentTimeMillis() - hoverSlideInEntryTime
-                                if (elapsed >= 500L) {
+                                if (elapsed >= 150L) {
                                     isHoverDraggingRightCursor = true
                                     hoverRightCursorDragStartX = screenX
                                     hoverRightCursorDragEndX = screenX
@@ -1534,7 +1544,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                     isLineUpAnnounced = false
                                     isLineDownAnnounced = false
                                     hoverSlideInEntryTime = 0L
-                                    Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid onto Right Cursor (Hover) and remained stationary for 500ms. Starting drag tracking.")
+                                    Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid onto Right Cursor (Hover) and remained stationary for 150ms. Starting drag tracking.")
                                 }
                             }
                         }
@@ -1568,7 +1578,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 leftHoverSlideInEntryY = screenY
                             } else {
                                 val elapsed = System.currentTimeMillis() - leftHoverSlideInEntryTime
-                                if (elapsed >= 500L) {
+                                if (elapsed >= 150L) {
                                     isHoverDraggingLeftCursor = true
                                     hoverLeftCursorDragStartX = screenX
                                     hoverLeftCursorDragEndX = screenX
@@ -1580,7 +1590,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                     isLeftLineUpAnnounced = false
                                     isLeftLineDownAnnounced = false
                                     leftHoverSlideInEntryTime = 0L
-                                    Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid onto Left Cursor (Hover) and remained stationary for 500ms. Starting drag tracking.")
+                                    Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid onto Left Cursor (Hover) and remained stationary for 150ms. Starting drag tracking.")
                                 }
                             }
                         }
@@ -1614,7 +1624,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 deleteHoverSlideInEntryY = screenY
                             } else {
                                 val elapsed = System.currentTimeMillis() - deleteHoverSlideInEntryTime
-                                if (elapsed >= 500L) {
+                                if (elapsed >= 150L) {
                                     isHoverDraggingDeleteKey = true
                                     hoverDeleteKeyDragStartX = screenX
                                     hoverDeleteKeyDragEndX = screenX
@@ -1624,7 +1634,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                     isDeleteLeftAnnounced = false
                                     isDeleteUpAnnounced = false
                                     deleteHoverSlideInEntryTime = 0L
-                                    Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid onto Delete Key (Hover) and remained stationary for 500ms. Starting drag tracking.")
+                                    Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid onto Delete Key (Hover) and remained stationary for 150ms. Starting drag tracking.")
                                 }
                             }
                         }
@@ -1656,7 +1666,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 spaceHoverSlideInEntryY = screenY
                             } else {
                                 val elapsed = System.currentTimeMillis() - spaceHoverSlideInEntryTime
-                                if (elapsed >= 500L) {
+                                if (elapsed >= 150L) {
                                     isHoverDraggingSpaceKey = true
                                     hoverSpaceKeyDragStartX = screenX
                                     hoverSpaceKeyDragEndX = screenX
@@ -1664,7 +1674,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                     hoverSpaceKeyDragEndY = screenY
                                     isSpaceDownAnnounced = false
                                     spaceHoverSlideInEntryTime = 0L
-                                    Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid onto Space Key (Hover) and remained stationary for 500ms. Starting drag tracking.")
+                                    Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid onto Space Key (Hover) and remained stationary for 150ms. Starting drag tracking.")
                                 }
                             }
                         }
@@ -1695,7 +1705,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 readAloudHoverSlideInEntryY = screenY
                             } else {
                                 val elapsed = System.currentTimeMillis() - readAloudHoverSlideInEntryTime
-                                if (elapsed >= 500L) {
+                                if (elapsed >= 150L) {
                                     isHoverDraggingReadAloudKey = true
                                     hoverReadAloudKeyDragStartX = screenX
                                     hoverReadAloudKeyDragEndX = screenX
@@ -1706,7 +1716,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                     isReadAloudUpAnnounced = false
                                     isReadAloudRightAnnounced = false
                                     readAloudHoverSlideInEntryTime = 0L
-                                    Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid onto Read Aloud Key (Hover) and remained stationary for 500ms. Starting drag tracking.")
+                                    Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid onto Read Aloud Key (Hover) and remained stationary for 150ms. Starting drag tracking.")
                                 }
                             }
                         }
@@ -1747,7 +1757,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 hoverCharKey = key
                             } else {
                                 val elapsed = System.currentTimeMillis() - charHoverSlideInEntryTime
-                                if (elapsed >= 500L) {
+                                if (elapsed >= 150L) {
                                     isHoverDraggingCharKey = true
                                     hoverCharKey = key
                                     hoverCharKeyDragStartX = screenX
@@ -1755,7 +1765,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                     hoverActiveGesture = GestureType.Tap
                                     hoverLastAnnouncedChar = null
                                     charHoverSlideInEntryTime = 0L
-                                    Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid onto Char Key $key (Hover) and remained stationary for 500ms. Starting drag.")
+                                    Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid onto Char Key $key (Hover) and remained stationary for 150ms. Starting drag.")
                                 }
                             }
                         }
@@ -1772,13 +1782,27 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                 if (key != currentHoverKey) {
                     currentHoverKey = key
 
-                    // Only announce if we are not actively dragging Right/Left Cursor, Delete Key, Space Key, Read Aloud Key, or any Character Key to prevent confusing user
+                    // Slide-in instant read: announce the character immediately when sliding onto a new key
+                    val keyInfo = currentInputMode.value.next(keyMap = keyMap, key = key, isTablet = false)
+                    val charToAnnounce = if (keyInfo is KeyInfo.KeyTapFlickInfo) {
+                        keyInfo.tap?.toAccessibilityName()
+                    } else {
+                        val targetView = getButtonFromKey(key) as? View
+                        targetView?.contentDescription?.toString()
+                    }
+
+                    if (charToAnnounce != null) {
+                        if (accessibilityManager.isTouchExplorationEnabled) {
+                            accessibilityManager.interrupt()
+                        }
+                        announceForAccessibility(charToAnnounce)
+                        android.widget.Toast.makeText(context, charToAnnounce, android.widget.Toast.LENGTH_SHORT).show()
+                        performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                    }
+                    // Only send hover enter event if we are not actively dragging to keep focus frame synced
                     if (!isHoverDraggingRightCursor && !isHoverDraggingLeftCursor && !isHoverDraggingDeleteKey && !isHoverDraggingSpaceKey && !isHoverDraggingCharKey && !isHoverDraggingReadAloudKey) {
-                        val targetView = getButtonFromKey(key)
+                        val targetView = getButtonFromKey(key) as? View
                         if (targetView is View) {
-                            if (accessibilityManager.isTouchExplorationEnabled) {
-                                accessibilityManager.interrupt()
-                            }
                             targetView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
                         }
                     }
@@ -2226,9 +2250,11 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 hoverLastAnnouncedChar = charToAnnounce
                                 hoverActiveGesture = nextGesture
                                 Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Char Key gesture changed to $nextGesture. Announcing '$charToAnnounce'")
-                                announceForAccessibility(charToAnnounce)
-                                android.widget.Toast.makeText(context, charToAnnounce, android.widget.Toast.LENGTH_SHORT).show()
-                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                                if (nextGesture != GestureType.Tap) {
+                                    announceForAccessibility(charToAnnounce)
+                                    android.widget.Toast.makeText(context, charToAnnounce, android.widget.Toast.LENGTH_SHORT).show()
+                                    performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                                }
                             }
                         }
                     }
@@ -3343,7 +3369,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                     touchSlideInEntryY = screenY
                                 } else {
                                     val elapsed = System.currentTimeMillis() - touchSlideInEntryTime
-                                    if (elapsed >= 500L) {
+                                    if (elapsed >= 150L) {
                                         isDraggingRightCursor = true
                                         rightCursorDragStartX = screenX
                                         rightCursorDragEndX = screenX
@@ -3355,7 +3381,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                         isLineUpAnnounced = false
                                         isLineDownAnnounced = false
                                         touchSlideInEntryTime = 0L
-                                        Log.d("TenKeyDrag", "ACTION_MOVE: Slid onto Right Cursor and remained stationary for 500ms. Starting drag tracking.")
+                                        Log.d("TenKeyDrag", "ACTION_MOVE: Slid onto Right Cursor and remained stationary for 150ms. Starting drag tracking.")
                                     }
                                 }
                             }
@@ -3389,7 +3415,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                     leftTouchSlideInEntryY = screenY
                                 } else {
                                     val elapsed = System.currentTimeMillis() - leftTouchSlideInEntryTime
-                                    if (elapsed >= 500L) {
+                                    if (elapsed >= 150L) {
                                         isDraggingLeftCursor = true
                                         leftCursorDragStartX = screenX
                                         leftCursorDragEndX = screenX
@@ -3401,7 +3427,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                         isLeftLineUpAnnounced = false
                                         isLeftLineDownAnnounced = false
                                         leftTouchSlideInEntryTime = 0L
-                                        Log.d("TenKeyDrag", "ACTION_MOVE: Slid onto Left Cursor and remained stationary for 500ms. Starting drag tracking.")
+                                        Log.d("TenKeyDrag", "ACTION_MOVE: Slid onto Left Cursor and remained stationary for 150ms. Starting drag tracking.")
                                     }
                                 }
                             }
@@ -3435,7 +3461,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                     deleteTouchSlideInEntryY = screenY
                                 } else {
                                     val elapsed = System.currentTimeMillis() - deleteTouchSlideInEntryTime
-                                    if (elapsed >= 500L) {
+                                    if (elapsed >= 150L) {
                                         isDraggingDeleteKey = true
                                         deleteKeyDragStartX = screenX
                                         deleteKeyDragEndX = screenX
@@ -3445,7 +3471,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                         isDeleteLeftAnnounced = false
                                         isDeleteUpAnnounced = false
                                         deleteTouchSlideInEntryTime = 0L
-                                        Log.d("TenKeyDrag", "ACTION_MOVE: Slid onto Delete key and remained stationary for 500ms. Starting drag tracking.")
+                                        Log.d("TenKeyDrag", "ACTION_MOVE: Slid onto Delete key and remained stationary for 150ms. Starting drag tracking.")
                                     }
                                 }
                             }
@@ -3477,7 +3503,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                     spaceTouchSlideInEntryY = screenY
                                 } else {
                                     val elapsed = System.currentTimeMillis() - spaceTouchSlideInEntryTime
-                                    if (elapsed >= 500L) {
+                                    if (elapsed >= 150L) {
                                         isDraggingSpaceKey = true
                                         spaceKeyDragStartX = screenX
                                         spaceKeyDragEndX = screenX
@@ -3485,7 +3511,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                         spaceKeyDragEndY = screenY
                                         isSpaceDownAnnounced = false
                                         spaceTouchSlideInEntryTime = 0L
-                                        Log.d("TenKeyDrag", "ACTION_MOVE: Slid onto Space key and remained stationary for 500ms. Starting drag tracking.")
+                                        Log.d("TenKeyDrag", "ACTION_MOVE: Slid onto Space key and remained stationary for 150ms. Starting drag tracking.")
                                     }
                                 }
                             }
@@ -3516,7 +3542,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                     readAloudTouchSlideInEntryY = screenY
                                 } else {
                                     val elapsed = System.currentTimeMillis() - readAloudTouchSlideInEntryTime
-                                    if (elapsed >= 500L) {
+                                    if (elapsed >= 150L) {
                                         isDraggingReadAloudKey = true
                                         readAloudKeyDragStartX = screenX
                                         readAloudKeyDragEndX = screenX
@@ -3527,7 +3553,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                         isReadAloudUpAnnounced = false
                                         isReadAloudRightAnnounced = false
                                         readAloudTouchSlideInEntryTime = 0L
-                                        Log.d("TenKeyDrag", "ACTION_MOVE: Slid onto Read Aloud key and remained stationary for 500ms. Starting drag tracking.")
+                                        Log.d("TenKeyDrag", "ACTION_MOVE: Slid onto Read Aloud key and remained stationary for 150ms. Starting drag tracking.")
                                     }
                                 }
                             }
@@ -4355,6 +4381,10 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                 colorTextInt = customKeyTextColor
             )
         }
+        // Set proper contentDescription for key12 to align with TalkBack behavior
+        if (button.id == R.id.key_12) {
+            button.contentDescription = "読点"
+        }
     }
 
     private fun isNearCenter(key: Key, x: Float, y: Float): Boolean {
@@ -4852,17 +4882,24 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
     /** Sync UI to a specified input mode (called from collector) **/
     private fun handleCurrentInputModeSwitch(inputMode: InputMode) {
+        Log.d("TenKeyAccessibility", "handleCurrentInputModeSwitch: inputMode=$inputMode")
         when (inputMode) {
             InputMode.ModeJapanese -> {
                 setKeysInJapaneseText()
+                binding.key12.contentDescription = "読点"
+                binding.keySmallLetter.contentDescription = context.getString(com.kazumaproject.core.R.string.small_key)
                 announceForAccessibility(context.getString(com.kazumaproject.core.R.string.tenkey_hiragana))
             }
             InputMode.ModeEnglish -> {
                 setKeysInEnglishText()
+                binding.key12.contentDescription = null
+                binding.keySmallLetter.contentDescription = context.getString(com.kazumaproject.core.R.string.small_key)
                 announceForAccessibility(context.getString(com.kazumaproject.core.R.string.tenkey_alphabet))
             }
             InputMode.ModeNumber -> {
                 setKeysInNumberText()
+                binding.key12.contentDescription = null
+                binding.keySmallLetter.contentDescription = "かっこ とじかっこ かくかっこ とじかくかっこ"
                 announceForAccessibility(context.getString(com.kazumaproject.core.R.string.tenkey_number))
             }
         }
@@ -5009,7 +5046,10 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                 setCompoundDrawables(null, null, null, null)
             }
             setJapaneseTextFor(key11)
-            setJapaneseTextFor(key12)
+            key12.apply {
+                setJapaneseTextFor(key12)
+                setCompoundDrawables(null, null, null, null)
+            }
             if (isLanguageIconEnabled) {
                 keySmallLetter.setImageDrawable(cachedLanguageDrawable)
             } else {
@@ -5085,10 +5125,13 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                 key11.id, delta = keySizeDelta, modeTheme = themeMode,
                 colorTextInt = customKeyTextColor
             )
-            key12.setTenKeyTextEnglish(
-                key12.id, delta = keySizeDelta, modeTheme = themeMode,
-                colorTextInt = customKeyTextColor
-            )
+            key12.apply {
+                setTenKeyTextEnglish(
+                    key12.id, delta = keySizeDelta, modeTheme = themeMode,
+                    colorTextInt = customKeyTextColor
+                )
+                setCompoundDrawables(null, null, null, null)
+            }
             resetFromSelectMode(binding)
             keyMoveCursorRight.setImageDrawable(
                 cachedArrowRightDrawable
@@ -5160,10 +5203,13 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                 key11.id, delta = keySizeDelta, modeTheme = themeMode,
                 colorTextInt = customKeyTextColor
             )
-            key12.setTenKeyTextNumber(
-                key12.id, delta = keySizeDelta, modeTheme = themeMode,
-                colorTextInt = customKeyTextColor
-            )
+            key12.apply {
+                setTenKeyTextNumber(
+                    key12.id, delta = keySizeDelta, modeTheme = themeMode,
+                    colorTextInt = customKeyTextColor
+                )
+                setCompoundDrawables(null, null, null, null)
+            }
 
             resetFromSelectMode(binding)
             keyMoveCursorRight.setImageDrawable(
@@ -5173,6 +5219,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                 cachedArrowLeftDrawable
             )
             keySmallLetter.setImageDrawable(cachedNumberSmallDrawable)
+            keySmallLetter.contentDescription = "かっこ とじかっこ かくかっこ とじかくかっこ"
             keyDelete.setImageDrawable(cachedBackSpaceDrawable)
         }
     }
@@ -5245,7 +5292,13 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         info: AccessibilityNodeInfoCompat
                     ) {
                         super.onInitializeAccessibilityNodeInfo(host, info)
-                        val description = host.contentDescription ?: (host as? TextView)?.text
+                        var description = host.contentDescription ?: (host as? TextView)?.text
+
+                        if (key == Key.KeyDakutenSmall && currentInputMode.value == InputMode.ModeNumber) {
+                            description = "かっこ とじかっこ かくかっこ とじかくかっこ"
+                        }
+
+                        Log.d("TenKeyAccessibility", "onInitializeAccessibilityNodeInfo: key=$key, mode=${currentInputMode.value}, desc=$description")
 
                         if (!description.isNullOrEmpty()) {
                             val mappedDescription = if ((currentInputMode.value == InputMode.ModeEnglish || currentInputMode.value == InputMode.ModeNumber)
