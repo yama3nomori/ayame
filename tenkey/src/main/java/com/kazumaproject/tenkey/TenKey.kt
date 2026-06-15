@@ -333,6 +333,10 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
     // Drag tracking variables for Key.SideKeyDelete
     var isInputComposing = false
+        set(value) {
+            field = value
+            updateSideKeySymbolLabel()
+        }
     private var isDraggingDeleteKey = false
     private var isHoverDraggingDeleteKey = false
     private var isDeleteLeftAnnounced = false
@@ -5237,12 +5241,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
             }
             sideKeySymbol.apply {
                 visibility = View.VISIBLE
-                setCompoundDrawablesWithIntrinsicBounds(
-                    null,
-                    cachedSymbolDrawable,
-                    null,
-                    null
-                )
+                updateSideKeySymbolLabel()
             }
             keySpace.apply {
                 visibility = View.VISIBLE
@@ -5500,6 +5499,34 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
     private fun setViewsNotFocusable() {
         // No-op or removed in favor of setupAccessibility
+    }
+
+    private fun updateSideKeySymbolLabel() {
+        binding.apply {
+            if (isInputComposing) {
+                sideKeySymbol.apply {
+                    text = "スペース"
+                    contentDescription = "スペース"
+                    setCompoundDrawablesWithIntrinsicBounds(
+                        null,
+                        cachedSpaceDrawable,
+                        null,
+                        null
+                    )
+                }
+            } else {
+                sideKeySymbol.apply {
+                    text = context.getString(com.kazumaproject.core.R.string.symbol)
+                    contentDescription = context.getString(com.kazumaproject.core.R.string.symbol)
+                    setCompoundDrawablesWithIntrinsicBounds(
+                        null,
+                        cachedSymbolDrawable,
+                        null,
+                        null
+                    )
+                }
+            }
+        }
     }
 
     override fun announceForAccessibility(text: CharSequence?) {

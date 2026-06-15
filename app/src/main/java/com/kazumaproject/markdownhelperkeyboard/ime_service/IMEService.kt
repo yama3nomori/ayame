@@ -4017,11 +4017,17 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             }
 
             Key.SideKeySymbol -> {
-                vibrate()
-                _keyboardSymbolViewState.value = !_keyboardSymbolViewState.value
-                stringInTail.set("")
-                finishComposingText()
-                setComposingText("", 0)
+                if (insertString.isNotEmpty()) {
+                    vibrate()
+                    val isJapaneseMode = mainView.keyboardView.currentInputMode.value == InputMode.ModeJapanese
+                    commitSpaceWhenComposing(insertString, isJapaneseMode)
+                } else {
+                    vibrate()
+                    _keyboardSymbolViewState.value = !_keyboardSymbolViewState.value
+                    stringInTail.set("")
+                    finishComposingText()
+                    setComposingText("", 0)
+                }
             }
 
             else -> {
@@ -4297,11 +4303,17 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             }
 
             Key.SideKeySymbol -> {
-                vibrate()
-                _keyboardSymbolViewState.value = !_keyboardSymbolViewState.value
-                stringInTail.set("")
-                finishComposingText()
-                setComposingText("", 0)
+                if (insertString.isNotEmpty()) {
+                    vibrate()
+                    val isJapaneseMode = floatingKeyboardLayoutBinding.keyboardViewFloating.currentInputMode.value == InputMode.ModeJapanese
+                    commitSpaceWhenComposing(insertString, isJapaneseMode)
+                } else {
+                    vibrate()
+                    _keyboardSymbolViewState.value = !_keyboardSymbolViewState.value
+                    stringInTail.set("")
+                    finishComposingText()
+                    setComposingText("", 0)
+                }
             }
 
             else -> {
@@ -13724,6 +13736,31 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 setSuggestionComposingText(suggestions, insertString)
             }
         }
+    }
+
+    private fun commitSpaceWhenComposing(insertString: String, isJapaneseMode: Boolean) {
+        val isHankaku = hankakuPreference == true
+        val spaceChar = if (isHankaku || !isJapaneseMode) " " else "　"
+        
+        if (stringInTail.get().isNotEmpty()) {
+            val extractedText = getExtractedText(ExtractedTextRequest(), 0)
+            val currentCursorPosition = extractedText?.selectionEnd ?: 0
+            commitText("$insertString$spaceChar$stringInTail", 1)
+            val newCursorPosition =
+                (currentCursorPosition - stringInTail.get().length + spaceChar.length).coerceAtLeast(0)
+            stringInTail.set("")
+            setSelection(newCursorPosition, newCursorPosition)
+        } else {
+            commitText("$insertString$spaceChar", 1)
+        }
+        _inputString.update { "" }
+        isHenkan.set(false)
+        henkanPressedWithBunsetsuDetect = false
+        suggestionClickNum = 0
+        suggestionAdapter?.updateHighlightPosition(-1)
+        suggestionAdapter?.suggestions = emptyList()
+        suggestionAdapterFull?.suggestions = emptyList()
+        filteredCandidateList = emptyList()
     }
 
     private fun setSpaceKeyActionEnglishAndNumberNotEmpty(insertString: String) {
