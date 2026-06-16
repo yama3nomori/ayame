@@ -132,6 +132,14 @@ class FlickKeyboardView @JvmOverloads constructor(
 
     // 入力中フラグ（IMEServiceからセットされる）
     var isInputComposing = false
+        set(value) {
+            if (field != value) {
+                field = value
+                if (androidx.core.view.ViewCompat.isAttachedToWindow(this)) {
+                    sendAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
+                }
+            }
+        }
 
     // TalkBack時のホバードラッグ追跡変数
     // カーソル左
@@ -1556,11 +1564,7 @@ class FlickKeyboardView @JvmOverloads constructor(
             }
         }
 
-        // TalkBack有効時は、厳密なタッチ判定を行う
-        // 背景（隙間）をタッチした場合に最寄りのキー（スペースなど）が返されないようにする
-        if (isTouchExplorationEnabled()) {
-            return null
-        }
+
 
         // 直接ヒットしなかった場合（マージンなどをタッチした場合）、最も近いキーを探す
         var nearestChild: View? = null
@@ -2343,7 +2347,7 @@ class FlickKeyboardView @JvmOverloads constructor(
                     KeyAction.MoveCursorToEndOfLine -> "行末移動"
                     KeyAction.MoveCursorToPrevLine -> "前行移動"
                     KeyAction.MoveCursorToNextLine -> "次行移動"
-                    KeyAction.DeleteLeftWordOrSymbols -> "一括削除"
+                    KeyAction.DeleteLeftWordOrSymbols -> if (isInputComposing) "一括削除" else "行頭まで削除"
                     KeyAction.DeleteForward -> "行末まで削除"
                     else -> getActionDescription(flickAction.action)
                 }

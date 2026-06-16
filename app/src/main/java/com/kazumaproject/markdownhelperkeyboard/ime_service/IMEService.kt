@@ -14058,6 +14058,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private fun handleDeleteLeftDragOrFlick(insertString: String) {
         if (insertString.isNotEmpty()) {
             deleteComposingTextEntirely()
+            announceText("一括削除")
+            android.widget.Toast.makeText(this, "一括削除", android.widget.Toast.LENGTH_SHORT).show()
+            vibrate()
         } else {
             val ic = currentInputConnection ?: return
             val before = ic.getTextBeforeCursor(10000, 0) ?: ""
@@ -14088,8 +14091,6 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 ic.deleteSurroundingText(charsToDelete, 0)
                 ic.endBatchEdit()
                 
-                announceText("一括削除")
-                android.widget.Toast.makeText(this, "一括削除", android.widget.Toast.LENGTH_SHORT).show()
                 vibrate()
             }
         }
