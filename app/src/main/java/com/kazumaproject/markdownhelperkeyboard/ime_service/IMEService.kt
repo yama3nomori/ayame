@@ -1054,7 +1054,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         physicalKeyboardFloatingYPosition = 150
         _suggestionViewStatus.update { true }
         appPreference.apply {
-            keyboardOrder = keyboard_order + KeyboardType.NUMERIC
+            keyboardOrder = keyboard_order + KeyboardType.NUMERIC + KeyboardType.AYAME_NUMERIC
             candidateTabOrder = candidate_tab_order
             mozcUTPersonName = mozc_ut_person_names_preference ?: false
             mozcUTPlaces = mozc_ut_places_preference ?: false
@@ -4651,6 +4651,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     KeyboardType.AYAME_QWERTY -> "アヤメ英語"
                     KeyboardType.AYAME_ROMAJI -> "アヤメローマ字入力"
                     KeyboardType.NUMERIC -> "数字専用キーボード"
+                    KeyboardType.AYAME_NUMERIC -> "アヤメ数字専用キーボード"
                 }
                 RowItem.Internal(type = type, title = title)
             }
@@ -4763,7 +4764,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                             KeyboardType.CUSTOM -> { /* 任意 */
                             }
 
-                            KeyboardType.NUMERIC -> {
+                            KeyboardType.NUMERIC, KeyboardType.AYAME_NUMERIC -> {
                                 mainView.keyboardView.setCurrentMode(InputMode.ModeNumber)
                             }
                         }
@@ -5210,7 +5211,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         hideAllKeyboards()
         Timber.d("showKeyboard called: $type")
         mainLayoutBinding?.apply {
-            val isAyame = type == KeyboardType.AYAME_TENKEY || type == KeyboardType.AYAME_QWERTY || type == KeyboardType.AYAME_ROMAJI
+            val isAyame = type == KeyboardType.AYAME_TENKEY || type == KeyboardType.AYAME_QWERTY || type == KeyboardType.AYAME_ROMAJI || type == KeyboardType.AYAME_NUMERIC
             Timber.d("showKeyboard: isAyame=$isAyame, type=$type")
             keyboardView.isAyameMode = type == KeyboardType.AYAME_TENKEY
             qwertyView.isAyameMode = type == KeyboardType.AYAME_QWERTY || type == KeyboardType.AYAME_ROMAJI
@@ -5379,6 +5380,16 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     keyboardView.isVisible = false
                     _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Number }
                 }
+
+                KeyboardType.AYAME_NUMERIC -> {
+                    customKeyboardMode = KeyboardInputMode.HIRAGANA
+                    customLayoutDefault.isVisible = true
+                    keyboardView.setCurrentMode(InputMode.ModeNumber)
+                    customLayoutDefault.setKeyboard(KeyboardDefaultLayouts.createAyameNumberLayout())
+                    qwertyView.isVisible = false
+                    keyboardView.isVisible = false
+                    _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Number }
+                }
             }
             suggestionRecyclerView.isVisible = true
 
@@ -5393,6 +5404,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 KeyboardType.AYAME_QWERTY -> "アヤメ英語"
                 KeyboardType.AYAME_ROMAJI -> "アヤメローマ字入力"
                 KeyboardType.NUMERIC -> "数字専用キーボード"
+                KeyboardType.AYAME_NUMERIC -> "アヤメ数字専用キーボード"
             }
             announceText(announcement, delayMs = 150)
         }
@@ -9177,6 +9189,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 KeyboardType.AYAME_ROMAJI -> _tenKeyQWERTYMode.update { TenKeyQWERTYMode.TenKeyQWERTYRomaji }
                 KeyboardType.CUSTOM -> _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Custom }
                 KeyboardType.NUMERIC -> _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Number }
+                KeyboardType.AYAME_NUMERIC -> _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Number }
             }
         }
     }
@@ -13561,7 +13574,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
             KeyboardType.CUSTOM -> {}
 
-            KeyboardType.NUMERIC -> {
+            KeyboardType.NUMERIC, KeyboardType.AYAME_NUMERIC -> {
                 mainLayoutBinding?.keyboardView?.setCurrentMode(InputMode.ModeNumber)
             }
         }
@@ -13585,6 +13598,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 KeyboardType.AYAME_ROMAJI -> TenKeyQWERTYMode.TenKeyQWERTYRomaji
                 KeyboardType.CUSTOM -> TenKeyQWERTYMode.Custom
                 KeyboardType.NUMERIC -> TenKeyQWERTYMode.Number
+                KeyboardType.AYAME_NUMERIC -> TenKeyQWERTYMode.Number
             }
             _tenKeyQWERTYMode.update { type }
         }
