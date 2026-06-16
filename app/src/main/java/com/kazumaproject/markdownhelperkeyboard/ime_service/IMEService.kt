@@ -14091,6 +14091,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 ic.deleteSurroundingText(charsToDelete, 0)
                 ic.endBatchEdit()
                 
+                announceText("テキストを消去しました")
                 vibrate()
             }
         }
