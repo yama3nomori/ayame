@@ -910,7 +910,11 @@ class FlickKeyboardView @JvmOverloads constructor(
             }
 
             KeyType.STANDARD_FLICK -> {
-                val flickActionMap = layout.flickKeyMaps[keyData.label]?.firstOrNull()
+                var flickActionMap = layout.flickKeyMaps[keyData.label]?.firstOrNull()
+                // isFlickableがfalseの場合はTAP以外のフリックマップを削除してフリック入力を無効化する
+                if (!keyData.isFlickable && flickActionMap != null) {
+                    flickActionMap = flickActionMap.filterKeys { it == FlickDirection.TAP }
+                }
                 if (flickActionMap != null && keyView is Button) {
 
                     val label = keyData.label
