@@ -2456,18 +2456,10 @@ class FlickKeyboardView @JvmOverloads constructor(
                 targetView?.let {
                     motionTargets[pointerId] = it
 
-                    // ★★★ 修正箇所 ★★★
-                    // システムのイベントをコピーするのではなく、2本指目と同様に
-                    // クリーンなACTION_DOWNイベントを自作する。
-                    val newEvent = MotionEvent.obtain(
-                        event.downTime,    // downTime
-                        event.eventTime,   // eventTime
-                        MotionEvent.ACTION_DOWN, // action
-                        x,                 // x
-                        y,                 // y
-                        event.metaState    // metaState
-                    )
-                    // ★★★ ここまで ★★★
+                    // 元のeventから複製することで、rawX/rawY座標等の属性を正しく保持する
+                    val newEvent = MotionEvent.obtain(event).apply {
+                        setAction(MotionEvent.ACTION_DOWN)
+                    }
 
                     Log.d("FlickKeyboardView MotionEvent.ACTION_DOWN", "$newEvent")
 
@@ -2620,11 +2612,9 @@ class FlickKeyboardView @JvmOverloads constructor(
                         }
                     } else if (newTarget != null) {
                         // ターゲットが変わっていない場合、MOVEを送る
-                        val downTime = pointerDownTime[pId] ?: event.downTime
-                        val moveEvent = MotionEvent.obtain(
-                            downTime, event.eventTime, MotionEvent.ACTION_MOVE,
-                            x, y, event.metaState
-                        )
+                        val moveEvent = MotionEvent.obtain(event).apply {
+                            setAction(MotionEvent.ACTION_MOVE)
+                        }
                         moveEvent.offsetLocation(
                             -newTarget.left.toFloat(),
                             -newTarget.top.toFloat()
@@ -2700,13 +2690,12 @@ class FlickKeyboardView @JvmOverloads constructor(
                 val actionToDispatch = if (action == MotionEvent.ACTION_UP) MotionEvent.ACTION_UP else MotionEvent.ACTION_CANCEL
 
                 motionTargets[pointerId]?.let { target ->
-                    val downTime = pointerDownTime[pointerId]!!
-                    // この指専用のUP/CANCELイベントを自作
-                    val newEvent = MotionEvent.obtain(
-                        downTime, event.eventTime, actionToDispatch, x, y, event.metaState
-                    )
+                    // 元のeventから複製することで、rawX/rawY座標等の属性を正しく保持する
+                    val newEvent = MotionEvent.obtain(event).apply {
+                        setAction(actionToDispatch)
+                    }
 
-                    Log.d("FlickKeyboardView MotionEvent.ACTION_UP", "$downTime $newEvent")
+                    Log.d("FlickKeyboardView MotionEvent.ACTION_UP", "$newEvent")
                     newEvent.offsetLocation(-target.left.toFloat(), -target.top.toFloat())
                     target.dispatchTouchEvent(newEvent)
                     newEvent.recycle()
