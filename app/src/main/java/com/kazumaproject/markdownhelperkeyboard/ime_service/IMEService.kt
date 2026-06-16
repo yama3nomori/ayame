@@ -1054,7 +1054,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         physicalKeyboardFloatingYPosition = 150
         _suggestionViewStatus.update { true }
         appPreference.apply {
-            keyboardOrder = keyboard_order
+            keyboardOrder = keyboard_order + KeyboardType.NUMERIC
             candidateTabOrder = candidate_tab_order
             mozcUTPersonName = mozc_ut_person_names_preference ?: false
             mozcUTPlaces = mozc_ut_places_preference ?: false
@@ -4650,6 +4650,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     KeyboardType.AYAME_TENKEY -> "アヤメテンキー"
                     KeyboardType.AYAME_QWERTY -> "アヤメ英語"
                     KeyboardType.AYAME_ROMAJI -> "アヤメローマ字入力"
+                    KeyboardType.NUMERIC -> "数字専用キーボード"
                 }
                 RowItem.Internal(type = type, title = title)
             }
@@ -4760,6 +4761,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                             }
 
                             KeyboardType.CUSTOM -> { /* 任意 */
+                            }
+
+                            KeyboardType.NUMERIC -> {
+                                mainView.keyboardView.setCurrentMode(InputMode.ModeNumber)
                             }
                         }
 
@@ -5364,6 +5369,16 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     qwertyView.isVisible = false
                     keyboardView.isVisible = false
                 }
+
+                KeyboardType.NUMERIC -> {
+                    customKeyboardMode = KeyboardInputMode.HIRAGANA
+                    customLayoutDefault.isVisible = true
+                    keyboardView.setCurrentMode(InputMode.ModeNumber)
+                    customLayoutDefault.setKeyboard(KeyboardDefaultLayouts.createNumberLayout())
+                    qwertyView.isVisible = false
+                    keyboardView.isVisible = false
+                    _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Number }
+                }
             }
             suggestionRecyclerView.isVisible = true
 
@@ -5377,6 +5392,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 KeyboardType.AYAME_TENKEY -> "アヤメテンキー"
                 KeyboardType.AYAME_QWERTY -> "アヤメ英語"
                 KeyboardType.AYAME_ROMAJI -> "アヤメローマ字入力"
+                KeyboardType.NUMERIC -> "数字専用キーボード"
             }
             announceText(announcement, delayMs = 150)
         }
@@ -5951,6 +5967,16 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     KeyAction.MoveCursorUp -> {}
                     KeyAction.Cancel -> {}
                     KeyAction.VoiceInput -> {}
+                    KeyAction.ReadAloudCurrent -> {}
+                    KeyAction.ReadAloudLine -> {}
+                    KeyAction.ReadAloudAll -> {}
+                    KeyAction.ReadAloudFromCursor -> {}
+                    KeyAction.MoveCursorToStartOfLine -> {}
+                    KeyAction.MoveCursorToEndOfLine -> {}
+                    KeyAction.MoveCursorToPrevLine -> {}
+                    KeyAction.MoveCursorToNextLine -> {}
+                    KeyAction.DeleteLeftWordOrSymbols -> {}
+                    KeyAction.DeleteForward -> {}
                 }
             }
 
@@ -6006,6 +6032,16 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     }
 
                     KeyAction.VoiceInput -> {}
+                    KeyAction.ReadAloudCurrent -> {}
+                    KeyAction.ReadAloudLine -> {}
+                    KeyAction.ReadAloudAll -> {}
+                    KeyAction.ReadAloudFromCursor -> {}
+                    KeyAction.MoveCursorToStartOfLine -> {}
+                    KeyAction.MoveCursorToEndOfLine -> {}
+                    KeyAction.MoveCursorToPrevLine -> {}
+                    KeyAction.MoveCursorToNextLine -> {}
+                    KeyAction.DeleteLeftWordOrSymbols -> {}
+                    KeyAction.DeleteForward -> {}
                 }
             }
 
@@ -6132,6 +6168,16 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     KeyAction.MoveCursorUp -> {}
                     KeyAction.Cancel -> {}
                     KeyAction.VoiceInput -> {}
+                    KeyAction.ReadAloudCurrent -> {}
+                    KeyAction.ReadAloudLine -> {}
+                    KeyAction.ReadAloudAll -> {}
+                    KeyAction.ReadAloudFromCursor -> {}
+                    KeyAction.MoveCursorToStartOfLine -> {}
+                    KeyAction.MoveCursorToEndOfLine -> {}
+                    KeyAction.MoveCursorToPrevLine -> {}
+                    KeyAction.MoveCursorToNextLine -> {}
+                    KeyAction.DeleteLeftWordOrSymbols -> {}
+                    KeyAction.DeleteForward -> {}
                 }
             }
 
@@ -6268,6 +6314,16 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     }
 
                     KeyAction.VoiceInput -> {}
+                    KeyAction.ReadAloudCurrent -> {}
+                    KeyAction.ReadAloudLine -> {}
+                    KeyAction.ReadAloudAll -> {}
+                    KeyAction.ReadAloudFromCursor -> {}
+                    KeyAction.MoveCursorToStartOfLine -> {}
+                    KeyAction.MoveCursorToEndOfLine -> {}
+                    KeyAction.MoveCursorToPrevLine -> {}
+                    KeyAction.MoveCursorToNextLine -> {}
+                    KeyAction.DeleteLeftWordOrSymbols -> {}
+                    KeyAction.DeleteForward -> {}
                 }
             }
 
@@ -6599,6 +6655,36 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     KeyAction.Cancel -> {}
                     KeyAction.VoiceInput -> {
                         startVoiceInput(mainView)
+                    }
+                    KeyAction.ReadAloudCurrent -> {
+                        readAloudCurrentText()
+                    }
+                    KeyAction.ReadAloudLine -> {
+                        readAloudCurrentLineDetailed()
+                    }
+                    KeyAction.ReadAloudAll -> {
+                        readAloudFullText()
+                    }
+                    KeyAction.ReadAloudFromCursor -> {
+                        readAloudFromCursorToEnd()
+                    }
+                    KeyAction.MoveCursorToStartOfLine -> {
+                        moveCursorToStartOfLine()
+                    }
+                    KeyAction.MoveCursorToEndOfLine -> {
+                        moveCursorToEndOfLine()
+                    }
+                    KeyAction.MoveCursorToPrevLine -> {
+                        moveCursorToPrevLineAndReadAloud()
+                    }
+                    KeyAction.MoveCursorToNextLine -> {
+                        moveCursorToNextLineAndReadAloud()
+                    }
+                    KeyAction.DeleteLeftWordOrSymbols -> {
+                        handleDeleteLeftDragOrFlick(inputString.value)
+                    }
+                    KeyAction.DeleteForward -> {
+                        handleDeleteRightDragOrFlick()
                     }
                 }
             }
@@ -7770,6 +7856,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             inputString.collectLatest { string ->
                 val isComposing = string.isNotEmpty()
                 mainView.keyboardView.isInputComposing = isComposing
+                mainView.customLayoutDefault.isInputComposing = isComposing
                 floatingKeyboardBinding?.keyboardViewFloating?.isInputComposing = isComposing
                 processInputString(string, mainView)
             }
@@ -9089,6 +9176,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 KeyboardType.ROMAJI -> _tenKeyQWERTYMode.update { TenKeyQWERTYMode.TenKeyQWERTYRomaji }
                 KeyboardType.AYAME_ROMAJI -> _tenKeyQWERTYMode.update { TenKeyQWERTYMode.TenKeyQWERTYRomaji }
                 KeyboardType.CUSTOM -> _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Custom }
+                KeyboardType.NUMERIC -> _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Number }
             }
         }
     }
@@ -13472,6 +13560,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             }
 
             KeyboardType.CUSTOM -> {}
+
+            KeyboardType.NUMERIC -> {
+                mainLayoutBinding?.keyboardView?.setCurrentMode(InputMode.ModeNumber)
+            }
         }
 
         // 統一された showKeyboard 関数を呼び出す
@@ -13492,6 +13584,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 KeyboardType.ROMAJI -> TenKeyQWERTYMode.TenKeyQWERTYRomaji
                 KeyboardType.AYAME_ROMAJI -> TenKeyQWERTYMode.TenKeyQWERTYRomaji
                 KeyboardType.CUSTOM -> TenKeyQWERTYMode.Custom
+                KeyboardType.NUMERIC -> TenKeyQWERTYMode.Number
             }
             _tenKeyQWERTYMode.update { type }
         }

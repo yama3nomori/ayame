@@ -59,6 +59,16 @@ sealed class KeyAction {
     data object ToggleKatakana : KeyAction()    // カタカナ切り替え
 
     data object VoiceInput : KeyAction()
+    data object ReadAloudCurrent : KeyAction()
+    data object ReadAloudLine : KeyAction()
+    data object ReadAloudAll : KeyAction()
+    data object ReadAloudFromCursor : KeyAction()
+    data object MoveCursorToStartOfLine : KeyAction()
+    data object MoveCursorToEndOfLine : KeyAction()
+    data object MoveCursorToPrevLine : KeyAction()
+    data object MoveCursorToNextLine : KeyAction()
+    data object DeleteLeftWordOrSymbols : KeyAction()
+    data object DeleteForward : KeyAction()
 }
 
 data class KeyData(

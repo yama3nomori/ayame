@@ -3600,57 +3600,81 @@ object KeyboardDefaultLayouts {
 
     fun createNumberLayout(): KeyboardLayout {
         val keys = listOf(
+            // 左列 (column = 0)
             KeyData(
-                label = "1",
+                label = "読み上げ",
                 row = 0,
                 column = 0,
-                isFlickable = false,
-                keyType = KeyType.STANDARD_FLICK
+                isFlickable = true,
+                action = KeyAction.ReadAloudCurrent,
+                isSpecialKey = true,
+                drawableResId = null,
+                keyType = KeyType.CIRCULAR_FLICK,
+                keyId = "read_aloud_key"
             ),
             KeyData(
-                label = "4",
+                label = "-",
                 row = 1,
                 column = 0,
                 isFlickable = false,
-                keyType = KeyType.STANDARD_FLICK
+                keyType = KeyType.STANDARD_FLICK,
+                keyId = "minus_key"
             ),
             KeyData(
-                label = "7",
+                label = "#",
                 row = 2,
                 column = 0,
                 isFlickable = false,
-                keyType = KeyType.STANDARD_FLICK
+                keyType = KeyType.STANDARD_FLICK,
+                keyId = "sharp_key"
             ),
             KeyData(
-                label = ",",
+                label = "CursorMoveLeft",
                 row = 3,
                 column = 0,
                 isFlickable = false,
-                keyType = KeyType.STANDARD_FLICK
-            ),
-            KeyData(
-                "2", 0, 1, false, keyType = KeyType.STANDARD_FLICK
-            ),
-            KeyData(
-                "3", 0, 2, false, keyType = KeyType.STANDARD_FLICK
-            ),
-            KeyData(
-                label = "",
-                row = 0,
-                column = 3,
-                isFlickable = false,
-                action = KeyAction.SwitchToNextIme,
+                action = KeyAction.MoveCursorLeft,
                 isSpecialKey = true,
-                drawableResId = com.kazumaproject.core.R.drawable.language_24dp,
-                keyType = KeyType.NORMAL,
-                keyId = "switch_next_ime"
+                drawableResId = com.kazumaproject.core.R.drawable.baseline_arrow_left_24,
+                keyType = KeyType.CROSS_FLICK,
+                keyId = "move_cursor_left"
             ),
-            KeyData("5", 1, 1, false, keyType = KeyType.STANDARD_FLICK),
-            KeyData("6", 1, 2, false, keyType = KeyType.STANDARD_FLICK),
+
+            // 中列1 (column = 1)
+            KeyData("1", 0, 1, false, keyType = KeyType.STANDARD_FLICK),
+            KeyData("4", 1, 1, false, keyType = KeyType.STANDARD_FLICK),
+            KeyData("7", 2, 1, false, keyType = KeyType.STANDARD_FLICK),
+            KeyData(",", 3, 1, false, keyType = KeyType.STANDARD_FLICK),
+
+            // 中列2 (column = 2)
+            KeyData("2", 0, 2, false, keyType = KeyType.STANDARD_FLICK),
+            KeyData("5", 1, 2, false, keyType = KeyType.STANDARD_FLICK),
+            KeyData("8", 2, 2, false, keyType = KeyType.STANDARD_FLICK),
+            KeyData("0", 3, 2, false, keyType = KeyType.STANDARD_FLICK),
+
+            // 中列3 (column = 3)
+            KeyData("3", 0, 3, false, keyType = KeyType.STANDARD_FLICK),
+            KeyData("6", 1, 3, false, keyType = KeyType.STANDARD_FLICK),
+            KeyData("9", 2, 3, false, keyType = KeyType.STANDARD_FLICK),
+            KeyData(".", 3, 3, false, keyType = KeyType.STANDARD_FLICK),
+
+            // 右列 (column = 4)
+            KeyData(
+                "Del",
+                0,
+                4,
+                false,
+                KeyAction.Delete,
+                isSpecialKey = true,
+                rowSpan = 1,
+                drawableResId = com.kazumaproject.core.R.drawable.backspace_24px,
+                keyType = KeyType.CROSS_FLICK,
+                keyId = "delete_key"
+            ),
             KeyData(
                 "",
                 1,
-                3,
+                4,
                 false,
                 spaceConvertStates[0].action,
                 isSpecialKey = true,
@@ -3658,25 +3682,10 @@ object KeyboardDefaultLayouts {
                 rowSpan = 1,
                 keyType = KeyType.NORMAL
             ),
-            KeyData("8", 2, 1, false, keyType = KeyType.STANDARD_FLICK),
-            KeyData("9", 2, 2, false, keyType = KeyType.STANDARD_FLICK),
-            KeyData(
-                "",
-                2,
-                3,
-                false,
-                KeyAction.Delete,
-                isSpecialKey = true,
-                rowSpan = 1,
-                drawableResId = com.kazumaproject.core.R.drawable.backspace_24px,
-                keyType = KeyType.NORMAL
-            ),
-            KeyData("0", 3, 1, false, keyType = KeyType.STANDARD_FLICK),
-            KeyData(".", 3, 2, false, keyType = KeyType.STANDARD_FLICK),
             KeyData(
                 label = enterKeyStates[0].label ?: "",
-                row = 3,
-                column = 3,
+                row = 2,
+                column = 4,
                 isFlickable = false,
                 action = enterKeyStates[0].action,
                 rowSpan = 1,
@@ -3684,6 +3693,17 @@ object KeyboardDefaultLayouts {
                 drawableResId = com.kazumaproject.core.R.drawable.baseline_keyboard_return_24,
                 keyId = "enter_key",
                 dynamicStates = enterKeyStates,
+            ),
+            KeyData(
+                label = "CursorMoveRight",
+                row = 3,
+                column = 4,
+                isFlickable = false,
+                action = KeyAction.MoveCursorRight,
+                isSpecialKey = true,
+                drawableResId = com.kazumaproject.core.R.drawable.baseline_arrow_right_24,
+                keyType = KeyType.CROSS_FLICK,
+                keyId = "move_cursor_right"
             )
         )
 
@@ -3715,10 +3735,53 @@ object KeyboardDefaultLayouts {
                     FlickDirection.UP_RIGHT_FAR to FlickAction.Input(")"),
                     FlickDirection.DOWN to FlickAction.Input("="),
                 )
+            ),
+            "read_aloud_key" to listOf(
+                mapOf(
+                    FlickDirection.TAP to FlickAction.Action(KeyAction.ReadAloudCurrent),
+                    FlickDirection.UP_LEFT_FAR to FlickAction.Action(KeyAction.ReadAloudLine),
+                    FlickDirection.UP to FlickAction.Action(KeyAction.ReadAloudAll),
+                    FlickDirection.UP_RIGHT_FAR to FlickAction.Action(KeyAction.ReadAloudFromCursor)
+                )
+            ),
+            "CursorMoveLeft" to listOf(
+                mapOf(
+                    FlickDirection.TAP to FlickAction.Action(KeyAction.MoveCursorLeft),
+                    FlickDirection.UP_LEFT to FlickAction.Action(KeyAction.MoveCursorToStartOfLine),
+                    FlickDirection.UP to FlickAction.Action(KeyAction.MoveCursorToPrevLine),
+                    FlickDirection.UP_RIGHT to FlickAction.Action(KeyAction.MoveCursorToEndOfLine),
+                    FlickDirection.DOWN to FlickAction.Action(KeyAction.MoveCursorToNextLine)
+                )
+            ),
+            "CursorMoveRight" to listOf(
+                mapOf(
+                    FlickDirection.TAP to FlickAction.Action(KeyAction.MoveCursorRight),
+                    FlickDirection.UP_LEFT to FlickAction.Action(KeyAction.MoveCursorToStartOfLine),
+                    FlickDirection.UP to FlickAction.Action(KeyAction.MoveCursorToPrevLine),
+                    FlickDirection.UP_RIGHT to FlickAction.Action(KeyAction.MoveCursorToEndOfLine),
+                    FlickDirection.DOWN to FlickAction.Action(KeyAction.MoveCursorToNextLine)
+                )
+            ),
+            "Del" to listOf(
+                mapOf(
+                    FlickDirection.TAP to FlickAction.Action(KeyAction.Delete),
+                    FlickDirection.UP_LEFT to FlickAction.Action(KeyAction.DeleteLeftWordOrSymbols),
+                    FlickDirection.UP_RIGHT to FlickAction.Action(KeyAction.DeleteForward)
+                )
+            ),
+            "-" to listOf(
+                mapOf(
+                    FlickDirection.TAP to FlickAction.Input("-")
+                )
+            ),
+            "#" to listOf(
+                mapOf(
+                    FlickDirection.TAP to FlickAction.Input("#")
+                )
             )
         )
 
-        return KeyboardLayout(keys, flickMaps, 4, 4)
+        return KeyboardLayout(keys, flickMaps, 5, 4)
     }
 
     fun createFlickKanaTemplateLayout(

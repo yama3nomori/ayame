@@ -87,6 +87,7 @@ class KeyboardSelectionAdapter(
             KeyboardType.AYAME_TENKEY -> "アヤメテンキー"
             KeyboardType.AYAME_QWERTY -> "アヤメ英語(QWERTY)"
             KeyboardType.AYAME_ROMAJI -> "アヤメ日本語 - ローマ字"
+            KeyboardType.NUMERIC -> "数字専用キーボード"
         }
     }
 }

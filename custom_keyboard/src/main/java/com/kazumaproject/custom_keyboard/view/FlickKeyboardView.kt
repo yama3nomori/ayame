@@ -129,6 +129,54 @@ class FlickKeyboardView @JvmOverloads constructor(
     
     // TalkBack対応: onHoverEventから呼ばれたかどうかを示すフラグ
     private var isCalledFromHoverEvent = false
+
+    // 入力中フラグ（IMEServiceからセットされる）
+    var isInputComposing = false
+
+    // TalkBack時のホバードラッグ追跡変数
+    // カーソル左
+    private var isHoverDraggingLeftCursor = false
+    private var hoverLeftCursorDragStartX = 0f
+    private var hoverLeftCursorDragEndX = 0f
+    private var hoverLeftCursorDragStartY = 0f
+    private var hoverLeftCursorDragEndY = 0f
+    private var hoverLeftCursorDragTopY = 0f
+    private var isLeftLineStartAnnounced = false
+    private var isLeftLineEndAnnounced = false
+    private var isLeftLineUpAnnounced = false
+    private var isLeftLineDownAnnounced = false
+    private var leftHoverSlideInEntryTime = 0L
+    private var leftHoverSlideInEntryX = 0f
+    private var leftHoverSlideInEntryY = 0f
+
+    // カーソル右
+    private var isHoverDraggingRightCursor = false
+    private var hoverRightCursorDragStartX = 0f
+    private var hoverRightCursorDragEndX = 0f
+    private var hoverRightCursorDragStartY = 0f
+    private var hoverRightCursorDragEndY = 0f
+    private var hoverRightCursorDragTopY = 0f
+    private var isLineStartAnnounced = false
+    private var isLineEndAnnounced = false
+    private var isLineUpAnnounced = false
+    private var isLineDownAnnounced = false
+    private var hoverSlideInEntryTime = 0L
+    private var hoverSlideInEntryX = 0f
+    private var hoverSlideInEntryY = 0f
+
+    // 削除キー
+    private var isHoverDraggingDeleteKey = false
+    private var hoverDeleteKeyDragStartX = 0f
+    private var hoverDeleteKeyDragEndX = 0f
+    private var hoverDeleteKeyDragStartY = 0f
+    private var hoverDeleteKeyDragEndY = 0f
+    private var hoverDeleteKeyDragTopY = 0f
+    private var isDeleteLeftAnnounced = false
+    private var isDeleteRightAnnounced = false
+    private var isDeleteUpAnnounced = false
+    private var deleteHoverSlideInEntryTime = 0L
+    private var deleteHoverSlideInEntryX = 0f
+    private var deleteHoverSlideInEntryY = 0f
     
     // デバッグ用: 最初の1回だけTalkBackの状態を通知
     // private var hasAnnouncedTalkBackStatus = false
@@ -1408,6 +1456,50 @@ class FlickKeyboardView @JvmOverloads constructor(
                 // クラス名を空にし、役割記述をゼロ幅スペースにすることで「ボタン」の読み込みを完全に阻止する
                 info.className = ""
                 info.roleDescription = "\u200B"
+
+                if (isTouchExplorationEnabled()) {
+                    // クラス名をButtonにし、Clickable, LongClickableを有効化（TenKey.ktと同様）
+                    info.className = "android.widget.Button"
+                    info.isClickable = true
+                    info.isLongClickable = true
+
+                    val flickActionMap = currentLayout?.flickKeyMaps?.get(keyData.label)?.firstOrNull()
+                    if (flickActionMap != null) {
+                        flickActionMap.forEach { (direction, flickAction) ->
+                            if (direction != FlickDirection.TAP) {
+                                val actionId = getAccessibilityActionId(direction)
+                                val actionLabel = getAccessibilityActionLabel(direction, flickAction)
+                                if (actionId != null && actionLabel != null) {
+                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(actionId, actionLabel))
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    info.isClickable = false
+                    info.isLongClickable = false
+                    info.removeAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_CLICK)
+                    info.removeAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_LONG_CLICK)
+                }
+            }
+
+            override fun performAccessibilityAction(
+                host: View,
+                action: Int,
+                args: android.os.Bundle?
+            ): Boolean {
+                if (isTouchExplorationEnabled()) {
+                    val direction = getFlickDirectionFromActionId(action)
+                    if (direction != null) {
+                        val flickActionMap = currentLayout?.flickKeyMaps?.get(keyData.label)?.firstOrNull()
+                        val flickAction = flickActionMap?.get(direction)
+                        if (flickAction != null) {
+                            triggerFlickAction(flickAction, view)
+                            return true
+                        }
+                    }
+                }
+                return super.performAccessibilityAction(host, action, args)
             }
         })
 
@@ -1525,9 +1617,17 @@ class FlickKeyboardView @JvmOverloads constructor(
             val x = event.x
             val y = event.y
             val targetView = findTargetView(x, y)
+            val keyInfo = targetView?.let { findKeyInfoForView(it) }
+            val keyLabel = keyInfo?.keyData?.label
+
+            // screenX, screenY の計算（画面上の絶対座標、TenKeyと同じ）
+            val location = IntArray(2)
+            this.getLocationOnScreen(location)
+            val screenX = x + location[0]
+            val screenY = y + location[1]
 
             when (action) {
-                MotionEvent.ACTION_HOVER_ENTER, MotionEvent.ACTION_HOVER_MOVE -> {
+                MotionEvent.ACTION_HOVER_ENTER -> {
                     if (targetView != lastHoverTarget) {
                         lastHoverTarget = targetView
                         targetView?.let { view ->
@@ -1539,17 +1639,536 @@ class FlickKeyboardView @JvmOverloads constructor(
                             view.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
                         }
                     }
+
+                    // ドラッグ状態の初期化
+                    if (keyLabel == "CursorMoveRight") {
+                        isHoverDraggingRightCursor = true
+                        hoverRightCursorDragStartX = screenX
+                        hoverRightCursorDragEndX = screenX
+                        hoverRightCursorDragStartY = screenY
+                        hoverRightCursorDragEndY = screenY
+                        hoverRightCursorDragTopY = screenY
+                        isLineStartAnnounced = false
+                        isLineEndAnnounced = false
+                        isLineUpAnnounced = false
+                        isLineDownAnnounced = false
+                        isHoverDraggingLeftCursor = false
+                        isHoverDraggingDeleteKey = false
+                    } else if (keyLabel == "CursorMoveLeft") {
+                        isHoverDraggingLeftCursor = true
+                        hoverLeftCursorDragStartX = screenX
+                        hoverLeftCursorDragEndX = screenX
+                        hoverLeftCursorDragStartY = screenY
+                        hoverLeftCursorDragEndY = screenY
+                        hoverLeftCursorDragTopY = screenY
+                        isLeftLineStartAnnounced = false
+                        isLeftLineEndAnnounced = false
+                        isLeftLineUpAnnounced = false
+                        isLeftLineDownAnnounced = false
+                        isHoverDraggingRightCursor = false
+                        isHoverDraggingDeleteKey = false
+                    } else if (keyLabel == "Del") {
+                        isHoverDraggingDeleteKey = true
+                        hoverDeleteKeyDragStartX = screenX
+                        hoverDeleteKeyDragEndX = screenX
+                        hoverDeleteKeyDragStartY = screenY
+                        hoverDeleteKeyDragEndY = screenY
+                        hoverDeleteKeyDragTopY = screenY
+                        isDeleteLeftAnnounced = false
+                        isDeleteRightAnnounced = false
+                        isDeleteUpAnnounced = false
+                        isHoverDraggingRightCursor = false
+                        isHoverDraggingLeftCursor = false
+                    } else {
+                        isHoverDraggingRightCursor = false
+                        isLineStartAnnounced = false
+                        isLineEndAnnounced = false
+                        isLineUpAnnounced = false
+                        isLineDownAnnounced = false
+                        isHoverDraggingLeftCursor = false
+                        isLeftLineStartAnnounced = false
+                        isLeftLineEndAnnounced = false
+                        isLeftLineUpAnnounced = false
+                        isLeftLineDownAnnounced = false
+                        isHoverDraggingDeleteKey = false
+                        isDeleteLeftAnnounced = false
+                        isDeleteRightAnnounced = false
+                        isDeleteUpAnnounced = false
+                    }
                 }
+
+                MotionEvent.ACTION_HOVER_MOVE -> {
+                    // スライドイン / 静止状態からのドラッグ開始処理 (TenKey.kt準拠)
+                    if (keyLabel == "CursorMoveRight") {
+                        if (!isHoverDraggingRightCursor) {
+                            if (hoverSlideInEntryTime == 0L) {
+                                hoverSlideInEntryTime = System.currentTimeMillis()
+                                hoverSlideInEntryX = screenX
+                                hoverSlideInEntryY = screenY
+                            } else {
+                                val movementThreshold = 10f
+                                val dx = screenX - hoverSlideInEntryX
+                                val dy = screenY - hoverSlideInEntryY
+                                if (abs(dx) > movementThreshold || abs(dy) > movementThreshold) {
+                                    hoverSlideInEntryTime = System.currentTimeMillis()
+                                    hoverSlideInEntryX = screenX
+                                    hoverSlideInEntryY = screenY
+                                } else {
+                                    val elapsed = System.currentTimeMillis() - hoverSlideInEntryTime
+                                    if (elapsed >= 150L) {
+                                        isHoverDraggingRightCursor = true
+                                        hoverRightCursorDragStartX = screenX
+                                        hoverRightCursorDragEndX = screenX
+                                        hoverRightCursorDragStartY = screenY
+                                        hoverRightCursorDragEndY = screenY
+                                        hoverRightCursorDragTopY = screenY
+                                        isLineStartAnnounced = false
+                                        isLineEndAnnounced = false
+                                        isLineUpAnnounced = false
+                                        isLineDownAnnounced = false
+                                        hoverSlideInEntryTime = 0L
+                                        Log.d("FlickKeyboardViewDrag", "ACTION_HOVER_MOVE: Slid onto CursorMoveRight (Hover) and remained stationary. Starting drag.")
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        hoverSlideInEntryTime = 0L
+                        if (isHoverDraggingRightCursor) {
+                            isHoverDraggingRightCursor = false
+                            isLineStartAnnounced = false
+                            isLineEndAnnounced = false
+                            isLineUpAnnounced = false
+                            isLineDownAnnounced = false
+                        }
+                    }
+
+                    if (keyLabel == "CursorMoveLeft") {
+                        if (!isHoverDraggingLeftCursor) {
+                            if (leftHoverSlideInEntryTime == 0L) {
+                                leftHoverSlideInEntryTime = System.currentTimeMillis()
+                                leftHoverSlideInEntryX = screenX
+                                leftHoverSlideInEntryY = screenY
+                            } else {
+                                val movementThreshold = 10f
+                                val dx = screenX - leftHoverSlideInEntryX
+                                val dy = screenY - leftHoverSlideInEntryY
+                                if (abs(dx) > movementThreshold || abs(dy) > movementThreshold) {
+                                    leftHoverSlideInEntryTime = System.currentTimeMillis()
+                                    leftHoverSlideInEntryX = screenX
+                                    leftHoverSlideInEntryY = screenY
+                                } else {
+                                    val elapsed = System.currentTimeMillis() - leftHoverSlideInEntryTime
+                                    if (elapsed >= 150L) {
+                                        isHoverDraggingLeftCursor = true
+                                        hoverLeftCursorDragStartX = screenX
+                                        hoverLeftCursorDragEndX = screenX
+                                        hoverLeftCursorDragStartY = screenY
+                                        hoverLeftCursorDragEndY = screenY
+                                        hoverLeftCursorDragTopY = screenY
+                                        isLeftLineStartAnnounced = false
+                                        isLeftLineEndAnnounced = false
+                                        isLeftLineUpAnnounced = false
+                                        isLeftLineDownAnnounced = false
+                                        leftHoverSlideInEntryTime = 0L
+                                        Log.d("FlickKeyboardViewDrag", "ACTION_HOVER_MOVE: Slid onto CursorMoveLeft (Hover) and remained stationary. Starting drag.")
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        leftHoverSlideInEntryTime = 0L
+                        if (isHoverDraggingLeftCursor) {
+                            isHoverDraggingLeftCursor = false
+                            isLeftLineStartAnnounced = false
+                            isLeftLineEndAnnounced = false
+                            isLeftLineUpAnnounced = false
+                            isLeftLineDownAnnounced = false
+                        }
+                    }
+
+                    if (keyLabel == "Del") {
+                        if (!isHoverDraggingDeleteKey) {
+                            if (deleteHoverSlideInEntryTime == 0L) {
+                                deleteHoverSlideInEntryTime = System.currentTimeMillis()
+                                deleteHoverSlideInEntryX = screenX
+                                deleteHoverSlideInEntryY = screenY
+                            } else {
+                                val movementThreshold = 10f
+                                val dx = screenX - deleteHoverSlideInEntryX
+                                val dy = screenY - deleteHoverSlideInEntryY
+                                if (abs(dx) > movementThreshold || abs(dy) > movementThreshold) {
+                                    deleteHoverSlideInEntryTime = System.currentTimeMillis()
+                                    deleteHoverSlideInEntryX = screenX
+                                    deleteHoverSlideInEntryY = screenY
+                                } else {
+                                    val elapsed = System.currentTimeMillis() - deleteHoverSlideInEntryTime
+                                    if (elapsed >= 150L) {
+                                        isHoverDraggingDeleteKey = true
+                                        hoverDeleteKeyDragStartX = screenX
+                                        hoverDeleteKeyDragEndX = screenX
+                                        hoverDeleteKeyDragStartY = screenY
+                                        hoverDeleteKeyDragEndY = screenY
+                                        hoverDeleteKeyDragTopY = screenY
+                                        isDeleteLeftAnnounced = false
+                                        isDeleteRightAnnounced = false
+                                        isDeleteUpAnnounced = false
+                                        deleteHoverSlideInEntryTime = 0L
+                                        Log.d("FlickKeyboardViewDrag", "ACTION_HOVER_MOVE: Slid onto Del (Hover) and remained stationary. Starting drag.")
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        deleteHoverSlideInEntryTime = 0L
+                        if (isHoverDraggingDeleteKey) {
+                            isHoverDraggingDeleteKey = false
+                            isDeleteLeftAnnounced = false
+                            isDeleteRightAnnounced = false
+                            isDeleteUpAnnounced = false
+                        }
+                    }
+
+                    // ピーク座標とドラッグ方向のアナウンス処理
+                    if (isHoverDraggingRightCursor) {
+                        if (!isLineStartAnnounced && !isLineEndAnnounced && !isLineUpAnnounced && !isLineDownAnnounced) {
+                            if (screenX > hoverRightCursorDragStartX) hoverRightCursorDragStartX = screenX
+                            if (screenX < hoverRightCursorDragEndX) hoverRightCursorDragEndX = screenX
+                            if (screenY > hoverRightCursorDragEndY) hoverRightCursorDragEndY = screenY
+                            if (screenY < hoverRightCursorDragTopY) hoverRightCursorDragTopY = screenY
+                        }
+
+                        val dxStart = screenX - hoverRightCursorDragStartX
+                        val dxEnd = screenX - hoverRightCursorDragEndX
+                        val dyUp = screenY - hoverRightCursorDragEndY
+                        val dyDown = screenY - hoverRightCursorDragTopY
+
+                        val threshold = 35f
+                        val cancelLeftThreshold = -150f
+                        val cancelRightThreshold = 150f
+                        val cancelUpThreshold = -150f
+                        val cancelDownThreshold = 150f
+                        val cancelXThreshold = 60f
+                        val cancelYThreshold = 60f
+
+                        if (dxStart < -threshold && dxStart >= cancelLeftThreshold && abs(screenY - hoverRightCursorDragStartY) <= cancelYThreshold) {
+                            if (!isLineStartAnnounced && !isLineEndAnnounced && !isLineUpAnnounced && !isLineDownAnnounced) {
+                                isLineStartAnnounced = true
+                                announceForAccessibility("行頭")
+                                android.widget.Toast.makeText(context, "行頭", android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else if (dxEnd > threshold && dxEnd <= cancelRightThreshold && abs(screenY - hoverRightCursorDragStartY) <= cancelYThreshold) {
+                            if (!isLineStartAnnounced && !isLineEndAnnounced && !isLineUpAnnounced && !isLineDownAnnounced) {
+                                isLineEndAnnounced = true
+                                announceForAccessibility("行末")
+                                android.widget.Toast.makeText(context, "行末", android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else if (dyUp < -threshold && dyUp >= cancelUpThreshold && abs(screenX - hoverRightCursorDragStartX) <= cancelXThreshold) {
+                            if (!isLineStartAnnounced && !isLineEndAnnounced && !isLineUpAnnounced && !isLineDownAnnounced) {
+                                isLineUpAnnounced = true
+                                announceForAccessibility("上カーソル")
+                                android.widget.Toast.makeText(context, "上カーソル", android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else if (dyDown > threshold && dyDown <= cancelDownThreshold && abs(screenX - hoverRightCursorDragStartX) <= cancelXThreshold) {
+                            if (!isLineStartAnnounced && !isLineEndAnnounced && !isLineUpAnnounced && !isLineDownAnnounced) {
+                                isLineDownAnnounced = true
+                                announceForAccessibility("下カーソル")
+                                android.widget.Toast.makeText(context, "下カーソル", android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else {
+                            val shouldCancel = if (isLineStartAnnounced) {
+                                (dxStart >= -threshold / 2f) || (dxStart < cancelLeftThreshold) || (abs(screenY - hoverRightCursorDragStartY) > cancelYThreshold)
+                            } else if (isLineEndAnnounced) {
+                                (dxEnd <= threshold / 2f) || (dxEnd > cancelRightThreshold) || (abs(screenY - hoverRightCursorDragStartY) > cancelYThreshold)
+                            } else if (isLineUpAnnounced) {
+                                (dyUp >= -threshold / 2f) || (dyUp < cancelUpThreshold) || (abs(screenX - hoverRightCursorDragStartX) > cancelXThreshold)
+                            } else if (isLineDownAnnounced) {
+                                (dyDown <= threshold / 2f) || (dyDown > cancelDownThreshold) || (abs(screenX - hoverRightCursorDragStartX) > cancelXThreshold)
+                            } else false
+
+                            if (shouldCancel) {
+                                isLineStartAnnounced = false
+                                isLineEndAnnounced = false
+                                isLineUpAnnounced = false
+                                isLineDownAnnounced = false
+                                isHoverDraggingRightCursor = false
+                            }
+                        }
+                    }
+
+                    if (isHoverDraggingLeftCursor) {
+                        if (!isLeftLineStartAnnounced && !isLeftLineEndAnnounced && !isLeftLineUpAnnounced && !isLeftLineDownAnnounced) {
+                            if (screenX > hoverLeftCursorDragStartX) hoverLeftCursorDragStartX = screenX
+                            if (screenX < hoverLeftCursorDragEndX) hoverLeftCursorDragEndX = screenX
+                            if (screenY > hoverLeftCursorDragEndY) hoverLeftCursorDragEndY = screenY
+                            if (screenY < hoverLeftCursorDragTopY) hoverLeftCursorDragTopY = screenY
+                        }
+
+                        val dxStart = screenX - hoverLeftCursorDragStartX
+                        val dxEnd = screenX - hoverLeftCursorDragEndX
+                        val dyUp = screenY - hoverLeftCursorDragEndY
+                        val dyDown = screenY - hoverLeftCursorDragTopY
+
+                        val threshold = 35f
+                        val cancelLeftThreshold = -150f
+                        val cancelRightThreshold = 150f
+                        val cancelUpThreshold = -150f
+                        val cancelDownThreshold = 150f
+                        val cancelXThreshold = 60f
+                        val cancelYThreshold = 60f
+
+                        if (dxStart < -threshold && dxStart >= cancelLeftThreshold && abs(screenY - hoverLeftCursorDragStartY) <= cancelYThreshold) {
+                            if (!isLeftLineStartAnnounced && !isLeftLineEndAnnounced && !isLeftLineUpAnnounced && !isLeftLineDownAnnounced) {
+                                isLeftLineStartAnnounced = true
+                                announceForAccessibility("行頭")
+                                android.widget.Toast.makeText(context, "行頭", android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else if (dxEnd > threshold && dxEnd <= cancelRightThreshold && abs(screenY - hoverLeftCursorDragStartY) <= cancelYThreshold) {
+                            if (!isLeftLineStartAnnounced && !isLeftLineEndAnnounced && !isLeftLineUpAnnounced && !isLeftLineDownAnnounced) {
+                                isLeftLineEndAnnounced = true
+                                announceForAccessibility("行末")
+                                android.widget.Toast.makeText(context, "行末", android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else if (dyUp < -threshold && dyUp >= cancelUpThreshold && abs(screenX - hoverLeftCursorDragStartX) <= cancelXThreshold) {
+                            if (!isLeftLineStartAnnounced && !isLeftLineEndAnnounced && !isLeftLineUpAnnounced && !isLeftLineDownAnnounced) {
+                                isLeftLineUpAnnounced = true
+                                announceForAccessibility("上カーソル")
+                                android.widget.Toast.makeText(context, "上カーソル", android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else if (dyDown > threshold && dyDown <= cancelDownThreshold && abs(screenX - hoverLeftCursorDragStartX) <= cancelXThreshold) {
+                            if (!isLeftLineStartAnnounced && !isLeftLineEndAnnounced && !isLeftLineUpAnnounced && !isLeftLineDownAnnounced) {
+                                isLeftLineDownAnnounced = true
+                                announceForAccessibility("下カーソル")
+                                android.widget.Toast.makeText(context, "下カーソル", android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else {
+                            val shouldCancel = if (isLeftLineStartAnnounced) {
+                                (dxStart >= -threshold / 2f) || (dxStart < cancelLeftThreshold) || (abs(screenY - hoverLeftCursorDragStartY) > cancelYThreshold)
+                            } else if (isLeftLineEndAnnounced) {
+                                (dxEnd <= threshold / 2f) || (dxEnd > cancelRightThreshold) || (abs(screenY - hoverLeftCursorDragStartY) > cancelYThreshold)
+                            } else if (isLeftLineUpAnnounced) {
+                                (dyUp >= -threshold / 2f) || (dyUp < cancelUpThreshold) || (abs(screenX - hoverLeftCursorDragStartX) > cancelXThreshold)
+                            } else if (isLeftLineDownAnnounced) {
+                                (dyDown <= threshold / 2f) || (dyDown > cancelDownThreshold) || (abs(screenX - hoverLeftCursorDragStartX) > cancelXThreshold)
+                            } else false
+
+                            if (shouldCancel) {
+                                isLeftLineStartAnnounced = false
+                                isLeftLineEndAnnounced = false
+                                isLeftLineUpAnnounced = false
+                                isLeftLineDownAnnounced = false
+                                isHoverDraggingLeftCursor = false
+                            }
+                        }
+                    }
+
+                    if (isHoverDraggingDeleteKey) {
+                        if (!isDeleteLeftAnnounced) {
+                            if (screenX < hoverDeleteKeyDragEndX) hoverDeleteKeyDragEndX = screenX
+                        }
+
+                        val dxStart = screenX - hoverDeleteKeyDragStartX
+                        val threshold = 35f
+                        val cancelLeftThreshold = -150f
+                        val cancelRightThreshold = 150f
+                        val cancelYThreshold = 60f
+
+                        if (dxStart < -threshold && dxStart >= cancelLeftThreshold && abs(screenY - hoverDeleteKeyDragStartY) <= cancelYThreshold) {
+                            if (!isDeleteLeftAnnounced && !isDeleteRightAnnounced) {
+                                isDeleteLeftAnnounced = true
+                                val annText = if (isInputComposing) "一括削除" else "行頭まで削除"
+                                announceForAccessibility(annText)
+                                android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else if (dxStart > threshold && dxStart <= cancelRightThreshold && abs(screenY - hoverDeleteKeyDragStartY) <= cancelYThreshold) {
+                            if (!isDeleteRightAnnounced && !isDeleteLeftAnnounced) {
+                                isDeleteRightAnnounced = true
+                                val annText = "行末まで削除"
+                                announceForAccessibility(annText)
+                                android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else {
+                            val shouldCancel = if (isDeleteLeftAnnounced) {
+                                (dxStart >= -threshold / 2f) || (dxStart < cancelLeftThreshold) || (abs(screenY - hoverDeleteKeyDragStartY) > cancelYThreshold)
+                            } else if (isDeleteRightAnnounced) {
+                                (dxStart <= threshold / 2f) || (dxStart > cancelRightThreshold) || (abs(screenY - hoverDeleteKeyDragStartY) > cancelYThreshold)
+                            } else false
+
+                            if (shouldCancel) {
+                                isDeleteLeftAnnounced = false
+                                isDeleteRightAnnounced = false
+                                isDeleteUpAnnounced = false
+                                isHoverDraggingDeleteKey = false
+                            }
+                        }
+                    }
+
+                    // 通常の読み上げ位置の更新
+                    if (targetView != lastHoverTarget) {
+                        lastHoverTarget = targetView
+                        targetView?.let { view ->
+                            if (accessibilityManager.isTouchExplorationEnabled) {
+                                accessibilityManager.interrupt()
+                            }
+                            view.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+                        }
+                    }
+                }
+
                 MotionEvent.ACTION_HOVER_EXIT -> {
-                    // キーボードの外にスライドして指を離した場合はキャンセル扱いにするための判定
+                    // 指を離した際の処理
                     val buffer = 2f
                     val isSlideOff = x <= buffer || 
                                    x >= (width.toFloat() - buffer) || 
                                    y <= buffer || 
                                    y >= (height.toFloat() - buffer)
-                    
+
+                    if (isHoverDraggingRightCursor) {
+                        isHoverDraggingRightCursor = false
+                        var triggerLineStart = isLineStartAnnounced
+                        var triggerLineEnd = isLineEndAnnounced
+                        var triggerLineUp = isLineUpAnnounced
+                        var triggerLineDown = isLineDownAnnounced
+
+                        // 素早いフリックのフォールバック
+                        if (!triggerLineStart && !triggerLineEnd && !triggerLineUp && !triggerLineDown) {
+                            val dx = screenX - hoverRightCursorDragStartX
+                            val dy = screenY - hoverRightCursorDragStartY
+                            val threshold = 35f
+                            val cancelXThreshold = 60f
+                            val cancelYThreshold = 60f
+
+                            if (abs(dy) <= cancelYThreshold && dx < -threshold) {
+                                triggerLineStart = true
+                            } else if (abs(dy) <= cancelYThreshold && dx > threshold) {
+                                triggerLineEnd = true
+                            } else if (abs(dx) <= cancelXThreshold && dy < -threshold) {
+                                triggerLineUp = true
+                            } else if (abs(dx) <= cancelXThreshold && dy > threshold) {
+                                triggerLineDown = true
+                            }
+                        }
+
+                        if (!isSlideOff) {
+                            if (triggerLineStart) {
+                                listener?.onAction(KeyAction.MoveCursorToStartOfLine, this, true)
+                            } else if (triggerLineEnd) {
+                                listener?.onAction(KeyAction.MoveCursorToEndOfLine, this, true)
+                            } else if (triggerLineUp) {
+                                listener?.onAction(KeyAction.MoveCursorToPrevLine, this, true)
+                            } else if (triggerLineDown) {
+                                listener?.onAction(KeyAction.MoveCursorToNextLine, this, true)
+                            }
+                        }
+                        isLineStartAnnounced = false
+                        isLineEndAnnounced = false
+                        isLineUpAnnounced = false
+                        isLineDownAnnounced = false
+                        
+                        if (triggerLineStart || triggerLineEnd || triggerLineUp || triggerLineDown) {
+                            lastHoverTarget = null
+                            return true
+                        }
+                    }
+
+                    if (isHoverDraggingLeftCursor) {
+                        isHoverDraggingLeftCursor = false
+                        var triggerLineStart = isLeftLineStartAnnounced
+                        var triggerLineEnd = isLeftLineEndAnnounced
+                        var triggerLineUp = isLeftLineUpAnnounced
+                        var triggerLineDown = isLeftLineDownAnnounced
+
+                        // 素早いフリックのフォールバック
+                        if (!triggerLineStart && !triggerLineEnd && !triggerLineUp && !triggerLineDown) {
+                            val dx = screenX - hoverLeftCursorDragStartX
+                            val dy = screenY - hoverLeftCursorDragStartY
+                            val threshold = 35f
+                            val cancelXThreshold = 60f
+                            val cancelYThreshold = 60f
+
+                            if (abs(dy) <= cancelYThreshold && dx < -threshold) {
+                                triggerLineStart = true
+                            } else if (abs(dy) <= cancelYThreshold && dx > threshold) {
+                                triggerLineEnd = true
+                            } else if (abs(dx) <= cancelXThreshold && dy < -threshold) {
+                                triggerLineUp = true
+                            } else if (abs(dx) <= cancelXThreshold && dy > threshold) {
+                                triggerLineDown = true
+                            }
+                        }
+
+                        if (!isSlideOff) {
+                            if (triggerLineStart) {
+                                listener?.onAction(KeyAction.MoveCursorToStartOfLine, this, true)
+                            } else if (triggerLineEnd) {
+                                listener?.onAction(KeyAction.MoveCursorToEndOfLine, this, true)
+                            } else if (triggerLineUp) {
+                                listener?.onAction(KeyAction.MoveCursorToPrevLine, this, true)
+                            } else if (triggerLineDown) {
+                                listener?.onAction(KeyAction.MoveCursorToNextLine, this, true)
+                            }
+                        }
+                        isLeftLineStartAnnounced = false
+                        isLeftLineEndAnnounced = false
+                        isLeftLineUpAnnounced = false
+                        isLeftLineDownAnnounced = false
+                        
+                        if (triggerLineStart || triggerLineEnd || triggerLineUp || triggerLineDown) {
+                            lastHoverTarget = null
+                            return true
+                        }
+                    }
+
+                    if (isHoverDraggingDeleteKey) {
+                        isHoverDraggingDeleteKey = false
+                        var triggerDeleteLeft = isDeleteLeftAnnounced
+                        var triggerDeleteRight = isDeleteRightAnnounced
+
+                        // 素早いフリックのフォールバック
+                        if (!triggerDeleteLeft && !triggerDeleteRight) {
+                            val dx = screenX - hoverDeleteKeyDragStartX
+                            val dy = screenY - hoverDeleteKeyDragStartY
+                            val threshold = 35f
+                            val cancelYThreshold = 60f
+
+                            if (abs(dy) <= cancelYThreshold) {
+                                if (dx < -threshold) {
+                                    triggerDeleteLeft = true
+                                } else if (dx > threshold) {
+                                    triggerDeleteRight = true
+                                }
+                            }
+                        }
+
+                        if (!isSlideOff) {
+                            if (triggerDeleteLeft) {
+                                listener?.onAction(KeyAction.DeleteLeftWordOrSymbols, this, true)
+                            } else if (triggerDeleteRight) {
+                                listener?.onAction(KeyAction.DeleteForward, this, true)
+                            }
+                        }
+                        isDeleteLeftAnnounced = false
+                        isDeleteRightAnnounced = false
+                        isDeleteUpAnnounced = false
+                        
+                        if (triggerDeleteLeft || triggerDeleteRight) {
+                            lastHoverTarget = null
+                            return true
+                        }
+                    }
+
                     if (!isSlideOff) {
-                        // 指を離した（リフトした）瞬間に、最後にホバーしていたキーを確定させる
+                        // スライド/ドラッグを行わずに単純リフトした場合はタップ処理を行う
                         lastHoverTarget?.let { view ->
                             handleKeyClick(view)
                         }
@@ -1613,19 +2232,36 @@ class FlickKeyboardView @JvmOverloads constructor(
         return null
     }
     
-    /**
-     * キーの読み上げテキストを構築
-     */
     private fun buildKeyAnnouncement(keyData: KeyData): String {
         return when {
-            // ラベルがある場合はそれを使用
-            keyData.label.isNotEmpty() -> {
-                // 改行を含む場合は最初の行のみ
-                keyData.label.split("\n").firstOrNull() ?: keyData.label
+            // NewLine または Enter アクションがある場合は、ラベルがあってもアクションの読み上げ（エンター）を優先する
+            keyData.action == KeyAction.NewLine || keyData.action == KeyAction.Enter -> {
+                getActionDescription(keyData.action)
             }
-            // アクションキーの場合は説明を取得
-            keyData.action != null -> getActionDescription(keyData.action)
-            else -> ""
+            else -> {
+                val baseLabel = if (keyData.label.isNotEmpty()) {
+                    keyData.label.split("\n").firstOrNull()?.trim() ?: keyData.label.trim()
+                } else ""
+
+                val announcement = when (baseLabel) {
+                    "CursorMoveLeft" -> "左カーソル"
+                    "CursorMoveRight" -> "右カーソル"
+                    "Del" -> "削除"
+                    "#", "＃" -> "シャープ"
+                    "-", "－" -> "ハイフン"
+                    else -> {
+                        if (baseLabel.isNotEmpty()) {
+                            baseLabel
+                        } else if (keyData.action != null) {
+                            getActionDescription(keyData.action)
+                        } else {
+                            ""
+                        }
+                    }
+                }
+                Log.d("FlickKeyAnnouncement", "label='${keyData.label}', baseLabel='$baseLabel', announcement='$announcement'")
+                announcement
+            }
         }
     }
     
@@ -1635,17 +2271,96 @@ class FlickKeyboardView @JvmOverloads constructor(
     private fun getActionDescription(action: KeyAction): String {
         return when (action) {
             is KeyAction.Delete, is KeyAction.Backspace -> "削除"
-            is KeyAction.Enter, is KeyAction.NewLine -> "改行"
+            is KeyAction.Enter, is KeyAction.NewLine -> context.getString(com.kazumaproject.core.R.string.enter_key)
             is KeyAction.Space -> "スペース"
             is KeyAction.ShiftKey -> "シフト"
             is KeyAction.SwitchToNextIme -> "言語切替"
-            is KeyAction.ShowEmojiKeyboard -> "絵文字"
-            is KeyAction.MoveCursorLeft -> "カーソル左"
-            is KeyAction.MoveCursorRight -> "カーソル右"
+            is KeyAction.ShowEmojiKeyboard -> context.getString(com.kazumaproject.core.R.string.symbol)
+            is KeyAction.VoiceInput -> context.getString(com.kazumaproject.core.R.string.read_aloud)
+            is KeyAction.ReadAloudCurrent,
+            is KeyAction.ReadAloudLine,
+            is KeyAction.ReadAloudAll,
+            is KeyAction.ReadAloudFromCursor -> context.getString(com.kazumaproject.core.R.string.read_aloud)
+            is KeyAction.MoveCursorLeft -> context.getString(com.kazumaproject.core.R.string.left_key)
+            is KeyAction.MoveCursorRight -> context.getString(com.kazumaproject.core.R.string.key_right)
+            is KeyAction.MoveCursorToStartOfLine -> "行頭"
+            is KeyAction.MoveCursorToEndOfLine -> "行末"
+            is KeyAction.MoveCursorToPrevLine -> "上カーソル"
+            is KeyAction.MoveCursorToNextLine -> "下カーソル"
+            is KeyAction.DeleteLeftWordOrSymbols -> "一括削除"
+            is KeyAction.DeleteForward -> "行末まで削除"
             is KeyAction.ChangeInputMode -> "入力モード切替"
             is KeyAction.Convert -> "変換"
             is KeyAction.Confirm -> "確定"
             else -> ""
+        }
+    }
+
+    private fun getAccessibilityActionId(direction: FlickDirection): Int? {
+        return when (direction) {
+            FlickDirection.UP_LEFT, FlickDirection.UP_LEFT_FAR -> com.kazumaproject.core.R.id.action_flick_left
+            FlickDirection.UP -> com.kazumaproject.core.R.id.action_flick_top
+            FlickDirection.UP_RIGHT, FlickDirection.UP_RIGHT_FAR -> com.kazumaproject.core.R.id.action_flick_right
+            FlickDirection.DOWN -> com.kazumaproject.core.R.id.action_flick_bottom
+            else -> null
+        }
+    }
+
+    private fun getFlickDirectionFromActionId(actionId: Int): FlickDirection? {
+        return when (actionId) {
+            com.kazumaproject.core.R.id.action_flick_left -> FlickDirection.UP_LEFT
+            com.kazumaproject.core.R.id.action_flick_top -> FlickDirection.UP
+            com.kazumaproject.core.R.id.action_flick_right -> FlickDirection.UP_RIGHT
+            com.kazumaproject.core.R.id.action_flick_bottom -> FlickDirection.DOWN
+            else -> null
+        }
+    }
+
+    private fun getAccessibilityActionLabel(direction: FlickDirection, flickAction: FlickAction): String? {
+        val directionStr = when (direction) {
+            FlickDirection.UP_LEFT, FlickDirection.UP_LEFT_FAR -> "左フリック"
+            FlickDirection.UP -> "上フリック"
+            FlickDirection.UP_RIGHT, FlickDirection.UP_RIGHT_FAR -> "右フリック"
+            FlickDirection.DOWN -> "下フリック"
+            else -> return null
+        }
+        
+        val actionName = when (flickAction) {
+            is FlickAction.Input -> {
+                if (flickAction.char.isNotEmpty()) {
+                    flickAction.char
+                } else {
+                    return null
+                }
+            }
+            is FlickAction.Action -> {
+                when (flickAction.action) {
+                    KeyAction.MoveCursorToStartOfLine -> "行頭移動"
+                    KeyAction.MoveCursorToEndOfLine -> "行末移動"
+                    KeyAction.MoveCursorToPrevLine -> "前行移動"
+                    KeyAction.MoveCursorToNextLine -> "次行移動"
+                    KeyAction.DeleteLeftWordOrSymbols -> "一括削除"
+                    KeyAction.DeleteForward -> "行末まで削除"
+                    else -> getActionDescription(flickAction.action)
+                }
+            }
+        }
+        
+        return if (actionName.isNotEmpty()) {
+            "$actionName ($directionStr)"
+        } else {
+            null
+        }
+    }
+
+    private fun triggerFlickAction(flickAction: FlickAction, view: View) {
+        when (flickAction) {
+            is FlickAction.Input -> {
+                this@FlickKeyboardView.listener?.onKey(flickAction.char, isFlick = true)
+            }
+            is FlickAction.Action -> {
+                this@FlickKeyboardView.listener?.onAction(flickAction.action, view = view, isFlick = true)
+            }
         }
     }
 
