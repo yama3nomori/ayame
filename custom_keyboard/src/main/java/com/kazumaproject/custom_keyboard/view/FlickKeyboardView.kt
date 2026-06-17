@@ -141,6 +141,9 @@ class FlickKeyboardView @JvmOverloads constructor(
             }
         }
 
+    // アヤメモードフラグ（IMEServiceからセットされる）
+    var isAyameMode = false
+
     // TalkBack時のホバードラッグ追跡変数
     // カーソル左
     private var isHoverDraggingLeftCursor = false
@@ -1586,6 +1589,9 @@ class FlickKeyboardView @JvmOverloads constructor(
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
+        if (isAyameMode) {
+            return false
+        }
         val action = ev.actionMasked
 
         // TalkBack有効時かつホバー経由でない（＝スワイプ中のダブルタップなどの実タッチ）場合は、
@@ -1610,6 +1616,9 @@ class FlickKeyboardView @JvmOverloads constructor(
     }
 
     override fun onInterceptHoverEvent(event: MotionEvent): Boolean {
+        if (isAyameMode) {
+            return false
+        }
         // DTalker IME方式: 全てのホバーイベントを親（このView）でインターセプトし、
         // 子要素への自動的な配信を阻止する。これにより、onHoverEvent で集中管理が可能になる。
         if (isTouchExplorationEnabled()) {
@@ -1619,6 +1628,9 @@ class FlickKeyboardView @JvmOverloads constructor(
     }
 
     override fun onHoverEvent(event: MotionEvent): Boolean {
+        if (isAyameMode) {
+            return super.onHoverEvent(event)
+        }
         // DTalker IMEのテンキー入力方式の実装: ホバーイベントを直接制御して「スライド入力」を実現する
         if (accessibilityManager.isTouchExplorationEnabled && event.pointerCount == 1) {
             val action = event.action

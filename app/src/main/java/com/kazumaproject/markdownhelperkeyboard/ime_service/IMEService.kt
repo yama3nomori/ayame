@@ -5215,6 +5215,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             Timber.d("showKeyboard: isAyame=$isAyame, type=$type")
             keyboardView.isAyameMode = type == KeyboardType.AYAME_TENKEY
             qwertyView.isAyameMode = type == KeyboardType.AYAME_QWERTY || type == KeyboardType.AYAME_ROMAJI
+            customLayoutDefault.isAyameMode = type == KeyboardType.AYAME_NUMERIC
             Timber.d("setting isAyameMode on suggestionAdapter: current=${suggestionAdapter?.isAyameMode}")
             suggestionAdapter?.isAyameMode = isAyame
             suggestionAdapterFull?.isAyameMode = isAyame
