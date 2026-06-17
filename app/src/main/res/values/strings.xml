@@ -447,4 +447,7 @@
     <string name="volume_key_cursor_move_summary">Use volume keys to move the cursor left and right</string>
     <string name="suggestion_visibility_description">Full screen candidates</string>
     <string name="suggestion_visibility_shrink_description">Collapse candidates</string>
+    <string name="numeric_keyboard_type_title">Keyboard when numeric is requested</string>
+    <string name="numeric_keyboard_type_standard">Numeric Keyboard</string>
+    <string name="numeric_keyboard_type_ayame">Ayame Numeric Keyboard</string>
 </resources>

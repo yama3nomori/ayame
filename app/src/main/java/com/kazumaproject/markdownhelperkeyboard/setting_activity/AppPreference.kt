@@ -120,6 +120,7 @@ object AppPreference {
     private val DELETE_KEY_HIGH_LIGHT = Pair("henkan_delete_key_action_preference", true)
     private val CUSTOM_KEYBOARD_SUGGESTION_PREFERENCE =
         Pair("custom_keyboard_suggestion_preference", true)
+    private val NUMERIC_KEYBOARD_TYPE = Pair("numeric_keyboard_type_preference", "numeric")
 
     private val KEYBOARD_FLOATING_POSITION_X = Pair("keyboard_floating_position_x", -1)
     private val KEYBOARD_FLOATING_POSITION_Y = Pair("keyboard_floating_position_y", -1)
@@ -467,6 +468,12 @@ object AppPreference {
         )
         set(value) = preferences.edit {
             it.putBoolean(QWERTY_SHOW_KUTOUTEN_BUTTONS.first, value ?: false)
+        }
+
+    var numeric_keyboard_type: String
+        get() = preferences.getString(NUMERIC_KEYBOARD_TYPE.first, NUMERIC_KEYBOARD_TYPE.second) ?: "numeric"
+        set(value) = preferences.edit {
+            it.putString(NUMERIC_KEYBOARD_TYPE.first, value)
         }
 
     var keyboard_order: List<KeyboardType>

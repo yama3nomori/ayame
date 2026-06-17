@@ -5237,7 +5237,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                         customKeyboardMode = KeyboardInputMode.HIRAGANA
                         customLayoutDefault.isVisible = true
                         keyboardView.setCurrentMode(InputMode.ModeNumber)
-                        customLayoutDefault.setKeyboard(KeyboardDefaultLayouts.createNumberLayout())
+                        setNumericKeyboardForInputConnection()
                         qwertyView.isVisible = false
                         keyboardView.isVisible = false
                     }
@@ -5256,7 +5256,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                         customKeyboardMode = KeyboardInputMode.HIRAGANA
                         customLayoutDefault.isVisible = true
                         keyboardView.setCurrentMode(InputMode.ModeNumber)
-                        customLayoutDefault.setKeyboard(KeyboardDefaultLayouts.createNumberLayout())
+                        setNumericKeyboardForInputConnection()
                         qwertyView.isVisible = false
                         keyboardView.isVisible = false
                     }
@@ -5278,7 +5278,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                         customKeyboardMode = KeyboardInputMode.HIRAGANA
                         customLayoutDefault.isVisible = true
                         keyboardView.setCurrentMode(InputMode.ModeNumber)
-                        customLayoutDefault.setKeyboard(KeyboardDefaultLayouts.createNumberLayout())
+                        setNumericKeyboardForInputConnection()
                         qwertyView.isVisible = false
                         keyboardView.isVisible = false
                     }
@@ -5298,7 +5298,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                             keyboardView.isVisible = false
                         } else {
                             customLayoutDefault.isVisible = true
-                            customLayoutDefault.setKeyboard(KeyboardDefaultLayouts.createNumberLayout())
+                            setNumericKeyboardForInputConnection()
                             qwertyView.isVisible = false
                             keyboardView.isVisible = false
 
@@ -5335,7 +5335,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                             customLayoutDefault.setKeyboard(hiraganaLayout)
                             _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Sumire }
                         } else {
-                            customLayoutDefault.setKeyboard(KeyboardDefaultLayouts.createNumberLayout())
+                            setNumericKeyboardForInputConnection()
                         }
                         qwertyView.isVisible = false
                         keyboardView.isVisible = false
@@ -5363,7 +5363,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     if (qwertyMode.value != TenKeyQWERTYMode.Number) {
                         _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Custom }
                     } else {
-                        customLayoutDefault.setKeyboard(KeyboardDefaultLayouts.createNumberLayout())
+                        setNumericKeyboardForInputConnection()
                         //_tenKeyQWERTYMode.update { TenKeyQWERTYMode.Number }
                     }
                     customLayoutDefault.isVisible = true
@@ -5408,6 +5408,17 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 KeyboardType.AYAME_NUMERIC -> "アヤメ数字専用キーボード"
             }
             announceText(announcement, delayMs = 150)
+        }
+    }
+
+    private fun setNumericKeyboardForInputConnection() {
+        val isAyameNumeric = appPreference.numeric_keyboard_type == "ayame_numeric"
+        mainLayoutBinding?.customLayoutDefault?.apply {
+            isAyameMode = isAyameNumeric
+            setKeyboard(
+                if (isAyameNumeric) KeyboardDefaultLayouts.createAyameNumberLayout()
+                else KeyboardDefaultLayouts.createNumberLayout()
+            )
         }
     }
 

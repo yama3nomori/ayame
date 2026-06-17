@@ -2,6 +2,8 @@ package com.kazumaproject.markdownhelperkeyboard.setting_activity.ui.keyboard_se
 
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.view.Menu
 import android.view.MenuInflater
 import android.view.MenuItem
@@ -64,6 +66,7 @@ class KeyboardSelectionFragment : Fragment() {
         setupMenu()
         setupRecyclerView()
         setupAddButton()
+        setupNumericKeyboardSpinner()
         observeUiState()
 
         if (savedInstanceState == null) {
@@ -204,6 +207,36 @@ class KeyboardSelectionFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    private fun setupNumericKeyboardSpinner() {
+        val options = listOf(
+            getString(R.string.numeric_keyboard_type_standard),
+            getString(R.string.numeric_keyboard_type_ayame)
+        )
+        val adapter = ArrayAdapter(
+            requireContext(),
+            android.R.layout.simple_spinner_item,
+            options
+        ).apply {
+            setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        }
+        binding.numericKeyboardSettingSpinner.adapter = adapter
+
+        // 初期選択状態の設定
+        val currentType = appPreferences.numeric_keyboard_type
+        val initialPosition = if (currentType == "ayame_numeric") 1 else 0
+        binding.numericKeyboardSettingSpinner.setSelection(initialPosition)
+
+        // 選択変更イベントリスナーの登録
+        binding.numericKeyboardSettingSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val selectedType = if (position == 1) "ayame_numeric" else "numeric"
+                appPreferences.numeric_keyboard_type = selectedType
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
     }
 }
 
