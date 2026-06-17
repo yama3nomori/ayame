@@ -841,7 +841,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
             val drawable = ContextCompat.getDrawable(context, com.kazumaproject.core.R.drawable.baseline_emoji_emotions_24)
             drawable?.setTint(ContextCompat.getColor(context, com.kazumaproject.core.R.color.keyboard_icon_color))
             btn.setCompoundDrawablesWithIntrinsicBounds(drawable, null, null, null)
-            btn.contentDescription = context.getString(com.kazumaproject.core.R.string.string_emoji)
+            btn.contentDescription = context.getString(com.kazumaproject.core.R.string.string_symbol)
         }
         btn.sendAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
     }
@@ -1681,6 +1681,11 @@ class QWERTYKeyboardView @JvmOverloads constructor(
     }
 
     private fun announceKey(view: View) {
+        // アヤメローマ字入力モード時は、IMEService側のannounceChar（変換後文字の読み上げ）に
+        // 一本化するため、ここではTYPE_VIEW_HOVER_ENTERを送らない。
+        // 送ってしまうとTalkBackが"a"を読み上げ、"あ"との衝突が発生する。
+        if (isAyameMode && romajiModeState.value) return
+
         val textStr = (view as? TextView)?.text?.toString()
         val announcement = if (!textStr.isNullOrEmpty()) {
             textStr

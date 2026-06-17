@@ -1056,7 +1056,7 @@
         android:textColor="@color/keyboard_icon_color"
         android:textSize="@dimen/qwerty_side_key_text_size"
         android:textAllCaps="false"
-        android:contentDescription="@string/string_emoji"
+        android:contentDescription="@string/string_symbol"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@+id/key_touten"
         app:layout_constraintHorizontal_weight="0.75"

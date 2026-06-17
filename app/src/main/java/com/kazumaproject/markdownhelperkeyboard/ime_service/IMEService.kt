@@ -2620,7 +2620,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
     }
 
-    private fun announceChar(char: Char?) {
+    private fun announceChar(char: Char?, delayOverride: Long? = null) {
         if (char == null) return
         val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager ?: return
         android.util.Log.d("IMEServiceAccessibility", "announceChar called: char=$char, am.isEnabled=${am.isEnabled}")
@@ -2647,7 +2647,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             event.className = javaClass.name
             event.isEnabled = true
             
-            val delay = if (isReplacement) 150L else 10L
+            val delay = delayOverride ?: if (isReplacement) 150L else 10L
             val handler = targetView?.handler ?: android.os.Handler(android.os.Looper.getMainLooper())
             
             handler.postDelayed({
@@ -10156,6 +10156,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                                             _inputString.update {
                                                 converter.convertQWERTYZenkaku(sb.toString())
                                             }
+                                            announceChar(_inputString.value.lastOrNull(), delayOverride = 150L)
                                         }
                                     }
                                 } else if (insertString.isNotEmpty()) {
@@ -10180,6 +10181,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                                                     _inputString.update {
                                                         converter.convertQWERTYZenkaku(sb.toString())
                                                     }
+                                                    announceChar(_inputString.value.lastOrNull(), delayOverride = 150L)
                                                 }
                                             }
                                         } else {
@@ -10195,6 +10197,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                                                     _inputString.update {
                                                         converter.convertQWERTYZenkaku(sb.toString())
                                                     }
+                                                    announceChar(_inputString.value.lastOrNull(), delayOverride = 150L)
                                                 }
                                             }
                                         }
@@ -10215,6 +10218,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                                                     _inputString.update {
                                                         converter.convertQWERTYZenkaku(sb.toString())
                                                     }
+                                                    announceChar(_inputString.value.lastOrNull(), delayOverride = 150L)
                                                 }
                                             }
                                         }
@@ -10238,6 +10242,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                                                     charToAppend.toString()
                                                 )
                                             }
+                                            announceChar(_inputString.value.lastOrNull(), delayOverride = 150L)
                                         }
                                     }
                                 }
