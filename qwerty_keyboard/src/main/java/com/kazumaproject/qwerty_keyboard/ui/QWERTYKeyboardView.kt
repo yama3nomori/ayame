@@ -761,7 +761,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
             binding.key0.text = "Enter"
             if (mode is QWERTYMode.Default) {
                 binding.key2.text = "@"
-                binding.key3.text = ":"
+                binding.key3.text = "#"
                 binding.key4.text = "("
                 binding.key5.text = ")"
                 binding.key6.text = "-"

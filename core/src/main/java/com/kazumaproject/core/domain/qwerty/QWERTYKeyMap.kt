@@ -66,7 +66,7 @@ class QWERTYKeyMap : QWERTYKeyMapHolder {
 
         QWERTYKey.QWERTYKey1 to QWERTYKeyInfo.Key1,
         QWERTYKey.QWERTYKey2 to QWERTYKeyInfo.KeyAtMark,
-        QWERTYKey.QWERTYKey3 to QWERTYKeyInfo.KeyColon,
+        QWERTYKey.QWERTYKey3 to QWERTYKeyInfo.KeyHash,
         QWERTYKey.QWERTYKey4 to QWERTYKeyInfo.KeyParenOpen,
         QWERTYKey.QWERTYKey5 to QWERTYKeyInfo.KeyParenClose,
         QWERTYKey.QWERTYKey6 to QWERTYKeyInfo.KeyMinus,
@@ -115,7 +115,7 @@ class QWERTYKeyMap : QWERTYKeyMapHolder {
 
         QWERTYKey.QWERTYKey1 to QWERTYKeyInfo.Key1,
         QWERTYKey.QWERTYKey2 to QWERTYKeyInfo.KeyAtMark,
-        QWERTYKey.QWERTYKey3 to QWERTYKeyInfo.KeyColon,
+        QWERTYKey.QWERTYKey3 to QWERTYKeyInfo.KeyHash,
         QWERTYKey.QWERTYKey4 to QWERTYKeyInfo.KeyParenOpen,
         QWERTYKey.QWERTYKey5 to QWERTYKeyInfo.KeyParenClose,
         QWERTYKey.QWERTYKey6 to QWERTYKeyInfo.KeyMinus,
