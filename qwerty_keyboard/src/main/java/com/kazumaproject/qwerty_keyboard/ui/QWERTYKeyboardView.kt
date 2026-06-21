@@ -726,6 +726,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                             view.contentDescription = when (text) {
                                 "ー" -> "長音"
                                 "'" -> "アポストロフィ"
+                                "#" -> "シャープ"
                                 else -> text
                             }
                         }
