@@ -718,7 +718,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                         info.tap?.let {
                             val isShift = capsLockState.shiftOn || capsLockState.capsLockOn
                             val text = if (isShift && mode is QWERTYMode.Default) {
-                                it.uppercaseChar().toString()
+                                info.capChar?.toString() ?: it.uppercaseChar().toString()
                             } else {
                                 it.toString()
                             }
@@ -727,6 +727,18 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                                 "ー" -> "長音"
                                 "'" -> "アポストロフィ"
                                 "#" -> "シャープ"
+                                "_" -> "アンダーバー"
+                                ":" -> "コロン"
+                                "?" -> "疑問符"
+                                "\"" -> "ダブルクォーテーション"
+                                "!" -> "感嘆符"
+                                "%" -> "パーセント"
+                                "~" -> "チルダ"
+                                "&" -> "アンド"
+                                "/" -> "スラッシュ"
+                                "=" -> "イコール"
+                                "+" -> "プラス"
+                                "*" -> "アスタリスク"
                                 else -> text
                             }
                         }
@@ -760,16 +772,6 @@ class QWERTYKeyboardView @JvmOverloads constructor(
             binding.keyKuten.text = "."
             binding.keyTouten.text = ","
             binding.key0.text = "Enter"
-            if (mode is QWERTYMode.Default) {
-                binding.key2.text = "@"
-                binding.key3.text = "#"
-                binding.key4.text = "("
-                binding.key5.text = ")"
-                binding.key6.text = "-"
-                binding.key7.text = ","
-                binding.key8.text = "."
-                binding.key9.text = "/"
-            }
         }
         setRomajiEnglishSwitchKeyTextWithStyle(romajiMode)
         setNumberSwitchKeyTextStyle(!isNumberKeysShow)

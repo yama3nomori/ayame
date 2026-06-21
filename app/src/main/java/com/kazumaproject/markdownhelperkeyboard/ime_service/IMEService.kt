@@ -2647,7 +2647,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             event.className = javaClass.name
             event.isEnabled = true
             
-            val delay = delayOverride ?: if (isReplacement) 150L else 10L
+            val isSpecialChar = char == '#' || char == 'ー' || char == '\'' || char == '_' || char == ':' || char == '?' || char == '"' || char == '!' || char == '%' || char == '~' || char == '&' || char == '/' || char == '=' || char == '+' || char == '*'
+            val delay = delayOverride ?: if (isReplacement || isSpecialChar) 150L else 10L
             val handler = targetView?.handler ?: android.os.Handler(android.os.Looper.getMainLooper())
             
             handler.postDelayed({
