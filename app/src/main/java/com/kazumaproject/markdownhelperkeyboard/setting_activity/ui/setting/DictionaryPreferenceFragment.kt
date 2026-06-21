@@ -48,7 +48,7 @@ class DictionaryPreferenceFragment : PreferenceFragmentCompat() {
         val ngWordPreference = findPreference<Preference>("ng_word_preference")
         ngWordPreference?.setOnPreferenceClickListener {
             findNavController().navigate(
-                R.id.action_navigation_setting_to_ngWordFragment
+                R.id.action_dictionaryPreferenceFragment_to_ngWordFragment
             )
             true
         }

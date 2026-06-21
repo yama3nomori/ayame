@@ -254,6 +254,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
             put(binding.keyB, QWERTYKey.QWERTYKeyB)
             put(binding.keyN, QWERTYKey.QWERTYKeyN)
             put(binding.keyM, QWERTYKey.QWERTYKeyM)
+            put(binding.keyApostropheDash, QWERTYKey.QWERTYKeyApostropheDash)
             put(binding.keyAtMark, QWERTYKey.QWERTYKeyAtMark)
             put(binding.keyDelete, QWERTYKey.QWERTYKeyDelete)
             put(binding.keyShift, QWERTYKey.QWERTYKeyShift)
@@ -722,6 +723,11 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                                 it.toString()
                             }
                             view.text = text
+                            view.contentDescription = when (text) {
+                                "ー" -> "長音"
+                                "'" -> "アポストロフィ"
+                                else -> text
+                            }
                         }
                     }
                 }
@@ -820,6 +826,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
     fun resetQWERTYKeyboard(enterText: String = "") {
         isRomajiKeyboard = false
         _qwertyMode.update { QWERTYMode.Default }
+        setRomajiMode(false)
     }
 
     fun setSpecialKeyVisibility(showCursors: Boolean, showSwitchKey: Boolean, showKutouten: Boolean) {
@@ -869,6 +876,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
     fun setRomajiKeyboard(enterKeyText: String) {
         isRomajiKeyboard = true
         _qwertyMode.update { QWERTYMode.Default } 
+        setRomajiMode(true)
     }
     fun setSpaceKeyText(text: String) { binding.keySpace.text = text }
 

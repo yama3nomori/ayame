@@ -71,4 +71,5 @@ sealed class QWERTYKey {
     data object QWERTYKeyReadAloud : QWERTYKey()
     data object QWERTYKeySelect : QWERTYKey()
     data object QWERTYKeyEmoji : QWERTYKey()
+    data object QWERTYKeyApostropheDash : QWERTYKey()
 }

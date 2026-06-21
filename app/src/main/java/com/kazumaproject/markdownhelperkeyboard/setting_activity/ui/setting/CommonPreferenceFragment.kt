@@ -88,7 +88,7 @@ class CommonPreferenceFragment : PreferenceFragmentCompat() {
         val customRomajiPreference = findPreference<Preference>("custom_romaji_preference")
         customRomajiPreference?.setOnPreferenceClickListener {
             findNavController().navigate(
-                R.id.action_navigation_setting_to_romajiMapFragment
+                R.id.action_commonPreferenceFragment_to_romajiMapFragment
             )
             true
         }
@@ -99,7 +99,7 @@ class CommonPreferenceFragment : PreferenceFragmentCompat() {
         shortCutToolbarItemSettingPreference?.apply {
             setOnPreferenceClickListener {
                 findNavController().navigate(
-                    R.id.action_navigation_setting_to_shortcutSettingFragment
+                    R.id.action_commonPreferenceFragment_to_shortcutSettingFragment
                 )
                 true
             }
@@ -110,7 +110,7 @@ class CommonPreferenceFragment : PreferenceFragmentCompat() {
         candidateTabOrderPreference?.apply {
             setOnPreferenceClickListener {
                 findNavController().navigate(
-                    R.id.action_navigation_setting_to_candidateTabOrderFragment
+                    R.id.action_commonPreferenceFragment_to_candidateTabOrderFragment
                 )
                 true
             }
@@ -121,7 +121,7 @@ class CommonPreferenceFragment : PreferenceFragmentCompat() {
 
         keyboardSelectionPreference?.setOnPreferenceClickListener {
             findNavController().navigate(
-                R.id.action_navigation_setting_to_keyboardSelectionFragment
+                R.id.action_commonPreferenceFragment_to_keyboardSelectionFragment
             )
             true
         }
@@ -131,7 +131,7 @@ class CommonPreferenceFragment : PreferenceFragmentCompat() {
 
         keyboardLetterSizePreference?.setOnPreferenceClickListener {
             findNavController().navigate(
-                R.id.action_navigation_setting_to_keyCandidateLetterSizeFragment
+                R.id.action_commonPreferenceFragment_to_keyCandidateLetterSizeFragment
             )
             true
         }
@@ -141,7 +141,7 @@ class CommonPreferenceFragment : PreferenceFragmentCompat() {
 
         keyboardSizeLandscapePreference?.setOnPreferenceClickListener {
             findNavController().navigate(
-                R.id.action_navigation_setting_to_keyboardSizeLandscapeFragment
+                R.id.action_commonPreferenceFragment_to_keyboardSizeLandscapeFragment
             )
             true
         }
@@ -151,7 +151,7 @@ class CommonPreferenceFragment : PreferenceFragmentCompat() {
         candidateHeightFragmentSetting?.apply {
             setOnPreferenceClickListener {
                 findNavController().navigate(
-                    R.id.action_navigation_setting_to_candidateViewHeightSettingFragment
+                    R.id.action_commonPreferenceFragment_to_candidateViewHeightSettingFragment
                 )
                 true
             }
@@ -162,7 +162,7 @@ class CommonPreferenceFragment : PreferenceFragmentCompat() {
         candidateHeightLandscapeFragmentSetting?.apply {
             setOnPreferenceClickListener {
                 findNavController().navigate(
-                    R.id.action_navigation_setting_to_candidateHeightLandscapeSettingFragment
+                    R.id.action_commonPreferenceFragment_to_candidateHeightLandscapeSettingFragment
                 )
                 true
             }
@@ -173,7 +173,7 @@ class CommonPreferenceFragment : PreferenceFragmentCompat() {
         clipBoardHistoryPreference?.apply {
             setOnPreferenceClickListener {
                 findNavController().navigate(
-                    R.id.action_navigation_setting_to_clipboardHistoryFragment
+                    R.id.action_commonPreferenceFragment_to_clipboardHistoryFragment
                 )
                 true
             }
@@ -255,7 +255,7 @@ class CommonPreferenceFragment : PreferenceFragmentCompat() {
 
         keyboardSettingPreference?.setOnPreferenceClickListener {
             findNavController().navigate(
-                R.id.action_navigation_setting_to_keyboardSettingFragment
+                R.id.action_commonPreferenceFragment_to_keyboardSettingFragment
             )
             true
         }
@@ -264,7 +264,7 @@ class CommonPreferenceFragment : PreferenceFragmentCompat() {
 
         openSourcePreference?.setOnPreferenceClickListener {
             findNavController().navigate(
-                R.id.action_navigation_dashboard_to_openSourceFragment
+                R.id.action_commonPreferenceFragment_to_openSourceFragment
             )
             true
         }

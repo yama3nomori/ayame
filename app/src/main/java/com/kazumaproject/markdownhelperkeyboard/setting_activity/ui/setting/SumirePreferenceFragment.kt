@@ -65,7 +65,7 @@ class SumirePreferenceFragment : PreferenceFragmentCompat() {
 
         sumireCustomAnglePreference?.apply {
             setOnPreferenceClickListener {
-                findNavController().navigate(R.id.action_navigation_setting_to_circularFlickSettingsFragment)
+                findNavController().navigate(R.id.action_sumirePreferenceFragment_to_circularFlickSettingsFragment)
                 true
             }
         }

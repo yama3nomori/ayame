@@ -64,6 +64,30 @@
         <action
             android:id="@+id/action_navigation_setting_to_circularFlickSettingsFragment"
             app:destination="@id/circularFlickSettingsFragment" />
+        <action
+            android:id="@+id/action_navigation_setting_to_commonPreferenceFragment"
+            app:destination="@id/commonPreferenceFragment" />
+        <action
+            android:id="@+id/action_navigation_setting_to_zenzPreferenceFragment"
+            app:destination="@id/zenzPreferenceFragment" />
+        <action
+            android:id="@+id/action_navigation_setting_to_dictionaryPreferenceFragment"
+            app:destination="@id/dictionaryPreferenceFragment" />
+        <action
+            android:id="@+id/action_navigation_setting_to_kanaPreferenceFragment"
+            app:destination="@id/kanaPreferenceFragment" />
+        <action
+            android:id="@+id/action_navigation_setting_to_qwertyPreferenceFragment"
+            app:destination="@id/qwertyPreferenceFragment" />
+        <action
+            android:id="@+id/action_navigation_setting_to_sumirePreferenceFragment"
+            app:destination="@id/sumirePreferenceFragment" />
+        <action
+            android:id="@+id/action_navigation_setting_to_customKeyboardPreferenceFragment"
+            app:destination="@id/customKeyboardPreferenceFragment" />
+        <action
+            android:id="@+id/action_navigation_setting_to_tabletPreferenceFragment"
+            app:destination="@id/tabletPreferenceFragment" />
     </fragment>
 
     <fragment
@@ -197,5 +221,88 @@
         android:id="@+id/circularFlickSettingsFragment"
         android:name="com.kazumaproject.markdownhelperkeyboard.setting_activity.ui.sumire_custom_angle.CircularFlickSettingsFragment"
         android:label="@string/circularflicksettingsfragment" />
+
+    <!-- 設定カテゴリ個別フラグメント -->
+    <fragment
+        android:id="@+id/commonPreferenceFragment"
+        android:name="com.kazumaproject.markdownhelperkeyboard.setting_activity.ui.setting.CommonPreferenceFragment"
+        android:label="@string/category_common">
+        <action
+            android:id="@+id/action_commonPreferenceFragment_to_openSourceFragment"
+            app:destination="@id/openSourceFragment" />
+        <action
+            android:id="@+id/action_commonPreferenceFragment_to_keyboardSettingFragment"
+            app:destination="@id/keyboardSettingFragment" />
+        <action
+            android:id="@+id/action_commonPreferenceFragment_to_keyboardSelectionFragment"
+            app:destination="@id/keyboardSelectionFragment" />
+        <action
+            android:id="@+id/action_commonPreferenceFragment_to_clipboardHistoryFragment"
+            app:destination="@id/clipboardHistoryFragment" />
+        <action
+            android:id="@+id/action_commonPreferenceFragment_to_romajiMapFragment"
+            app:destination="@id/romajiMapFragment" />
+        <action
+            android:id="@+id/action_commonPreferenceFragment_to_keyCandidateLetterSizeFragment"
+            app:destination="@id/keyCandidateLetterSizeFragment" />
+        <action
+            android:id="@+id/action_commonPreferenceFragment_to_candidateViewHeightSettingFragment"
+            app:destination="@id/candidateViewHeightSettingFragment" />
+        <action
+            android:id="@+id/action_commonPreferenceFragment_to_keyboardSizeLandscapeFragment"
+            app:destination="@id/keyboardSizeLandscapeFragment" />
+        <action
+            android:id="@+id/action_commonPreferenceFragment_to_candidateHeightLandscapeSettingFragment"
+            app:destination="@id/candidateHeightLandscapeSettingFragment" />
+        <action
+            android:id="@+id/action_commonPreferenceFragment_to_candidateTabOrderFragment"
+            app:destination="@id/candidateTabOrderFragment" />
+        <action
+            android:id="@+id/action_commonPreferenceFragment_to_shortcutSettingFragment"
+            app:destination="@id/shortcutSettingFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/zenzPreferenceFragment"
+        android:name="com.kazumaproject.markdownhelperkeyboard.setting_activity.ui.setting.ZenzPreferenceFragment"
+        android:label="zenz" />
+    <fragment
+        android:id="@+id/dictionaryPreferenceFragment"
+        android:name="com.kazumaproject.markdownhelperkeyboard.setting_activity.ui.setting.DictionaryPreferenceFragment"
+        android:label="@string/category_dictionary">
+        <action
+            android:id="@+id/action_dictionaryPreferenceFragment_to_ngWordFragment"
+            app:destination="@id/ngWordFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/kanaPreferenceFragment"
+        android:name="com.kazumaproject.markdownhelperkeyboard.setting_activity.ui.setting.KanaPreferenceFragment"
+        android:label="@string/category_kana" />
+    <fragment
+        android:id="@+id/qwertyPreferenceFragment"
+        android:name="com.kazumaproject.markdownhelperkeyboard.setting_activity.ui.setting.QwertyPreferenceFragment"
+        android:label="QWERTY">
+        <action
+            android:id="@+id/action_qwertyPreferenceFragment_to_qwertyMarginSettingFragment"
+            app:destination="@id/qwertyMarginSettingFragment" />
+        <action
+            android:id="@+id/action_qwertyPreferenceFragment_to_tenKeyCandidateLetterSizeFragment"
+            app:destination="@id/tenKeyCandidateLetterSizeFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/sumirePreferenceFragment"
+        android:name="com.kazumaproject.markdownhelperkeyboard.setting_activity.ui.setting.SumirePreferenceFragment"
+        android:label="@string/category_sumire_input_keyboard_title">
+        <action
+            android:id="@+id/action_sumirePreferenceFragment_to_circularFlickSettingsFragment"
+            app:destination="@id/circularFlickSettingsFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/customKeyboardPreferenceFragment"
+        android:name="com.kazumaproject.markdownhelperkeyboard.setting_activity.ui.setting.CustomKeyboardPreferenceFragment"
+        android:label="@string/category_custom_keyboard_title" />
+    <fragment
+        android:id="@+id/tabletPreferenceFragment"
+        android:name="com.kazumaproject.markdownhelperkeyboard.setting_activity.ui.setting.TabletPreferenceFragment"
+        android:label="@string/tablet_preference_category_title" />
 
 </navigation>

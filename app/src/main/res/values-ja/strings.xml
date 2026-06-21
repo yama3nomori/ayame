@@ -447,4 +447,15 @@
     <string name="numeric_keyboard_type_title">アプリ起動時の数字キーボード動作</string>
     <string name="numeric_keyboard_type_standard">数字専用キーボード</string>
     <string name="numeric_keyboard_type_ayame">アヤメ数字専用キーボード</string>
+
+    <!-- 設定カテゴリ一覧用サマリー -->
+    <string name="setting_category_common_summary">言語・キーボード・変換・機能などの基本設定</string>
+    <string name="setting_category_theme_summary">キーボードのテーマ・配色・ガラス効果の設定</string>
+    <string name="setting_category_zenz_summary">AIニューラル変換エンジン zenz の設定</string>
+    <string name="setting_category_dictionary_summary">辞書・NGワード・Mozc UTの設定</string>
+    <string name="setting_category_kana_summary">かな入力のレイアウト設定</string>
+    <string name="setting_category_qwerty_summary">QWERTYキーボードの表示・余白の設定</string>
+    <string name="setting_category_sumire_summary">アヤメキーボード入力の設定</string>
+    <string name="setting_category_custom_summary">カスタムキーボードの動作設定</string>
+    <string name="setting_category_tablet_summary">タブレット向けのレイアウト設定</string>
 </resources>

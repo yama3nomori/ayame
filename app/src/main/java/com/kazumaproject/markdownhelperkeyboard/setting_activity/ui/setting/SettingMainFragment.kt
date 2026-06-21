@@ -11,7 +11,7 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
-import com.google.android.material.tabs.TabLayoutMediator
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.kazumaproject.markdownhelperkeyboard.R
 import com.kazumaproject.markdownhelperkeyboard.databinding.FragmentSettingMainBinding
 import com.kazumaproject.markdownhelperkeyboard.repository.RomajiMapRepository
@@ -30,9 +30,6 @@ class SettingMainFragment : Fragment() {
     private var _binding: FragmentSettingMainBinding? = null
     private val binding get() = _binding!!
 
-    // リーク対策: Mediatorを変数で保持してonDestroyViewで解放できるようにする
-    private var tabLayoutMediator: TabLayoutMediator? = null
-
     @Inject
     lateinit var appPreference: AppPreference
 
@@ -41,7 +38,6 @@ class SettingMainFragment : Fragment() {
 
     @Inject
     lateinit var romajiMapRepository: RomajiMapRepository
-
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -84,33 +80,83 @@ class SettingMainFragment : Fragment() {
             }
         }
 
-        val adapter = SettingPagerAdapter(this)
-        binding.settingViewPager.adapter = adapter
+        // 設定カテゴリ一覧を定義
+        val categories = listOf(
+            SettingCategory(
+                iconRes = com.kazumaproject.core.R.drawable.baseline_settings_24,
+                titleRes = R.string.category_common,
+                summaryRes = R.string.setting_category_common_summary,
+                actionId = R.id.action_navigation_setting_to_commonPreferenceFragment,
+            ),
+            SettingCategory(
+                iconRes = com.kazumaproject.core.R.drawable.keyboard_24px,
+                titleRes = R.string.keyboardthemefragment,
+                summaryRes = R.string.setting_category_theme_summary,
+                actionId = R.id.action_navigation_setting_to_keyboardThemeFragment,
+            ),
+            SettingCategory(
+                iconRes = com.kazumaproject.core.R.drawable.baseline_emoji_emotions_24,
+                titleRes = R.string.zenz_preference_category_title,
+                summaryRes = R.string.setting_category_zenz_summary,
+                actionId = R.id.action_navigation_setting_to_zenzPreferenceFragment,
+            ),
+            SettingCategory(
+                iconRes = com.kazumaproject.core.R.drawable.dictionary_24px,
+                titleRes = R.string.category_dictionary,
+                summaryRes = R.string.setting_category_dictionary_summary,
+                actionId = R.id.action_navigation_setting_to_dictionaryPreferenceFragment,
+            ),
+            SettingCategory(
+                iconRes = com.kazumaproject.core.R.drawable.language_japanese_kana_24px,
+                titleRes = R.string.category_kana,
+                summaryRes = R.string.setting_category_kana_summary,
+                actionId = R.id.action_navigation_setting_to_kanaPreferenceFragment,
+            ),
+            SettingCategory(
+                iconRes = com.kazumaproject.core.R.drawable.keyboard_24px,
+                titleRes = R.string.qwertymarginsettingfragment,
+                summaryRes = R.string.setting_category_qwerty_summary,
+                actionId = R.id.action_navigation_setting_to_qwertyPreferenceFragment,
+            ),
+            SettingCategory(
+                iconRes = com.kazumaproject.core.R.drawable.kana_small,
+                titleRes = R.string.category_sumire_input_keyboard_title,
+                summaryRes = R.string.setting_category_sumire_summary,
+                actionId = R.id.action_navigation_setting_to_sumirePreferenceFragment,
+            ),
+            SettingCategory(
+                iconRes = com.kazumaproject.core.R.drawable.ic_custom_icon,
+                titleRes = R.string.category_custom_keyboard_title,
+                summaryRes = R.string.setting_category_custom_summary,
+                actionId = R.id.action_navigation_setting_to_customKeyboardPreferenceFragment,
+            ),
+            SettingCategory(
+                iconRes = com.kazumaproject.core.R.drawable.baseline_settings_24,
+                titleRes = R.string.tablet_preference_category_title,
+                summaryRes = R.string.setting_category_tablet_summary,
+                actionId = R.id.action_navigation_setting_to_tabletPreferenceFragment,
+            ),
+        )
 
-        // タブのタイトル設定
-        // 変数に代入してからattachする
-        tabLayoutMediator =
-            TabLayoutMediator(binding.settingTabLayout, binding.settingViewPager) { tab, position ->
-                tab.text = when (position) {
-                    0 -> getString(R.string.category_common)
-                    1 -> getString(R.string.keyboardthemefragment)
-                    2 -> "zenz"
-                    3 -> getString(R.string.category_dictionary)
-                    4 -> getString(R.string.category_kana)
-                    5 -> "QWERTY"
-                    6 -> getString(R.string.category_sumire_input_keyboard_title) // スミレ入力
-                    7 -> getString(R.string.category_custom_keyboard_title) // カスタムキーボード
-                    8 -> getString(R.string.tablet_preference_category_title) // タブレット
-                    else -> ""
-                }
-            }
-        tabLayoutMediator?.attach()
+        val adapter = SettingCategoryAdapter(categories) { category ->
+            findNavController().navigate(category.actionId)
+        }
+
+        binding.settingCategoryRecyclerView.apply {
+            layoutManager = LinearLayoutManager(requireContext())
+            this.adapter = adapter
+        }
 
         requireActivity().onBackPressedDispatcher.addCallback(
             viewLifecycleOwner,
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
-                    requireActivity().finish()
+                    // バックスタックに戻れる先があればNavControllerで戻る
+                    // なければ（この画面がルート）アクティビティを終了する
+                    val navController = findNavController()
+                    if (!navController.popBackStack()) {
+                        requireActivity().finish()
+                    }
                 }
             })
     }
@@ -132,10 +178,8 @@ class SettingMainFragment : Fragment() {
     }
 
     override fun onDestroyView() {
-        // リーク対策: ViewPagerとMediatorの参照を断つ
-        tabLayoutMediator?.detach()
-        tabLayoutMediator = null
-        binding.settingViewPager.adapter = null
+        // リーク対策: RecyclerViewのアダプター参照を断つ
+        binding.settingCategoryRecyclerView.adapter = null
 
         super.onDestroyView()
         _binding = null

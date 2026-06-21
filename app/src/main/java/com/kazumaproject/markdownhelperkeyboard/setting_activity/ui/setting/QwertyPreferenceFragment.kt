@@ -21,7 +21,7 @@ class QwertyPreferenceFragment : PreferenceFragmentCompat() {
             findPreference<Preference>("qwerty_button_size_preference")
         qwertyButtonMarginPreference?.apply {
             setOnPreferenceClickListener {
-                findNavController().navigate(R.id.action_navigation_setting_to_qwertyMarginSettingFragment)
+                findNavController().navigate(R.id.action_qwertyPreferenceFragment_to_qwertyMarginSettingFragment)
                 true
             }
         }

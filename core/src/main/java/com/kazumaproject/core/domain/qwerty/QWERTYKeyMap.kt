@@ -74,6 +74,7 @@ class QWERTYKeyMap : QWERTYKeyMapHolder {
         QWERTYKey.QWERTYKey8 to QWERTYKeyInfo.KeyDot,
         QWERTYKey.QWERTYKey9 to QWERTYKeyInfo.KeySlash,
         QWERTYKey.QWERTYKey0 to QWERTYKeyInfo.Key0,
+        QWERTYKey.QWERTYKeyApostropheDash to QWERTYKeyInfo.KeyApostrophe,
     )
 
     private val listDefaultWithNumberRow: Map<QWERTYKey, QWERTYKeyInfo> = mapOf(
@@ -122,6 +123,7 @@ class QWERTYKeyMap : QWERTYKeyMapHolder {
         QWERTYKey.QWERTYKey8 to QWERTYKeyInfo.KeyDot,
         QWERTYKey.QWERTYKey9 to QWERTYKeyInfo.KeySlash,
         QWERTYKey.QWERTYKey0 to QWERTYKeyInfo.Key0,
+        QWERTYKey.QWERTYKeyApostropheDash to QWERTYKeyInfo.KeyApostrophe,
     )
 
     private val listNumber: Map<QWERTYKey, QWERTYKeyInfo> = mapOf(
@@ -167,7 +169,8 @@ class QWERTYKeyMap : QWERTYKeyMapHolder {
         QWERTYKey.QWERTYKeyReturn to QWERTYKeyInfo.KeyReturn,
 
         QWERTYKey.QWERTYKeyKuten to QWERTYKeyInfo.KeyDot,
-        QWERTYKey.QWERTYKeyTouten to QWERTYKeyInfo.KeyComma
+        QWERTYKey.QWERTYKeyTouten to QWERTYKeyInfo.KeyComma,
+        QWERTYKey.QWERTYKeyApostropheDash to QWERTYKeyInfo.KeyApostrophe,
     )
 
     private val listSymbol: Map<QWERTYKey, QWERTYKeyInfo> = mapOf(
@@ -222,7 +225,8 @@ class QWERTYKeyMap : QWERTYKeyMapHolder {
         QWERTYKey.QWERTYKeySymbol6 to QWERTYKeyInfo.Key6,
         QWERTYKey.QWERTYKeySymbol7 to QWERTYKeyInfo.Key7,
         QWERTYKey.QWERTYKeySymbol8 to QWERTYKeyInfo.Key8,
-        QWERTYKey.QWERTYKeySymbol9 to QWERTYKeyInfo.Key9
+        QWERTYKey.QWERTYKeySymbol9 to QWERTYKeyInfo.Key9,
+        QWERTYKey.QWERTYKeyApostropheDash to QWERTYKeyInfo.KeyApostrophe,
     )
 
     private val listDefaultJP: Map<QWERTYKey, QWERTYKeyInfo> = mapOf(
@@ -273,6 +277,7 @@ class QWERTYKeyMap : QWERTYKeyMapHolder {
         QWERTYKey.QWERTYKey8 to QWERTYKeyInfo.KeyDot,
         QWERTYKey.QWERTYKey9 to QWERTYKeyInfo.KeySlash,
         QWERTYKey.QWERTYKey0 to QWERTYKeyInfo.Key0JP,
+        QWERTYKey.QWERTYKeyApostropheDash to QWERTYKeyInfo.KeyLongVowel,
     )
 
     private val listNumberJP: Map<QWERTYKey, QWERTYKeyInfo> = mapOf(
@@ -318,7 +323,8 @@ class QWERTYKeyMap : QWERTYKeyMapHolder {
         QWERTYKey.QWERTYKeyReturn to QWERTYKeyInfo.KeyReturn,
 
         QWERTYKey.QWERTYKeyKuten to QWERTYKeyInfo.KeyDot,
-        QWERTYKey.QWERTYKeyTouten to QWERTYKeyInfo.KeyComma
+        QWERTYKey.QWERTYKeyTouten to QWERTYKeyInfo.KeyComma,
+        QWERTYKey.QWERTYKeyApostropheDash to QWERTYKeyInfo.KeyLongVowel,
     )
 
     private val listSymbolJP: Map<QWERTYKey, QWERTYKeyInfo> = mapOf(
@@ -373,7 +379,8 @@ class QWERTYKeyMap : QWERTYKeyMapHolder {
         QWERTYKey.QWERTYKeySymbol6 to QWERTYKeyInfo.Key6,
         QWERTYKey.QWERTYKeySymbol7 to QWERTYKeyInfo.Key7,
         QWERTYKey.QWERTYKeySymbol8 to QWERTYKeyInfo.Key8,
-        QWERTYKey.QWERTYKeySymbol9 to QWERTYKeyInfo.Key9
+        QWERTYKey.QWERTYKeySymbol9 to QWERTYKeyInfo.Key9,
+        QWERTYKey.QWERTYKeyApostropheDash to QWERTYKeyInfo.KeyLongVowel,
     )
 
     private val listDefaultJPWithNumberRow: Map<QWERTYKey, QWERTYKeyInfo> = mapOf(
@@ -424,6 +431,7 @@ class QWERTYKeyMap : QWERTYKeyMapHolder {
         QWERTYKey.QWERTYKey8 to QWERTYKeyInfo.KeyDotJP,
         QWERTYKey.QWERTYKey9 to QWERTYKeyInfo.KeySlashJP,
         QWERTYKey.QWERTYKey0 to QWERTYKeyInfo.Key0JP,
+        QWERTYKey.QWERTYKeyApostropheDash to QWERTYKeyInfo.KeyLongVowel,
     )
 
     override val keysDefault: Set<QWERTYKey>

@@ -1,0 +1,2 @@
+現在接続されている端末のデフォルトTTSエンジン:
+com.google.android.tts

@@ -450,4 +450,15 @@
     <string name="numeric_keyboard_type_title">Keyboard when numeric is requested</string>
     <string name="numeric_keyboard_type_standard">Numeric Keyboard</string>
     <string name="numeric_keyboard_type_ayame">Ayame Numeric Keyboard</string>
+
+    <!-- Setting category list summaries -->
+    <string name="setting_category_common_summary">Language, keyboard, conversion, and feature settings</string>
+    <string name="setting_category_theme_summary">Keyboard theme, colors, and glass effects</string>
+    <string name="setting_category_zenz_summary">Settings for the AI neural conversion engine zenz</string>
+    <string name="setting_category_dictionary_summary">Dictionary, NG words, and Mozc UT settings</string>
+    <string name="setting_category_kana_summary">Kana input layout settings</string>
+    <string name="setting_category_qwerty_summary">QWERTY keyboard display and layout settings</string>
+    <string name="setting_category_sumire_summary">Ayame keyboard input settings</string>
+    <string name="setting_category_custom_summary">Custom keyboard behavior settings</string>
+    <string name="setting_category_tablet_summary">Tablet layout settings</string>
 </resources>

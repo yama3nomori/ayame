@@ -584,6 +584,13 @@ sealed class QWERTYKeyInfo {
         override val capVariations: List<Char>? get() = null
     }
 
+    object KeyLongVowel : QWERTYVariation() {
+        override val tap: Char get() = 'ー'
+        override val capChar: Char? get() = null
+        override val variations: List<Char>? get() = null
+        override val capVariations: List<Char>? get() = null
+    }
+
     object KeyBracketOpen : QWERTYVariation() {
         override val tap: Char get() = '['
         override val capChar: Char? get() = null
