@@ -61,7 +61,8 @@ class RomajiMapRepository @Inject constructor(
         val nonDeletableMap = romajiMapDao.getNonDeletableMap()
         Timber.d("updateDefaultMap: ${nonDeletableMap?.mapData?.size}")
         if (nonDeletableMap != null) {
-            if (nonDeletableMap.mapData.size != 312){
+            val currentTildeValue = nonDeletableMap.mapData["~"]?.first
+            if (nonDeletableMap.mapData.size != 312 || currentTildeValue == "〜") {
                 val updatedMap = nonDeletableMap.copy(
                     mapData = getDefaultMapData()
                 )
@@ -98,7 +99,7 @@ class RomajiMapRepository @Inject constructor(
         return mapOf(
             // punctuation / symbols
             "-" to Pair("ー", 1),
-            "~" to Pair("〜", 1),
+            "~" to Pair("～", 1),
             "." to Pair("。", 1),
             "," to Pair("、", 1),
             "z/" to Pair("・", 2),
@@ -108,7 +109,7 @@ class RomajiMapRepository @Inject constructor(
             "zj" to Pair("↓", 2),
             "zk" to Pair("↑", 2),
             "zl" to Pair("→", 2),
-            "z-" to Pair("〜", 2),
+            "z-" to Pair("～", 2),
             "z[" to Pair("『", 2),
             "z]" to Pair("』", 2),
             "[" to Pair("「", 1),

@@ -891,6 +891,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     override fun onCreate() {
         super.onCreate()
         Timber.d("onCreate")
+        ioScope.launch {
+            romajiMapRepository.updateDefaultMap()
+        }
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         initializeMediaSession()
 
@@ -2647,7 +2650,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             event.className = javaClass.name
             event.isEnabled = true
             
-            val isSpecialChar = char == '#' || char == 'ー' || char == '\'' || char == '_' || char == ':' || char == '?' || char == '"' || char == '!' || char == '%' || char == '~' || char == '&' || char == '/' || char == '=' || char == '+' || char == '*'
+            val isSpecialChar = char == '#' || char == 'ー' || char == '\'' || char == '_' || char == ':' || char == '?' || char == '"' || char == '!' || char == '%' || char == '~' || char == '&' || char == '/' || char == '=' || char == '+' || char == '*' || char == '？' || char == '！' || char == '～' || char == '（' || char == '）' || char == '、' || char == '。'
             val delay = delayOverride ?: if (isReplacement || isSpecialChar) 150L else 10L
             val handler = targetView?.handler ?: android.os.Handler(android.os.Looper.getMainLooper())
             

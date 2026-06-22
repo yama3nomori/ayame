@@ -51,6 +51,7 @@ import com.kazumaproject.core.domain.extensions.setDrawableAlpha
 import com.kazumaproject.core.domain.extensions.setDrawableSolidColor
 import com.kazumaproject.core.domain.extensions.setMarginEnd
 import com.kazumaproject.core.domain.extensions.setMarginStart
+import com.kazumaproject.core.domain.extensions.toAccessibilityName
 import com.kazumaproject.core.domain.extensions.toZenkaku
 import com.kazumaproject.core.domain.listener.QWERTYKeyListener
 import com.kazumaproject.core.domain.qwerty.QWERTYKey
@@ -723,23 +724,10 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                                 it.toString()
                             }
                             view.text = text
-                            view.contentDescription = when (text) {
-                                "ー" -> "長音"
-                                "'" -> "アポストロフィ"
-                                "#" -> "シャープ"
-                                "_" -> "アンダーバー"
-                                ":" -> "コロン"
-                                "?" -> "疑問符"
-                                "\"" -> "ダブルクォーテーション"
-                                "!" -> "感嘆符"
-                                "%" -> "パーセント"
-                                "~" -> "チルダ"
-                                "&" -> "アンド"
-                                "/" -> "スラッシュ"
-                                "=" -> "イコール"
-                                "+" -> "プラス"
-                                "*" -> "アスタリスク"
-                                else -> text
+                            view.contentDescription = if (text.length == 1) {
+                                text.first().toAccessibilityName()
+                            } else {
+                                text
                             }
                         }
                     }
@@ -754,14 +742,14 @@ class QWERTYKeyboardView @JvmOverloads constructor(
             if (mode is QWERTYMode.Default) {
                 binding.keyKuten.text = "。"
                 binding.keyTouten.text = "、"
-                binding.key2.text = "@"
-                binding.key3.text = ":"
-                binding.key4.text = "("
-                binding.key5.text = ")"
-                binding.key6.text = "-"
-                binding.key7.text = ","
-                binding.key8.text = "."
-                binding.key9.text = "/"
+                binding.key2.text = "～"
+                binding.key3.text = "…"
+                binding.key4.text = "（"
+                binding.key5.text = "）"
+                binding.key6.text = "！"
+                binding.key7.text = "、"
+                binding.key8.text = "。"
+                binding.key9.text = "？"
             } else {
                 binding.keyKuten.text = "."
                 binding.keyTouten.text = ","
