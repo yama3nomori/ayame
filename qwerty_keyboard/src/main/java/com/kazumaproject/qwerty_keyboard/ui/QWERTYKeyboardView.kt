@@ -742,14 +742,15 @@ class QWERTYKeyboardView @JvmOverloads constructor(
             if (mode is QWERTYMode.Default) {
                 binding.keyKuten.text = "。"
                 binding.keyTouten.text = "、"
-                binding.key2.text = "～"
-                binding.key3.text = "…"
-                binding.key4.text = "（"
-                binding.key5.text = "）"
-                binding.key6.text = "！"
-                binding.key7.text = "、"
-                binding.key8.text = "。"
-                binding.key9.text = "？"
+                val isShift = capsLockState.shiftOn || capsLockState.capsLockOn
+                binding.key2.text = if (isShift) "：" else "～"
+                binding.key3.text = if (isShift) "＆" else "…"
+                binding.key4.text = if (isShift) "「" else "（"
+                binding.key5.text = if (isShift) "」" else "）"
+                binding.key6.text = if (isShift) "※" else "！"
+                binding.key7.text = if (isShift) "＜" else "、"
+                binding.key8.text = if (isShift) "＞" else "。"
+                binding.key9.text = if (isShift) "・" else "？"
             } else {
                 binding.keyKuten.text = "."
                 binding.keyTouten.text = ","
