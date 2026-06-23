@@ -617,6 +617,9 @@ class QWERTYKeyboardView @JvmOverloads constructor(
             capsLockState.shiftOn -> "シフトオン"
             else -> "シフトオフ"
         }
+        if (accessibilityManager.isTouchExplorationEnabled) {
+            accessibilityManager.interrupt()
+        }
         announceForAccessibility(announceText)
     }
 
