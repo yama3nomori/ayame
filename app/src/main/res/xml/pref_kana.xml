@@ -7,11 +7,7 @@
             android:key="kana_keyboard_letter_size_preference"
             android:title="@string/kana_keyboard_letter_size_preference_titile"
             app:summary="@string/kana_keyboard_letter_size_preference_summary" />
-        <SwitchPreferenceCompat
-            android:defaultValue="true"
-            android:key="tenkey_show_switch_ime_button_preference"
-            android:summary="@string/qwerty_show_switch_ime_button_summary_on"
-            android:title="@string/qwerty_show_switch_ime_button_title" />
+
         <SwitchPreferenceCompat
             android:key="tenkey_kana_english_qwerty_preference"
             android:title="@string/kana_input_qwerty_preference_title"

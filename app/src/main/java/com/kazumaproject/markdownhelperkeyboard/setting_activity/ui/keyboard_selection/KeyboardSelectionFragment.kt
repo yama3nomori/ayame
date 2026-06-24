@@ -125,6 +125,74 @@ class KeyboardSelectionFragment : Fragment() {
                     currentList.removeAt(position)
                     viewModel.updateKeyboardOrder(currentList)
                 }
+            },
+            onKeyboardClick = { position, keyboardType ->
+                if (viewModel.uiState.value.isEditing) {
+                    val options = arrayOf("上に移動", "下に移動", "先頭に移動", "最後に移動")
+                    AlertDialog.Builder(requireContext())
+                        .setTitle(getKeyboardDisplayName(keyboardType))
+                        .setItems(options) { dialog, which ->
+                            val list = viewModel.uiState.value.keyboards.toMutableList()
+                            when (which) {
+                                0 -> { // 上に移動
+                                    if (position > 0) {
+                                        Collections.swap(list, position, position - 1)
+                                        viewModel.updateKeyboardOrder(list)
+                                    }
+                                }
+                                1 -> { // 下に移動
+                                    if (position < list.size - 1) {
+                                        Collections.swap(list, position, position + 1)
+                                        viewModel.updateKeyboardOrder(list)
+                                    }
+                                }
+                                2 -> { // 先頭に移動
+                                    if (position != 0) {
+                                        val item = list.removeAt(position)
+                                        list.add(0, item)
+                                        viewModel.updateKeyboardOrder(list)
+                                    }
+                                }
+                                3 -> { // 最後に移動
+                                    if (position != list.size - 1) {
+                                        val item = list.removeAt(position)
+                                        list.add(item)
+                                        viewModel.updateKeyboardOrder(list)
+                                    }
+                                }
+                            }
+                            dialog.dismiss()
+                        }
+                        .show()
+                }
+            },
+            onAccessibilityAction = { position, action ->
+                val list = viewModel.uiState.value.keyboards.toMutableList()
+                when (action) {
+                    KeyboardSelectionAdapter.AccessibilityAction.MOVE_UP -> {
+                        if (position > 0) {
+                            Collections.swap(list, position, position - 1)
+                        }
+                    }
+                    KeyboardSelectionAdapter.AccessibilityAction.MOVE_DOWN -> {
+                        if (position < list.size - 1) {
+                            Collections.swap(list, position, position + 1)
+                        }
+                    }
+                    KeyboardSelectionAdapter.AccessibilityAction.MOVE_TOP -> {
+                        if (position != 0) {
+                            val item = list.removeAt(position)
+                            list.add(0, item)
+                        }
+                    }
+                    KeyboardSelectionAdapter.AccessibilityAction.MOVE_BOTTOM -> {
+                        if (position != list.size - 1) {
+                            val item = list.removeAt(position)
+                            list.add(item)
+                        }
+                    }
+                }
+                viewModel.updateKeyboardOrder(list)
             }
         )
 
@@ -165,6 +233,12 @@ class KeyboardSelectionFragment : Fragment() {
                 viewModel.uiState.collect { state ->
                     keyboardSelectionAdapter.submitList(state.keyboards)
                     keyboardSelectionAdapter.setEditMode(state.isEditing)
+                    
+                    val visibility = if (state.isEditing) View.GONE else View.VISIBLE
+                    binding.addNewKeyboardDialogTrigger.visibility = visibility
+                    binding.numericKeyboardSettingTitle.visibility = visibility
+                    binding.numericKeyboardSettingSpinner.visibility = visibility
+
                     // Make the menu redraw itself to update the text
                     requireActivity().invalidateOptionsMenu()
                 }

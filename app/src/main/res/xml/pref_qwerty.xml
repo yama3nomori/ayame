@@ -62,12 +62,7 @@
             android:summaryOn="@string/qwerty_number_keys_summary_on"
             android:title="@string/qwerty_number_keys_title" />
 
-        <SwitchPreferenceCompat
-            android:defaultValue="true"
-            android:key="qwerty_show_switch_ime_button_preference"
-            android:summaryOff="@string/qwerty_show_switch_ime_button_summary_off"
-            android:summaryOn="@string/qwerty_show_switch_ime_button_summary_on"
-            android:title="@string/qwerty_show_switch_ime_button_title" />
+
 
         <SwitchPreferenceCompat
             android:defaultValue="false"
@@ -79,7 +74,7 @@
         <SwitchPreferenceCompat
             android:key="qwerty_show_switch_romaji_english_preference"
             android:title="@string/qwerty_romaji_english_visibility_title"
-            app:defaultValue="true"
+            app:defaultValue="false"
             app:summary="@string/qwerty_romaji_english_visibility_summary" />
 
         <SwitchPreferenceCompat

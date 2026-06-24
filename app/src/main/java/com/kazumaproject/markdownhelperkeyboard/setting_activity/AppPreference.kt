@@ -57,7 +57,7 @@ object AppPreference {
         Pair("qwerty_show_number_keys_buttons_preference_v2", true)
 
     private val QWERTY_SHOW_SWITCH_ROMAJI_ENGLISH =
-        Pair("qwerty_show_switch_romaji_english_preference", true)
+        Pair("qwerty_show_switch_romaji_english_preference", false)
 
     private val QWERTY_ENABLE_FLICK_UP_WINDOW = Pair("qwerty_enable_flick_up_preference", false)
 

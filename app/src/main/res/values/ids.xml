@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="accessibility_action_move_up" type="id" />
+    <item name="accessibility_action_move_down" type="id" />
+    <item name="accessibility_action_move_top" type="id" />
+    <item name="accessibility_action_move_bottom" type="id" />
+</resources>
