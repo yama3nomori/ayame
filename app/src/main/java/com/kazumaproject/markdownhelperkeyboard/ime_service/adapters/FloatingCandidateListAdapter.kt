@@ -174,6 +174,10 @@ class FloatingCandidateListAdapter(
             .replace("<", "&lt;")
             .replace(">", "&gt;")
 
+        val isPureKatakana = word.isNotEmpty() && word.all { com.kazumaproject.markdownhelperkeyboard.utils.JapaneseCharacterUtils.isKatakana(it) || it == 'ー' }
+        val isPureHiragana = word.isNotEmpty() && word.all { com.kazumaproject.markdownhelperkeyboard.utils.JapaneseCharacterUtils.isHiragana(it) || it == 'ー' }
+        val isPureHalfKatakana = word.isNotEmpty() && word.all { com.kazumaproject.markdownhelperkeyboard.utils.JapaneseCharacterUtils.isHalfWidthKatakana(it) || it == 'ｰ' }
+
         val sb = StringBuilder()
         sb.append("<?xml version=\"1.0\"?>")
         sb.append("<speak version=\"1.0\" xmlns=\"http://www.w3.org/2001/10/synthesis\" ")
@@ -181,9 +185,25 @@ class FloatingCandidateListAdapter(
         sb.append("xsi:schemaLocation=\"http://www.w3.org/2001/10/synthesis ")
         sb.append("http://www.w3.org/TR/speech-synthesis/synthesis.xsd\" ")
         sb.append("xml:lang=\"ja\">")
-        sb.append("<say-as interpret-as=\"characters\" format=\"glyphs\">")
-        sb.append(escapedWord)
-        sb.append("</say-as>")
+        when {
+            isPureKatakana -> {
+                sb.append("カタカナの")
+                sb.append(escapedWord)
+            }
+            isPureHiragana -> {
+                sb.append("ひらがなの")
+                sb.append(escapedWord)
+            }
+            isPureHalfKatakana -> {
+                sb.append("半角カタカナの")
+                sb.append(escapedWord)
+            }
+            else -> {
+                sb.append("<say-as interpret-as=\"characters\" format=\"glyphs\">")
+                sb.append(escapedWord)
+                sb.append("</say-as>")
+            }
+        }
         sb.append(positionText)
         sb.append("</speak>")
         return sb.toString()

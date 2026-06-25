@@ -66,7 +66,10 @@ class TamachiRepository @Inject constructor() {
                 foundAny = true
                 lastTypeLabel = null
             } else {
-                val typeLabel = com.kazumaproject.markdownhelperkeyboard.utils.JapaneseCharacterUtils.getCharacterTypeDetailed(char)
+                var typeLabel = com.kazumaproject.markdownhelperkeyboard.utils.JapaneseCharacterUtils.getCharacterTypeDetailed(char)
+                if (char == 'ー' && (lastTypeLabel == "ひらがな" || lastTypeLabel == "カタカナ" || lastTypeLabel == "半角カタカナ")) {
+                    typeLabel = lastTypeLabel
+                }
                 if (typeLabel != null) {
                     if (typeLabel == lastTypeLabel) {
                         sb.append(charStr)
