@@ -12911,11 +12911,15 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
     private fun handleLeftCursorMoveAction() {
         Timber.d("handleLeftCursorMoveAction: called")
+        lastVolumeKeyCursorMoveTime = android.os.SystemClock.uptimeMillis()
+        isVolumeKeyCursorMoving.set(true)
         sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_LEFT)
     }
 
     private fun handleRightCursorMoveAction() {
         if (!hasTextAfterCursor()) return
+        lastVolumeKeyCursorMoveTime = android.os.SystemClock.uptimeMillis()
+        isVolumeKeyCursorMoving.set(true)
         sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_RIGHT)
     }
 
