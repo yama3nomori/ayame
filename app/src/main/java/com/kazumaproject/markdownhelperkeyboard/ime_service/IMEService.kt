@@ -13071,7 +13071,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         if (insertString.isEmpty() && stringInTail.get().isEmpty()) {
             when (gestureType) {
                 GestureType.FlickRight -> {
-                    sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_RIGHT)
+                    moveCursorRight()
                 }
 
                 GestureType.FlickTop -> {
@@ -13079,7 +13079,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 }
 
                 GestureType.FlickLeft -> {
-                    sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_LEFT)
+                    moveCursorLeft()
                 }
 
                 GestureType.FlickBottom -> {
@@ -13089,7 +13089,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 GestureType.Null -> {}
                 GestureType.Down -> {}
                 GestureType.Tap -> {
-                    sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_LEFT)
+                    moveCursorLeft()
                 }
             }
         } else if (!isHenkan.get()) {
@@ -13260,7 +13260,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
             when (gestureType) {
                 GestureType.FlickRight -> {
-                    sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_RIGHT)
+                    moveCursorRight()
                 }
 
                 GestureType.FlickTop -> {
@@ -13268,7 +13268,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 }
 
                 GestureType.FlickLeft -> {
-                    sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_RIGHT)
+                    moveCursorRight()
                 }
 
                 GestureType.FlickBottom -> {
@@ -13278,7 +13278,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 GestureType.Null -> {}
                 GestureType.Down -> {}
                 GestureType.Tap -> {
-                    sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_RIGHT)
+                    moveCursorRight()
                 }
             }
         } else {
