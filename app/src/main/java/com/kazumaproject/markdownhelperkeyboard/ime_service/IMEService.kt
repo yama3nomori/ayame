@@ -9637,6 +9637,17 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 ShortcutType.VOICE_INPUT -> {
                     startVoiceInput(mainView)
                 }
+
+                ShortcutType.FORCE_READ_ALOUD -> {
+                    vibrate()
+                    val newSetting = !(volumeKeyCursorMoveAnnouncePreference ?: false)
+                    volumeKeyCursorMoveAnnouncePreference = newSetting
+                    appPreference.volume_key_cursor_move_announce = newSetting
+                    
+                    val text = if (newSetting) "ボリュームキー移動時 読み上げオン" else "ボリュームキー移動時 読み上げオフ"
+                    announceText(text)
+                    android.widget.Toast.makeText(this, text, android.widget.Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }

@@ -25,6 +25,11 @@ enum class ShortcutType(
         "voice_input",
         com.kazumaproject.core.R.drawable.settings_voice_24px,
         "音声入力"
+    ),
+    FORCE_READ_ALOUD(
+        "force_read_aloud",
+        com.kazumaproject.core.R.drawable.volume_up_24px,
+        "読み上げ切替"
     ),;
 
     companion object {
