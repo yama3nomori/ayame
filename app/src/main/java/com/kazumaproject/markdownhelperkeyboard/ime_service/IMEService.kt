@@ -560,6 +560,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
     private var qwertySwitchNumberKeyWithoutNumberPreference: Boolean? = false
     private var volumeKeyCursorMovePreference: Boolean? = false
+    private var volumeKeyCursorMoveAnnouncePreference: Boolean? = false
+    private val isVolumeKeyCursorMoving = java.util.concurrent.atomic.AtomicBoolean(false)
+    private var lastVolumeKeyCursorMoveTime = 0L
     private var isIMEWindowShown = false
 
     private val _ngWordsList = MutableStateFlow<List<NgWord>>(emptyList())
@@ -1138,6 +1141,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             qwertyStartMarginPreferenceValue = qwerty_keyboard_margin_start_dp ?: 0
             qwertyEndMarginPreferenceValue = qwerty_keyboard_margin_end_dp ?: 0
             volumeKeyCursorMovePreference = volume_key_cursor_move ?: true
+            volumeKeyCursorMoveAnnouncePreference = volume_key_cursor_move_announce ?: false
 
 
             tenkeyLandScapeStartMarginPreferenceValue = keyboard_margin_start_dp_landscape
@@ -2626,6 +2630,28 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 endBatchEdit()
             }
         }
+
+        val now = android.os.SystemClock.uptimeMillis()
+        if (volumeKeyCursorMoveAnnouncePreference == true &&
+            isVolumeKeyCursorMoving.getAndSet(false) &&
+            (now - lastVolumeKeyCursorMoveTime < 500)
+        ) {
+            if (newSelStart == newSelEnd && oldSelStart != newSelStart) {
+                val ic = currentInputConnection
+                if (ic != null) {
+                    val charToAnnounce: Char? = if (newSelStart > oldSelStart) {
+                        val text = ic.getTextBeforeCursor(1, 0)
+                        if (!text.isNullOrEmpty()) text[0] else null
+                    } else {
+                        val text = ic.getTextAfterCursor(1, 0)
+                        if (!text.isNullOrEmpty()) text[0] else null
+                    }
+                    if (charToAnnounce != null) {
+                        announceChar(charToAnnounce)
+                    }
+                }
+            }
+        }
     }
 
     private fun interruptTalkBack() {
@@ -2689,11 +2715,15 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
     private fun moveCursorLeft() {
         interruptTalkBack()
+        lastVolumeKeyCursorMoveTime = android.os.SystemClock.uptimeMillis()
+        isVolumeKeyCursorMoving.set(true)
         sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_LEFT)
     }
 
     private fun moveCursorRight() {
         interruptTalkBack()
+        lastVolumeKeyCursorMoveTime = android.os.SystemClock.uptimeMillis()
+        isVolumeKeyCursorMoving.set(true)
         sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_RIGHT)
     }
 

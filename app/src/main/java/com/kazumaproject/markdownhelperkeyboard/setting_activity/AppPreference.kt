@@ -316,6 +316,7 @@ object AppPreference {
         Pair("enable_zenz_right_context_preference", false)
 
     private val VOLUME_KEY_CURSOR_MOVE = Pair("volume_key_cursor_move_preference", true)
+    private val VOLUME_KEY_CURSOR_MOVE_ANNOUNCE = Pair("volume_key_cursor_move_announce_preference", false)
     private val TYPO_CORRECTION_JA_FLICK =
         Pair("enable_typo_correction_japanese_flick_keyboard_preference", false)
 
@@ -1566,6 +1567,14 @@ object AppPreference {
         )
         set(value) = preferences.edit {
             it.putBoolean(VOLUME_KEY_CURSOR_MOVE.first, value ?: true)
+        }
+
+    var volume_key_cursor_move_announce: Boolean?
+        get() = preferences.getBoolean(
+            VOLUME_KEY_CURSOR_MOVE_ANNOUNCE.first, VOLUME_KEY_CURSOR_MOVE_ANNOUNCE.second
+        )
+        set(value) = preferences.edit {
+            it.putBoolean(VOLUME_KEY_CURSOR_MOVE_ANNOUNCE.first, value ?: false)
         }
 
 }
