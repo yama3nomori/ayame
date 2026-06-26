@@ -1265,7 +1265,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         hijackWindowCallback()
         startSilentAudio()
         val isTalkBackEnabled = isTalkBackActive()
-        mediaSession?.isActive = volumeKeyCursorMovePreference == true || isTalkBackEnabled
+        mediaSession?.isActive = (volumeKeyCursorMovePreference == true || isTalkBackEnabled) && (isIMEWindowShown || isInputViewShown())
         if (volumeKeyCursorMovePreference == true || isTalkBackEnabled) {
             if (volumeKeyCursorMovePreference == true) {
                 mediaSession?.setPlaybackToRemote(createVolumeProvider())
@@ -1786,6 +1786,18 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         mediaSession?.isActive = false
     }
 
+    override fun onFinishInputView(finishingInput: Boolean) {
+        super.onFinishInputView(finishingInput)
+        Timber.d("onFinishInputView: finishingInput=$finishingInput")
+        mediaSession?.isActive = false
+    }
+
+    override fun onFinishInput() {
+        super.onFinishInput()
+        Timber.d("onFinishInput")
+        mediaSession?.isActive = false
+    }
+
     private fun abandonVolumeControlFocus() {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -2136,6 +2148,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     }
 
     private fun triggerVoiceInputFromMediaButton() {
+        if (!isIMEWindowShown && !isInputViewShown()) {
+            Timber.d("triggerVoiceInputFromMediaButton: Keyboard is not shown, ignoring.")
+            return
+        }
         val currentTime = System.currentTimeMillis()
         if (currentTime - lastMediaButtonTriggerTime < 500) {
             return
