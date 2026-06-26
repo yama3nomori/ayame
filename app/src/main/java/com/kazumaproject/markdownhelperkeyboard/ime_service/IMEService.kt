@@ -9644,7 +9644,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     volumeKeyCursorMoveAnnouncePreference = newSetting
                     appPreference.volume_key_cursor_move_announce = newSetting
                     
-                    val text = if (newSetting) "ボリュームキー移動時 読み上げオン" else "ボリュームキー移動時 読み上げオフ"
+                    val text = if (newSetting) "カーソル移動時 読み上げオン" else "カーソル移動時 読み上げオフ"
                     announceText(text)
                     android.widget.Toast.makeText(this, text, android.widget.Toast.LENGTH_SHORT).show()
                 }

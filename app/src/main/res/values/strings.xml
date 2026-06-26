@@ -445,7 +445,7 @@
     <string name="read_aloud">読み上げ</string>
     <string name="volume_key_cursor_move_title">Volume Key Cursor Move</string>
     <string name="volume_key_cursor_move_summary">Use volume keys to move the cursor left and right</string>
-    <string name="volume_key_cursor_move_announce_title">Force Read Aloud on Volume Key Move</string>
+    <string name="volume_key_cursor_move_announce_title">Force Read Aloud on Cursor Move</string>
     <string name="volume_key_cursor_move_announce_summary">If the cursor move announcements are not read aloud in some text fields, enable this to force announcement from the keyboard side (may cause double announcements in standard text fields)</string>
     <string name="suggestion_visibility_description">Full screen candidates</string>
     <string name="suggestion_visibility_shrink_description">Collapse candidates</string>
