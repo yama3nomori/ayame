@@ -21,6 +21,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.appcompat.app.AlertDialog
 import com.kazumaproject.markdownhelperkeyboard.databinding.FragmentShortcutSettingBinding
 import com.kazumaproject.markdownhelperkeyboard.short_cut.ShortcutSettingAdapter
 import com.kazumaproject.markdownhelperkeyboard.short_cut.ShortcutType
@@ -100,6 +101,25 @@ class ShortcutSettingFragment : Fragment() {
             },
             onStartDrag = { viewHolder ->
                 itemTouchHelper.startDrag(viewHolder)
+            },
+            onItemClick = { position, item ->
+                val options = arrayOf("上に移動", "下に移動", "先頭に移動", "最後に移動")
+                AlertDialog.Builder(requireContext())
+                    .setTitle(item.type.description)
+                    .setItems(options) { dialog, which ->
+                        val action = when (which) {
+                            0 -> ShortcutSettingAdapter.AccessibilityAction.MOVE_UP
+                            1 -> ShortcutSettingAdapter.AccessibilityAction.MOVE_DOWN
+                            2 -> ShortcutSettingAdapter.AccessibilityAction.MOVE_TOP
+                            3 -> ShortcutSettingAdapter.AccessibilityAction.MOVE_BOTTOM
+                            else -> null
+                        }
+                        if (action != null) {
+                            viewModel.onItemAccessibilityMoved(position, action)
+                        }
+                        dialog.dismiss()
+                    }
+                    .show()
             },
             onAccessibilityAction = { position, action ->
                 viewModel.onItemAccessibilityMoved(position, action)

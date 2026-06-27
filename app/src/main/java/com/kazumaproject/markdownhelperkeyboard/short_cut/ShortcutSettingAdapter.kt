@@ -19,6 +19,7 @@ import com.kazumaproject.markdownhelperkeyboard.short_cut.data.EditableShortcut
 class ShortcutSettingAdapter(
     private val onToggle: (position: Int, item: EditableShortcut, isChecked: Boolean) -> Unit,
     private val onStartDrag: (RecyclerView.ViewHolder) -> Unit,
+    private val onItemClick: (position: Int, item: EditableShortcut) -> Unit,
     private val onAccessibilityAction: (position: Int, action: AccessibilityAction) -> Unit
 ) : ListAdapter<EditableShortcut, ShortcutSettingAdapter.ViewHolder>(DiffCallback) {
 
@@ -58,6 +59,17 @@ class ShortcutSettingAdapter(
                 }
                 false
             }
+
+            root.setOnClickListener {
+                val pos = holder.bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION) {
+                    onItemClick(pos, item)
+                }
+            }
+
+            // Set content description for the row to read the title first
+            val dragDescription = root.context.getString(com.kazumaproject.core.R.string.drag_handle_description)
+            root.contentDescription = "${item.type.description}, $dragDescription"
         }
 
         // Accessibility actions for TalkBack
