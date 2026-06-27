@@ -1,18 +1,25 @@
 package com.kazumaproject.markdownhelperkeyboard.short_cut
 
 import android.annotation.SuppressLint
+import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.MotionEvent
+import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.AccessibilityDelegateCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.kazumaproject.markdownhelperkeyboard.R
 import com.kazumaproject.markdownhelperkeyboard.databinding.ItemShortcutSettingBinding
 import com.kazumaproject.markdownhelperkeyboard.short_cut.data.EditableShortcut
 
 class ShortcutSettingAdapter(
     private val onToggle: (position: Int, item: EditableShortcut, isChecked: Boolean) -> Unit,
-    private val onStartDrag: (RecyclerView.ViewHolder) -> Unit
+    private val onStartDrag: (RecyclerView.ViewHolder) -> Unit,
+    private val onAccessibilityAction: (position: Int, action: AccessibilityAction) -> Unit
 ) : ListAdapter<EditableShortcut, ShortcutSettingAdapter.ViewHolder>(DiffCallback) {
 
     inner class ViewHolder(val binding: ItemShortcutSettingBinding) :
@@ -52,6 +59,92 @@ class ShortcutSettingAdapter(
                 false
             }
         }
+
+        // Accessibility actions for TalkBack
+        ViewCompat.setAccessibilityDelegate(holder.itemView, object : AccessibilityDelegateCompat() {
+            override fun onInitializeAccessibilityNodeInfo(host: View, info: AccessibilityNodeInfoCompat) {
+                super.onInitializeAccessibilityNodeInfo(host, info)
+                val currentPosition = holder.bindingAdapterPosition
+                if (currentPosition == RecyclerView.NO_POSITION) return
+
+                if (currentPosition > 0) {
+                    info.addAction(
+                        AccessibilityNodeInfoCompat.AccessibilityActionCompat(
+                            R.id.accessibility_action_move_up,
+                            "上に移動"
+                        )
+                    )
+                }
+                if (currentPosition < itemCount - 1) {
+                    info.addAction(
+                        AccessibilityNodeInfoCompat.AccessibilityActionCompat(
+                            R.id.accessibility_action_move_down,
+                            "下に移動"
+                        )
+                    )
+                }
+                if (currentPosition > 0) {
+                    info.addAction(
+                        AccessibilityNodeInfoCompat.AccessibilityActionCompat(
+                            R.id.accessibility_action_move_top,
+                            "先頭に移動"
+                        )
+                    )
+                }
+                if (currentPosition < itemCount - 1) {
+                    info.addAction(
+                        AccessibilityNodeInfoCompat.AccessibilityActionCompat(
+                            R.id.accessibility_action_move_bottom,
+                            "最後に移動"
+                        )
+                    )
+                }
+            }
+
+            override fun performAccessibilityAction(host: View, action: Int, args: Bundle?): Boolean {
+                val currentPosition = holder.bindingAdapterPosition
+                if (currentPosition == RecyclerView.NO_POSITION) return false
+
+                return when (action) {
+                    R.id.accessibility_action_move_up -> {
+                        if (currentPosition > 0) {
+                            onAccessibilityAction(currentPosition, AccessibilityAction.MOVE_UP)
+                            host.announceForAccessibility("上に移動しました")
+                        }
+                        true
+                    }
+                    R.id.accessibility_action_move_down -> {
+                        if (currentPosition < itemCount - 1) {
+                            onAccessibilityAction(currentPosition, AccessibilityAction.MOVE_DOWN)
+                            host.announceForAccessibility("下に移動しました")
+                        }
+                        true
+                    }
+                    R.id.accessibility_action_move_top -> {
+                        if (currentPosition > 0) {
+                            onAccessibilityAction(currentPosition, AccessibilityAction.MOVE_TOP)
+                            host.announceForAccessibility("先頭に移動しました")
+                        }
+                        true
+                    }
+                    R.id.accessibility_action_move_bottom -> {
+                        if (currentPosition < itemCount - 1) {
+                            onAccessibilityAction(currentPosition, AccessibilityAction.MOVE_BOTTOM)
+                            host.announceForAccessibility("最後に移動しました")
+                        }
+                        true
+                    }
+                    else -> super.performAccessibilityAction(host, action, args)
+                }
+            }
+        })
+    }
+
+    enum class AccessibilityAction {
+        MOVE_UP,
+        MOVE_DOWN,
+        MOVE_TOP,
+        MOVE_BOTTOM
     }
 
     private object DiffCallback : DiffUtil.ItemCallback<EditableShortcut>() {

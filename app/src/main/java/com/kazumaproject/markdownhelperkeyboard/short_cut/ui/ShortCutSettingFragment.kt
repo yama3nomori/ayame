@@ -100,6 +100,9 @@ class ShortcutSettingFragment : Fragment() {
             },
             onStartDrag = { viewHolder ->
                 itemTouchHelper.startDrag(viewHolder)
+            },
+            onAccessibilityAction = { position, action ->
+                viewModel.onItemAccessibilityMoved(position, action)
             }
         )
 

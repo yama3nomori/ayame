@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import com.kazumaproject.markdownhelperkeyboard.short_cut.ShortcutSettingAdapter
 import java.util.Collections
 import javax.inject.Inject
 
@@ -53,6 +54,38 @@ class ShortcutSettingViewModel @Inject constructor(
         // but this is the correct logic for state consistency.
         _uiList.value = currentList
     }
+
+    // Handle accessibility reordering
+    fun onItemAccessibilityMoved(position: Int, action: ShortcutSettingAdapter.AccessibilityAction) {
+        val currentList = _uiList.value.toMutableList()
+        when (action) {
+            ShortcutSettingAdapter.AccessibilityAction.MOVE_UP -> {
+                if (position > 0) {
+                    Collections.swap(currentList, position, position - 1)
+                }
+            }
+            ShortcutSettingAdapter.AccessibilityAction.MOVE_DOWN -> {
+                if (position < currentList.size - 1) {
+                    Collections.swap(currentList, position, position + 1)
+                }
+            }
+            ShortcutSettingAdapter.AccessibilityAction.MOVE_TOP -> {
+                if (position > 0) {
+                    val item = currentList.removeAt(position)
+                    currentList.add(0, item)
+                }
+            }
+            ShortcutSettingAdapter.AccessibilityAction.MOVE_BOTTOM -> {
+                if (position < currentList.size - 1) {
+                    val item = currentList.removeAt(position)
+                    currentList.add(item)
+                }
+            }
+        }
+        _uiList.value = currentList
+        save()
+    }
+
 
     // Handle switch toggle
     fun onItemToggle(position: Int, isChecked: Boolean) {
