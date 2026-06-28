@@ -66,11 +66,11 @@ class ShortcutRepository @Inject constructor(
                 Timber.d("ShortcutRepository: Re-initializing defaults. Raw count: ${currentItems.size}, Valid count: ${validItems.size}")
                 val defaultShortcuts = listOf(
                     ShortcutType.LAYOUT_SWITCH,
-                    ShortcutType.EMOJI,
                     ShortcutType.TEMPLATE,
-                    ShortcutType.COPY,
                     ShortcutType.PASTE,
-                    ShortcutType.SETTINGS
+                    ShortcutType.SETTINGS,
+                    ShortcutType.FORCE_READ_ALOUD,
+                    ShortcutType.VOICE_INPUT
                 )
                 updateShortcuts(defaultShortcuts)
             }
