@@ -427,6 +427,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private var isLiveConversionEnable: Boolean? = false
     private var nBest: Int? = 4
     private var flickSensitivityPreferenceValue: Int? = 100
+    private var flickVelocityFilterPreferenceValue: Boolean = true
     private var tenkeyShowIMEButtonPreference: Boolean? = true
     private var qwertyShowIMEButtonPreference: Boolean? = true
     private var qwertyEnableFlickUpPreference: Boolean? = false
@@ -1077,6 +1078,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             isLiveConversionEnable = live_conversion_preference ?: false
             nBest = n_best_preference ?: 4
             flickSensitivityPreferenceValue = flick_sensitivity_preference ?: 100
+            flickVelocityFilterPreferenceValue = flick_velocity_filter_preference
             qwertyShowIMEButtonPreference = qwerty_show_ime_button ?: true
             tenkeyShowIMEButtonPreference = tenkey_show_language_button_preference
             qwertyShowCursorButtonsPreference = qwerty_show_cursor_buttons ?: false
@@ -1602,6 +1604,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 suggestionRecyclerView.isVisible = true
                 suggestionVisibility.isVisible = false
                 keyboardView.setFlickSensitivityValue(flickSensitivityPreferenceValue ?: 100)
+                keyboardView.setFlickVelocityFilter(flickVelocityFilterPreferenceValue)
                 val defaultLetterSize = when (mainView.keyboardView.currentInputMode.value) {
                     InputMode.ModeJapanese -> 17f
                     InputMode.ModeEnglish -> 12f

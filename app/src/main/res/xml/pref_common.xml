@@ -232,6 +232,11 @@
             app:min="1"
             app:seekBarIncrement="5"
             app:showSeekBarValue="true" />
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            android:key="flick_velocity_filter_preference"
+            android:summary="@string/flick_velocity_filter_summary"
+            android:title="@string/flick_velocity_filter_title" />
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/shortcutsettingfragment">

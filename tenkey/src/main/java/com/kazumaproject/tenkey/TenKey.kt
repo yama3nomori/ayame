@@ -13,6 +13,7 @@ import android.util.AttributeSet
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.MotionEvent
+import android.view.VelocityTracker
 import android.view.View
 import android.view.ViewConfiguration
 import android.widget.PopupWindow
@@ -124,6 +125,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
     private var longPressListener: LongPressListener? = null
 
     private var flickSensitivity: Int = 100
+    private var isVelocityFilterEnabled: Boolean = false
+    private var velocityTracker: VelocityTracker? = null
 
     private var keySizeDelta = 0
 
@@ -2667,9 +2670,15 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
             if (view.visibility != View.VISIBLE) {
                 return false
             }
-            when (event.action and MotionEvent.ACTION_MASK) {
-                MotionEvent.ACTION_DOWN -> {
-                    val key = pressedKeyByMotionEvent(event, 0)
+            if (event.action == MotionEvent.ACTION_DOWN) {
+                velocityTracker?.recycle()
+                velocityTracker = VelocityTracker.obtain()
+            }
+            velocityTracker?.addMovement(event)
+            try {
+                when (event.action and MotionEvent.ACTION_MASK) {
+                    MotionEvent.ACTION_DOWN -> {
+                        val key = pressedKeyByMotionEvent(event, 0)
                     flickListener?.onFlick(GestureType.Down, key, null)
 
                     pressedKey = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -4183,6 +4192,12 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
                 else -> return false
             }
+            } finally {
+                if (event.action == MotionEvent.ACTION_UP || event.action == MotionEvent.ACTION_CANCEL) {
+                    velocityTracker?.recycle()
+                    velocityTracker = null
+                }
+            }
         }
         return false
     }
@@ -4199,6 +4214,25 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
     fun setFlickSensitivityValue(sensitivity: Int) {
         flickSensitivity = sensitivity
+    }
+
+    fun setFlickVelocityFilter(enabled: Boolean) {
+        isVelocityFilterEnabled = enabled
+    }
+
+    private fun getKeyCenter(key: Key, useRaw: Boolean): Pair<Float, Float>? {
+        val button = getButtonFromKey(key) as? View ?: return null
+        return if (useRaw) {
+            val location = IntArray(2)
+            button.getLocationOnScreen(location)
+            val cx = location[0] + button.width / 2f
+            val cy = location[1] + button.height / 2f
+            cx to cy
+        } else {
+            val cx = button.x + button.width / 2f
+            val cy = button.y + button.height / 2f
+            cx to cy
+        }
     }
 
     private fun setTextToAllButtons() {
@@ -4428,14 +4462,43 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
         } else {
             event.getY(pointer)
         }
-        val distanceX = finalX - pressedKey.initialX
-        val distanceY = finalY - pressedKey.initialY
+        val useRaw = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+
+        // 1. Dual-origin logic: compute delta from both touch start and key center,
+        // and select the one with the larger absolute value.
+        val dX1 = finalX - pressedKey.initialX
+        val dY1 = finalY - pressedKey.initialY
+
+        val keyCenter = getKeyCenter(pressedKey.key, useRaw)
+        val dX2 = if (keyCenter != null) finalX - keyCenter.first else dX1
+        val dY2 = if (keyCenter != null) finalY - keyCenter.second else dY1
+
+        val distanceX = if (abs(dX1) > abs(dX2)) dX1 else dX2
+        val distanceY = if (abs(dY1) > abs(dY2)) dY1 else dY2
+
+        val absX = abs(distanceX)
+        val absY = abs(distanceY)
+
+        // 2. Velocity-based filtering (applied if filter is enabled AND long press has NOT triggered yet)
+        var isFastX = true
+        var isFastY = true
+        if (isVelocityFilterEnabled && !isLongPressed) {
+            velocityTracker?.computeCurrentVelocity(1000)
+            val xVel = velocityTracker?.getXVelocity(pointer) ?: 0f
+            val yVel = velocityTracker?.getYVelocity(pointer) ?: 0f
+            val density = context.resources.displayMetrics.density
+            val swipeThreshold = 500f * density
+            isFastX = abs(xVel) > swipeThreshold
+            isFastY = abs(yVel) > swipeThreshold
+        }
+
         return when {
-            abs(distanceX) < flickSensitivity && abs(distanceY) < flickSensitivity -> GestureType.Tap
-            abs(distanceX) > abs(distanceY) && pressedKey.initialX >= finalX -> GestureType.FlickLeft
-            abs(distanceX) <= abs(distanceY) && pressedKey.initialY >= finalY -> GestureType.FlickTop
-            abs(distanceX) > abs(distanceY) && pressedKey.initialX < finalX -> GestureType.FlickRight
-            abs(distanceX) <= abs(distanceY) && pressedKey.initialY < finalY -> GestureType.FlickBottom
+            absX < flickSensitivity && absY < flickSensitivity -> GestureType.Tap
+            absX > absY && distanceX <= 0f && isFastX -> GestureType.FlickLeft
+            absX <= absY && distanceY <= 0f && isFastY -> GestureType.FlickTop
+            absX > absY && distanceX > 0f && isFastX -> GestureType.FlickRight
+            // 3. Stricter downward flick angle limit: absX < absY / 2
+            absX < absY / 2f && distanceY > 0f && isFastY -> GestureType.FlickBottom
             else -> GestureType.Null
         }
     }

@@ -67,6 +67,8 @@
     <string name="omission_search_summary_on">Omit modifier key input is enabled\ne.g., "かつこう" → "がっこう"</string>
     <string name="omission_search_summary_off">Omit modifier key input is disabled</string>
     <string name="flick_sensitivity_title">Flick Input Sensitivity</string>
+    <string name="flick_velocity_filter_title">Enable Flick Velocity Filter</string>
+    <string name="flick_velocity_filter_summary">Recognizes flicks only when swiped quickly to reduce accidental inputs.</string>
 
     <string name="custom_romaji_title">Customize Romaji Conversion</string>
     <string name="custom_romaji_summary">Create and select a Romaji conversion table</string>

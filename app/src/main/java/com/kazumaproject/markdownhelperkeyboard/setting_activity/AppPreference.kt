@@ -20,6 +20,7 @@ object AppPreference {
     private val CLIPBOARD_HISTORY_ENABLE = Pair("clipboard_history_preference", false)
     private val TIME_SAME_PRONOUNCE_TYPING = Pair("time_same_pronounce_typing_preference", 1000)
     private val FLICK_SENSITIVITY = Pair("flick_sensitivity_preference", 100)
+    private val FLICK_VELOCITY_FILTER = Pair("flick_velocity_filter_preference", true)
     private val VIBRATION_PREFERENCE = Pair("vibration_preference", true)
     private val VIBRATION_TIMING_PREFERENCE = Pair("vibration_timing", "both")
     private val LEARN_DICTIONARY_PREFERENCE = Pair("learn_dictionary_preference", true)
@@ -549,6 +550,14 @@ object AppPreference {
         )
         set(value) = preferences.edit {
             it.putInt(FLICK_SENSITIVITY.first, value ?: 100)
+        }
+
+    var flick_velocity_filter_preference: Boolean
+        get() = preferences.getBoolean(
+            FLICK_VELOCITY_FILTER.first, FLICK_VELOCITY_FILTER.second
+        )
+        set(value) = preferences.edit {
+            it.putBoolean(FLICK_VELOCITY_FILTER.first, value)
         }
 
     var n_best_preference: Int?
