@@ -2254,10 +2254,11 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             }
                             
                             if (charToAnnounce != null && charToAnnounce != hoverLastAnnouncedChar) {
+                                val previousGesture = hoverActiveGesture
                                 hoverLastAnnouncedChar = charToAnnounce
                                 hoverActiveGesture = nextGesture
                                 Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Char Key gesture changed to $nextGesture. Announcing '$charToAnnounce'")
-                                if (nextGesture != GestureType.Tap) {
+                                if (nextGesture != GestureType.Tap || previousGesture != GestureType.Tap) {
                                     announceForAccessibility(charToAnnounce)
                                     android.widget.Toast.makeText(context, charToAnnounce, android.widget.Toast.LENGTH_SHORT).show()
                                     performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
