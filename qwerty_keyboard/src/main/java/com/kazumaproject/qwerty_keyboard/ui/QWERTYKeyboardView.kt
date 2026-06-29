@@ -1353,24 +1353,51 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                             performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                         }
                     } else {
-                        val shouldCancel = if (isLineStartAnnounced) {
-                            (dxStart >= -threshold / 2f) || (dxStart < -cancelThreshold) || (abs(screenY - rightCursorDragStartY) > cancelYThreshold)
+                        val returnedToCenter = if (isLineStartAnnounced) {
+                            dxStart >= -threshold / 2f
                         } else if (isLineEndAnnounced) {
-                            (dxEnd <= threshold / 2f) || (dxEnd > cancelThreshold) || (abs(screenY - rightCursorDragStartY) > cancelYThreshold)
+                            dxEnd <= threshold / 2f
                         } else if (isLineUpAnnounced) {
-                            (dyUp >= -threshold / 2f) || (dyUp < -cancelThreshold) || (abs(screenX - rightCursorDragStartX) > cancelXThreshold)
+                            dyUp >= -threshold / 2f
                         } else if (isLineDownAnnounced) {
-                            (dyDown <= threshold / 2f) || (dyDown > cancelThreshold) || (abs(screenX - rightCursorDragStartX) > cancelXThreshold)
+                            dyDown <= threshold / 2f
                         } else {
-                            (dxStart < -cancelThreshold) || (dxEnd > cancelThreshold) || (dyUp < -cancelThreshold) || (dyDown > cancelThreshold) ||
-                            (abs(screenY - rightCursorDragStartY) > cancelYThreshold && abs(screenX - rightCursorDragStartX) > cancelXThreshold)
+                            false
                         }
-                        if (shouldCancel) {
+
+                        if (returnedToCenter) {
                             isLineStartAnnounced = false
                             isLineEndAnnounced = false
                             isLineUpAnnounced = false
                             isLineDownAnnounced = false
-                            isDraggingRightCursor = false
+
+                            val button = qwertyButtonMap.filterValues { it == QWERTYKey.QWERTYKeyCursorRight }.keys.firstOrNull()
+                            button?.let { view ->
+                                val textStr = (view as? TextView)?.text?.toString() ?: view.contentDescription?.toString() ?: "右移動"
+                                announceForAccessibility(textStr)
+                                android.widget.Toast.makeText(context, textStr, android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else {
+                            val shouldCancel = if (isLineStartAnnounced) {
+                                (dxStart < -cancelThreshold) || (abs(screenY - rightCursorDragStartY) > cancelYThreshold)
+                            } else if (isLineEndAnnounced) {
+                                (dxEnd > cancelThreshold) || (abs(screenY - rightCursorDragStartY) > cancelYThreshold)
+                            } else if (isLineUpAnnounced) {
+                                (dyUp < -cancelThreshold) || (abs(screenX - rightCursorDragStartX) > cancelXThreshold)
+                            } else if (isLineDownAnnounced) {
+                                (dyDown > cancelThreshold) || (abs(screenX - rightCursorDragStartX) > cancelXThreshold)
+                            } else {
+                                (dxStart < -cancelThreshold) || (dxEnd > cancelThreshold) || (dyUp < -cancelThreshold) || (dyDown > cancelThreshold) ||
+                                (abs(screenY - rightCursorDragStartY) > cancelYThreshold && abs(screenX - rightCursorDragStartX) > cancelXThreshold)
+                            }
+                            if (shouldCancel) {
+                                isLineStartAnnounced = false
+                                isLineEndAnnounced = false
+                                isLineUpAnnounced = false
+                                isLineDownAnnounced = false
+                                isDraggingRightCursor = false
+                            }
                         }
                     }
                 }
@@ -1416,24 +1443,51 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                             performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                         }
                     } else {
-                        val shouldCancel = if (isLeftLineStartAnnounced) {
-                            (dxStart >= -threshold / 2f) || (dxStart < -cancelThreshold) || (abs(screenY - leftCursorDragStartY) > cancelYThreshold)
+                                                val returnedToCenter = if (isLeftLineStartAnnounced) {
+                            dxStart >= -threshold / 2f
                         } else if (isLeftLineEndAnnounced) {
-                            (dxEnd <= threshold / 2f) || (dxEnd > cancelThreshold) || (abs(screenY - leftCursorDragStartY) > cancelYThreshold)
+                            dxEnd <= threshold / 2f
                         } else if (isLeftLineUpAnnounced) {
-                            (dyUp >= -threshold / 2f) || (dyUp < -cancelThreshold) || (abs(screenX - leftCursorDragStartX) > cancelXThreshold)
+                            dyUp >= -threshold / 2f
                         } else if (isLeftLineDownAnnounced) {
-                            (dyDown <= threshold / 2f) || (dyDown > cancelThreshold) || (abs(screenX - leftCursorDragStartX) > cancelXThreshold)
+                            dyDown <= threshold / 2f
                         } else {
-                            (dxStart < -cancelThreshold) || (dxEnd > cancelThreshold) || (dyUp < -cancelThreshold) || (dyDown > cancelThreshold) ||
-                            (abs(screenY - leftCursorDragStartY) > cancelYThreshold && abs(screenX - leftCursorDragStartX) > cancelXThreshold)
+                            false
                         }
-                        if (shouldCancel) {
+
+                        if (returnedToCenter) {
                             isLeftLineStartAnnounced = false
                             isLeftLineEndAnnounced = false
                             isLeftLineUpAnnounced = false
                             isLeftLineDownAnnounced = false
-                            isDraggingLeftCursor = false
+
+                            val button = qwertyButtonMap.filterValues { it == QWERTYKey.QWERTYKeyCursorLeft }.keys.firstOrNull()
+                            button?.let { view ->
+                                val textStr = (view as? TextView)?.text?.toString() ?: view.contentDescription?.toString() ?: "左移動"
+                                announceForAccessibility(textStr)
+                                android.widget.Toast.makeText(context, textStr, android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else {
+                            val shouldCancel = if (isLeftLineStartAnnounced) {
+                                (dxStart < -cancelThreshold) || (abs(screenY - leftCursorDragStartY) > cancelYThreshold)
+                            } else if (isLeftLineEndAnnounced) {
+                                (dxEnd > cancelThreshold) || (abs(screenY - leftCursorDragStartY) > cancelYThreshold)
+                            } else if (isLeftLineUpAnnounced) {
+                                (dyUp < -cancelThreshold) || (abs(screenX - leftCursorDragStartX) > cancelXThreshold)
+                            } else if (isLeftLineDownAnnounced) {
+                                (dyDown > cancelThreshold) || (abs(screenX - leftCursorDragStartX) > cancelXThreshold)
+                            } else {
+                                (dxStart < -cancelThreshold) || (dxEnd > cancelThreshold) || (dyUp < -cancelThreshold) || (dyDown > cancelThreshold) ||
+                                (abs(screenY - leftCursorDragStartY) > cancelYThreshold && abs(screenX - leftCursorDragStartX) > cancelXThreshold)
+                            }
+                            if (shouldCancel) {
+                                isLeftLineStartAnnounced = false
+                                isLeftLineEndAnnounced = false
+                                isLeftLineUpAnnounced = false
+                                isLeftLineDownAnnounced = false
+                                isDraggingLeftCursor = false
+                            }
                         }
                     }
                 }
@@ -1461,17 +1515,38 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                             performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                         }
                     } else {
-                        val shouldCancel = if (isDeleteLeftAnnounced) {
-                            (dxStart >= -threshold / 2f) || (dxStart < -cancelThreshold) || (abs(screenY - deleteKeyDragStartY) > cancelYThreshold)
+                        val returnedToCenter = if (isDeleteLeftAnnounced) {
+                            dxStart >= -threshold / 2f
                         } else if (isDeleteRightAnnounced) {
-                            (dxStart <= threshold / 2f) || (dxStart > cancelThreshold) || (abs(screenY - deleteKeyDragStartY) > cancelYThreshold)
+                            dxStart <= threshold / 2f
                         } else {
-                            (dxStart < -cancelThreshold) || (dxStart > cancelThreshold) || (abs(screenY - deleteKeyDragStartY) > cancelYThreshold)
+                            false
                         }
-                        if (shouldCancel) {
+
+                        if (returnedToCenter) {
                             isDeleteLeftAnnounced = false
                             isDeleteRightAnnounced = false
-                            isDraggingDeleteKey = false
+
+                            val button = qwertyButtonMap.filterValues { it == QWERTYKey.QWERTYKeyDelete }.keys.firstOrNull()
+                            button?.let { view ->
+                                val textStr = (view as? TextView)?.text?.toString() ?: view.contentDescription?.toString() ?: "削除"
+                                announceForAccessibility(textStr)
+                                android.widget.Toast.makeText(context, textStr, android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else {
+                            val shouldCancel = if (isDeleteLeftAnnounced) {
+                                (dxStart < -cancelThreshold) || (abs(screenY - deleteKeyDragStartY) > cancelYThreshold)
+                            } else if (isDeleteRightAnnounced) {
+                                (dxStart > cancelThreshold) || (abs(screenY - deleteKeyDragStartY) > cancelYThreshold)
+                            } else {
+                                (dxStart < -cancelThreshold) || (dxStart > cancelThreshold) || (abs(screenY - deleteKeyDragStartY) > cancelYThreshold)
+                            }
+                            if (shouldCancel) {
+                                isDeleteLeftAnnounced = false
+                                isDeleteRightAnnounced = false
+                                isDraggingDeleteKey = false
+                            }
                         }
                     }
                 }
@@ -1487,14 +1562,32 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                             performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                         }
                     } else {
-                        val shouldCancel = if (isSpaceDownAnnounced) {
-                            (dyStart <= threshold / 2f) || (dyStart > cancelThreshold) || (abs(screenX - spaceKeyDragStartX) > cancelXThreshold)
+                        val returnedToCenter = if (isSpaceDownAnnounced) {
+                            dyStart <= threshold / 2f
                         } else {
-                            (dyStart > cancelThreshold) || (abs(screenX - spaceKeyDragStartX) > cancelXThreshold)
+                            false
                         }
-                        if (shouldCancel) {
+
+                        if (returnedToCenter) {
                             isSpaceDownAnnounced = false
-                            isDraggingSpaceKey = false
+
+                            val button = qwertyButtonMap.filterValues { it == QWERTYKey.QWERTYKeySpace }.keys.firstOrNull()
+                            button?.let { view ->
+                                val textStr = (view as? TextView)?.text?.toString() ?: view.contentDescription?.toString() ?: "スペース"
+                                announceForAccessibility(textStr)
+                                android.widget.Toast.makeText(context, textStr, android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else {
+                            val shouldCancel = if (isSpaceDownAnnounced) {
+                                (dyStart > cancelThreshold) || (abs(screenX - spaceKeyDragStartX) > cancelXThreshold)
+                            } else {
+                                (dyStart > cancelThreshold) || (abs(screenX - spaceKeyDragStartX) > cancelXThreshold)
+                            }
+                            if (shouldCancel) {
+                                isSpaceDownAnnounced = false
+                                isDraggingSpaceKey = false
+                            }
                         }
                     }
                 }
@@ -1535,21 +1628,45 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                             performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                         }
                     } else {
-                        val shouldCancel = if (isReadAloudLeftAnnounced) {
-                            (dxStart >= -threshold / 2f) || (dxStart < -cancelThreshold) || (abs(screenY - readAloudKeyDragStartY) > cancelYThreshold)
+                        val returnedToCenter = if (isReadAloudLeftAnnounced) {
+                            dxStart >= -threshold / 2f
                         } else if (isReadAloudRightAnnounced) {
-                            (dxEnd <= threshold / 2f) || (dxEnd > cancelThreshold) || (abs(screenY - readAloudKeyDragStartY) > cancelYThreshold)
+                            dxEnd <= threshold / 2f
                         } else if (isReadAloudUpAnnounced) {
-                            (dyUp >= -threshold / 2f) || (dyUp < -cancelThreshold) || (abs(screenX - readAloudKeyDragStartX) > cancelXThreshold)
+                            dyUp >= -threshold / 2f
                         } else {
-                            (dxStart < -cancelThreshold) || (dxEnd > cancelThreshold) || (dyUp < -cancelThreshold) ||
-                            (abs(screenY - readAloudKeyDragStartY) > cancelYThreshold && abs(screenX - readAloudKeyDragStartX) > cancelXThreshold)
+                            false
                         }
-                        if (shouldCancel) {
+
+                        if (returnedToCenter) {
                             isReadAloudLeftAnnounced = false
                             isReadAloudUpAnnounced = false
                             isReadAloudRightAnnounced = false
-                            isDraggingReadAloudKey = false
+
+                            val button = qwertyButtonMap.filterValues { it == QWERTYKey.QWERTYKeyReadAloud }.keys.firstOrNull()
+                            button?.let { view ->
+                                val textStr = (view as? TextView)?.text?.toString() ?: view.contentDescription?.toString() ?: "読み上げ"
+                                announceForAccessibility(textStr)
+                                android.widget.Toast.makeText(context, textStr, android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else {
+                            val shouldCancel = if (isReadAloudLeftAnnounced) {
+                                (dxStart < -cancelThreshold) || (abs(screenY - readAloudKeyDragStartY) > cancelYThreshold)
+                            } else if (isReadAloudRightAnnounced) {
+                                (dxEnd > cancelThreshold) || (abs(screenY - readAloudKeyDragStartY) > cancelYThreshold)
+                            } else if (isReadAloudUpAnnounced) {
+                                (dyUp < -cancelThreshold) || (abs(screenX - readAloudKeyDragStartX) > cancelXThreshold)
+                            } else {
+                                (dxStart < -cancelThreshold) || (dxEnd > cancelThreshold) || (dyUp < -cancelThreshold) ||
+                                (abs(screenY - readAloudKeyDragStartY) > cancelYThreshold && abs(screenX - readAloudKeyDragStartX) > cancelXThreshold)
+                            }
+                            if (shouldCancel) {
+                                isReadAloudLeftAnnounced = false
+                                isReadAloudUpAnnounced = false
+                                isReadAloudRightAnnounced = false
+                                isDraggingReadAloudKey = false
+                            }
                         }
                     }
                 }
