@@ -21,6 +21,7 @@ import android.util.Log
 import android.util.SparseArray
 import android.view.LayoutInflater
 import android.view.MotionEvent
+import android.view.VelocityTracker
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
@@ -197,6 +198,13 @@ class QWERTYKeyboardView @JvmOverloads constructor(
 
     private var lastClickedKey: QWERTYKey? = null
     private var lastClickedTime: Long = 0L
+
+    private var isVelocityFilterEnabled: Boolean = true
+    private var velocityTracker: VelocityTracker? = null
+
+    fun setFlickVelocityFilter(enabled: Boolean) {
+        isVelocityFilterEnabled = enabled
+    }
 
     var isAyameMode: Boolean = false
         set(value) {
@@ -971,12 +979,19 @@ class QWERTYKeyboardView @JvmOverloads constructor(
             return true
         }
 
-        val x = event.x.toInt()
-        val y = event.y.toInt()
-        val target = findChildViewAt(x, y)
+        if (event.action == MotionEvent.ACTION_DOWN) {
+            velocityTracker?.recycle()
+            velocityTracker = VelocityTracker.obtain()
+        }
+        velocityTracker?.addMovement(event)
 
-        val screenX = try { event.rawX } catch (e: Exception) { event.x }
-        val screenY = try { event.rawY } catch (e: Exception) { event.y }
+        try {
+            val x = event.x.toInt()
+            val y = event.y.toInt()
+            val target = findChildViewAt(x, y)
+
+            val screenX = try { event.rawX } catch (e: Exception) { event.x }
+            val screenY = try { event.rawY } catch (e: Exception) { event.y }
 
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
@@ -1680,6 +1695,12 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                 currentTargetView = null
             }
         }
+        } finally {
+            if (event.action == MotionEvent.ACTION_UP || event.action == MotionEvent.ACTION_CANCEL) {
+                velocityTracker?.recycle()
+                velocityTracker = null
+            }
+        }
         return true
     }
 
@@ -1737,44 +1758,91 @@ class QWERTYKeyboardView @JvmOverloads constructor(
         readAloudTouchSlideInEntryTime = 0L
     }
 
+    private fun getKeyCenter(key: QWERTYKey, useRaw: Boolean): Pair<Float, Float>? {
+        val button = qwertyButtonMap.filterValues { it == key }.keys.firstOrNull() ?: return null
+        return if (useRaw) {
+            val location = IntArray(2)
+            button.getLocationOnScreen(location)
+            val cx = location[0] + button.width / 2f
+            val cy = location[1] + button.height / 2f
+            cx to cy
+        } else {
+            val cx = button.x + button.width / 2f
+            val cy = button.y + button.height / 2f
+            cx to cy
+        }
+    }
+
     private fun getFastFlickChar(event: MotionEvent, key: QWERTYKey): Char? {
-        val screenX = try { event.rawX } catch (e: Exception) { event.x }
-        val screenY = try { event.rawY } catch (e: Exception) { event.y }
-        val dx = screenX - pressedKeyInitialX
-        val dy = screenY - pressedKeyInitialY
+        var useRaw = true
+        val screenX = try {
+            event.rawX
+        } catch (e: Exception) {
+            useRaw = false
+            event.x
+        }
+        val screenY = try {
+            event.rawY
+        } catch (e: Exception) {
+            useRaw = false
+            event.y
+        }
+
+        val dX1 = screenX - pressedKeyInitialX
+        val dY1 = screenY - pressedKeyInitialY
+
+        val keyCenter = getKeyCenter(key, useRaw)
+        val dX2 = if (keyCenter != null) screenX - keyCenter.first else dX1
+        val dY2 = if (keyCenter != null) screenY - keyCenter.second else dY1
+
+        val distanceX = if (abs(dX1) > abs(dX2)) dX1 else dX2
+        val distanceY = if (abs(dY1) > abs(dY2)) dY1 else dY2
+
         val threshold = 35f
         val cancelThreshold = 60f
 
+        var isFastX = true
+        var isFastY = true
+        if (isVelocityFilterEnabled) {
+            velocityTracker?.computeCurrentVelocity(1000)
+            val xVel = velocityTracker?.xVelocity ?: 0f
+            val yVel = velocityTracker?.yVelocity ?: 0f
+            val density = context.resources.displayMetrics.density
+            val swipeThreshold = 500f * density
+            isFastX = abs(xVel) > swipeThreshold
+            isFastY = abs(yVel) > swipeThreshold
+        }
+
         return when (key) {
             QWERTYKey.QWERTYKeyCursorRight, QWERTYKey.QWERTYKeyCursorLeft -> {
-                if (abs(dy) <= cancelThreshold) {
-                    if (dx < -threshold) '\u0001'
-                    else if (dx > threshold) '\u0002'
+                if (abs(distanceY) <= cancelThreshold && isFastX) {
+                    if (distanceX < -threshold) '\u0001'
+                    else if (distanceX > threshold) '\u0002'
                     else null
-                } else if (abs(dx) <= cancelThreshold) {
-                    if (dy < -threshold) '\u0003'
-                    else if (dy > threshold) '\u0004'
+                } else if (abs(distanceX) <= cancelThreshold && isFastY) {
+                    if (distanceY < -threshold) '\u0003'
+                    else if (distanceY > threshold && abs(distanceX) < abs(distanceY) / 2f) '\u0004'
                     else null
                 } else null
             }
             QWERTYKey.QWERTYKeyDelete -> {
-                if (abs(dy) <= cancelThreshold) {
-                    if (dx < -threshold) '\u0005'
-                    else if (dx > threshold) '\u0007'
+                if (abs(distanceY) <= cancelThreshold && isFastX) {
+                    if (distanceX < -threshold) '\u0005'
+                    else if (distanceX > threshold) '\u0007'
                     else null
                 } else null
             }
             QWERTYKey.QWERTYKeySpace -> {
-                if (abs(dx) <= cancelThreshold && dy > threshold) {
+                if (abs(distanceX) <= cancelThreshold && distanceY > threshold && isFastY && abs(distanceX) < abs(distanceY) / 2f) {
                     '\u0014'
                 } else null
             }
             QWERTYKey.QWERTYKeyReadAloud -> {
-                if (abs(dy) <= cancelThreshold) {
-                    if (dx < -threshold) '\u0011'
-                    else if (dx > threshold) '\u0013'
+                if (abs(distanceY) <= cancelThreshold && isFastX) {
+                    if (distanceX < -threshold) '\u0011'
+                    else if (distanceX > threshold) '\u0013'
                     else null
-                } else if (abs(dx) <= cancelThreshold && dy < -threshold) {
+                } else if (abs(distanceX) <= cancelThreshold && distanceY < -threshold && isFastY) {
                     '\u0012'
                 } else null
             }

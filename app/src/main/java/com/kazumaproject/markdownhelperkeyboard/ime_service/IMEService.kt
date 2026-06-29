@@ -1630,6 +1630,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                 tabletView.setFlickSensitivityValue(flickSensitivityPreferenceValue ?: 100)
                 customLayoutDefault.setFlickSensitivityValue(flickSensitivityPreferenceValue ?: 100)
+                qwertyView.setFlickVelocityFilter(flickVelocityFilterPreferenceValue)
                 qwertyView.setSpecialKeyVisibility(
                     showCursors = qwertyShowCursorButtonsPreference ?: false,
                     showSwitchKey = qwertyShowIMEButtonPreference ?: true,
