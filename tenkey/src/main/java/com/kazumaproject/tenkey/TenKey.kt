@@ -2674,7 +2674,10 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                 velocityTracker?.recycle()
                 velocityTracker = VelocityTracker.obtain()
             }
-            velocityTracker?.addMovement(event)
+            val action = event.action and MotionEvent.ACTION_MASK
+            if (action != MotionEvent.ACTION_UP && action != MotionEvent.ACTION_POINTER_UP && action != MotionEvent.ACTION_CANCEL) {
+                velocityTracker?.addMovement(event)
+            }
             try {
                 when (event.action and MotionEvent.ACTION_MASK) {
                     MotionEvent.ACTION_DOWN -> {
