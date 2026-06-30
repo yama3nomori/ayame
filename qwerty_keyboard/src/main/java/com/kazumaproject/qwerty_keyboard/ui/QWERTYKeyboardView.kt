@@ -1354,13 +1354,13 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                         }
                     } else {
                         val returnedToCenter = if (isLineStartAnnounced) {
-                            dxStart >= -threshold / 2f
+                            dxStart >= -threshold
                         } else if (isLineEndAnnounced) {
-                            dxEnd <= threshold / 2f
+                            dxEnd <= threshold
                         } else if (isLineUpAnnounced) {
-                            dyUp >= -threshold / 2f
+                            dyUp >= -threshold
                         } else if (isLineDownAnnounced) {
-                            dyDown <= threshold / 2f
+                            dyDown <= threshold
                         } else {
                             false
                         }
@@ -1444,13 +1444,13 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                         }
                     } else {
                                                 val returnedToCenter = if (isLeftLineStartAnnounced) {
-                            dxStart >= -threshold / 2f
+                            dxStart >= -threshold
                         } else if (isLeftLineEndAnnounced) {
-                            dxEnd <= threshold / 2f
+                            dxEnd <= threshold
                         } else if (isLeftLineUpAnnounced) {
-                            dyUp >= -threshold / 2f
+                            dyUp >= -threshold
                         } else if (isLeftLineDownAnnounced) {
-                            dyDown <= threshold / 2f
+                            dyDown <= threshold
                         } else {
                             false
                         }
@@ -1516,9 +1516,9 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                         }
                     } else {
                         val returnedToCenter = if (isDeleteLeftAnnounced) {
-                            dxStart >= -threshold / 2f
+                            dxStart >= -threshold
                         } else if (isDeleteRightAnnounced) {
-                            dxStart <= threshold / 2f
+                            dxStart <= threshold
                         } else {
                             false
                         }
@@ -1563,7 +1563,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                         }
                     } else {
                         val returnedToCenter = if (isSpaceDownAnnounced) {
-                            dyStart <= threshold / 2f
+                            dyStart <= threshold
                         } else {
                             false
                         }
@@ -1629,11 +1629,11 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                         }
                     } else {
                         val returnedToCenter = if (isReadAloudLeftAnnounced) {
-                            dxStart >= -threshold / 2f
+                            dxStart >= -threshold
                         } else if (isReadAloudRightAnnounced) {
-                            dxEnd <= threshold / 2f
+                            dxEnd <= threshold
                         } else if (isReadAloudUpAnnounced) {
-                            dyUp >= -threshold / 2f
+                            dyUp >= -threshold
                         } else {
                             false
                         }
