@@ -1374,6 +1374,9 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                             val button = qwertyButtonMap.filterValues { it == QWERTYKey.QWERTYKeyCursorRight }.keys.firstOrNull()
                             button?.let { view ->
                                 val textStr = (view as? TextView)?.text?.toString() ?: view.contentDescription?.toString() ?: "右移動"
+                                if (accessibilityManager.isTouchExplorationEnabled) {
+                                    accessibilityManager.interrupt()
+                                }
                                 announceForAccessibility(textStr)
                                 android.widget.Toast.makeText(context, textStr, android.widget.Toast.LENGTH_SHORT).show()
                                 performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
@@ -1464,6 +1467,9 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                             val button = qwertyButtonMap.filterValues { it == QWERTYKey.QWERTYKeyCursorLeft }.keys.firstOrNull()
                             button?.let { view ->
                                 val textStr = (view as? TextView)?.text?.toString() ?: view.contentDescription?.toString() ?: "左移動"
+                                if (accessibilityManager.isTouchExplorationEnabled) {
+                                    accessibilityManager.interrupt()
+                                }
                                 announceForAccessibility(textStr)
                                 android.widget.Toast.makeText(context, textStr, android.widget.Toast.LENGTH_SHORT).show()
                                 performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
@@ -1530,6 +1536,9 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                             val button = qwertyButtonMap.filterValues { it == QWERTYKey.QWERTYKeyDelete }.keys.firstOrNull()
                             button?.let { view ->
                                 val textStr = (view as? TextView)?.text?.toString() ?: view.contentDescription?.toString() ?: "削除"
+                                if (accessibilityManager.isTouchExplorationEnabled) {
+                                    accessibilityManager.interrupt()
+                                }
                                 announceForAccessibility(textStr)
                                 android.widget.Toast.makeText(context, textStr, android.widget.Toast.LENGTH_SHORT).show()
                                 performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
@@ -1574,6 +1583,9 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                             val button = qwertyButtonMap.filterValues { it == QWERTYKey.QWERTYKeySpace }.keys.firstOrNull()
                             button?.let { view ->
                                 val textStr = (view as? TextView)?.text?.toString() ?: view.contentDescription?.toString() ?: "スペース"
+                                if (accessibilityManager.isTouchExplorationEnabled) {
+                                    accessibilityManager.interrupt()
+                                }
                                 announceForAccessibility(textStr)
                                 android.widget.Toast.makeText(context, textStr, android.widget.Toast.LENGTH_SHORT).show()
                                 performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
@@ -1646,6 +1658,9 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                             val button = qwertyButtonMap.filterValues { it == QWERTYKey.QWERTYKeyReadAloud }.keys.firstOrNull()
                             button?.let { view ->
                                 val textStr = (view as? TextView)?.text?.toString() ?: view.contentDescription?.toString() ?: "読み上げ"
+                                if (accessibilityManager.isTouchExplorationEnabled) {
+                                    accessibilityManager.interrupt()
+                                }
                                 announceForAccessibility(textStr)
                                 android.widget.Toast.makeText(context, textStr, android.widget.Toast.LENGTH_SHORT).show()
                                 performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
