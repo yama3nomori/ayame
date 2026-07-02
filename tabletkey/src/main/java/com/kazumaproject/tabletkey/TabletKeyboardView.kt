@@ -287,6 +287,17 @@ class TabletKeyboardView @JvmOverloads constructor(
     private var flickListener: FlickListener? = null
     private var longPressListener: LongPressListener? = null
 
+    // Space key drag tracking variables
+    private var isDraggingSpaceKey = false
+    private var spaceKeyDragStartX = 0f
+    private var spaceKeyDragStartY = 0f
+    private var spaceKeyDragEndX = 0f
+    private var spaceKeyDragEndY = 0f
+    private var isSpaceDownAnnounced = false
+    private var isSpaceUpAnnounced = false
+    private var isSpaceRightAnnounced = false
+
+
     private var longPressJob: Job? = null
     private var isLongPressed = false
 
@@ -905,7 +916,31 @@ class TabletKeyboardView @JvmOverloads constructor(
                     ) {
                         return false
                     }
+
+                    if (key == Key.SideKeySpace) {
+                        isDraggingSpaceKey = true
+                        isSpaceDownAnnounced = false
+                        isSpaceUpAnnounced = false
+                        isSpaceRightAnnounced = false
+                        val currentX = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            event.getRawX(0)
+                        } else {
+                            event.getX(0)
+                        }
+                        val currentY = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            event.getRawY(0)
+                        } else {
+                            event.getY(0)
+                        }
+                        spaceKeyDragStartX = currentX
+                        spaceKeyDragEndX = currentX
+                        spaceKeyDragStartY = currentY
+                        spaceKeyDragEndY = currentY
+                        Log.d("TabletKeyDrag", "ACTION_DOWN: Space key drag initialized. StartX=$spaceKeyDragStartX")
+                    }
+
                     Log.d("ACTION_DOWN: ", "${tabletCapsLockState.value}")
+
                     longPressJob = CoroutineScope(Dispatchers.Main).launch {
                         delay(ViewConfiguration.getLongPressTimeout().toLong())
                         if (pressedKey.key != Key.NotSelected) {
@@ -919,6 +954,31 @@ class TabletKeyboardView @JvmOverloads constructor(
 
                 MotionEvent.ACTION_UP -> {
                     resetLongPressAction()
+                    if (isDraggingSpaceKey) {
+                        isDraggingSpaceKey = false
+                        Log.d("TabletKeyDrag", "ACTION_UP: Space key drag finished. isSpaceDownAnnounced=$isSpaceDownAnnounced, isSpaceUpAnnounced=$isSpaceUpAnnounced, isSpaceRightAnnounced=$isSpaceRightAnnounced")
+                        if (isSpaceDownAnnounced || isSpaceUpAnnounced || isSpaceRightAnnounced) {
+                            val gestureType = when {
+                                isSpaceDownAnnounced -> GestureType.FlickBottom
+                                isSpaceUpAnnounced -> GestureType.FlickTop
+                                isSpaceRightAnnounced -> GestureType.FlickRight
+                                else -> GestureType.Null
+                            }
+                            isSpaceDownAnnounced = false
+                            isSpaceUpAnnounced = false
+                            isSpaceRightAnnounced = false
+                            if (gestureType != GestureType.Null) {
+                                flickListener?.onFlick(
+                                    gestureType = gestureType,
+                                    key = Key.SideKeySpace,
+                                    char = null
+                                )
+                            }
+                            resetAllKeys()
+                            popupWindowActive.hide()
+                            return false
+                        }
+                    }
                     if (pressedKey.pointer == event.getPointerId(event.actionIndex)) {
                         val gestureType = getGestureType(event)
                         val keyInfo = currentInputMode.get().next(
@@ -1063,6 +1123,90 @@ class TabletKeyboardView @JvmOverloads constructor(
                 }
 
                 MotionEvent.ACTION_MOVE -> {
+                    if (isDraggingSpaceKey) {
+                        val (screenX, screenY) = if (event.pointerCount > 0) {
+                            getRawCoordinates(event, 0)
+                        } else {
+                            0f to 0f
+                        }
+                        val dyStart = screenY - spaceKeyDragStartY
+                        val dxStart = screenX - spaceKeyDragStartX
+                        
+                        val threshold = 35f // Highly sensitive and responsive
+                        val dragUpThreshold = -35f
+                        val dragRightThreshold = 35f
+                        val cancelDownThreshold = 150f
+                        val cancelXThreshold = 60f
+                        
+                        Log.d("TabletKeyDrag", "ACTION_MOVE: isDraggingSpaceKey=true, screenX=$screenX, screenY=$screenY, dyStart=$dyStart, dxStart=$dxStart")
+                        
+                        if (dyStart > threshold && dyStart <= cancelDownThreshold && abs(dxStart) <= cancelXThreshold) {
+                            if (!isSpaceDownAnnounced && !isSpaceUpAnnounced && !isSpaceRightAnnounced) {
+                                isSpaceDownAnnounced = true
+                                val annText = "予測変換"
+                                Log.d("TabletKeyDrag", "ACTION_MOVE: Space Down threshold reached! Announcing '$annText'")
+                                announceForAccessibility(annText)
+                                android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else if (dyStart < dragUpThreshold && dyStart >= -cancelDownThreshold && abs(dxStart) <= cancelXThreshold) {
+                            if (!isSpaceDownAnnounced && !isSpaceUpAnnounced && !isSpaceRightAnnounced) {
+                                isSpaceUpAnnounced = true
+                                val annText = "カタカナ変換"
+                                Log.d("TabletKeyDrag", "ACTION_MOVE: Space Up threshold reached! Announcing '$annText'")
+                                announceForAccessibility(annText)
+                                android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else if (dxStart > dragRightThreshold && dxStart <= cancelDownThreshold && abs(dyStart) <= cancelXThreshold) {
+                            if (!isSpaceDownAnnounced && !isSpaceUpAnnounced && !isSpaceRightAnnounced) {
+                                isSpaceRightAnnounced = true
+                                val annText = "半角カタカナ"
+                                Log.d("TabletKeyDrag", "ACTION_MOVE: Space Right threshold reached! Announcing '$annText'")
+                                announceForAccessibility(annText)
+                                android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else {
+                            val returnedToCenter = when {
+                                isSpaceDownAnnounced -> dyStart <= threshold
+                                isSpaceUpAnnounced -> dyStart >= dragUpThreshold
+                                isSpaceRightAnnounced -> dxStart <= dragRightThreshold
+                                else -> false
+                            }
+
+                            if (returnedToCenter) {
+                                isSpaceDownAnnounced = false
+                                isSpaceUpAnnounced = false
+                                isSpaceRightAnnounced = false
+                                
+                                spaceKeyDragStartX = screenX
+                                spaceKeyDragEndX = screenX
+                                spaceKeyDragStartY = screenY
+                                spaceKeyDragEndY = screenY
+                                
+                                binding.keySpace.isPressed = true
+                                binding.keySpace.isSelected = true
+                            } else {
+                                val shouldCancel = when {
+                                    isSpaceDownAnnounced -> (dyStart > cancelDownThreshold) || (abs(dxStart) > cancelXThreshold)
+                                    isSpaceUpAnnounced -> (dyStart < -cancelDownThreshold) || (abs(dxStart) > cancelXThreshold)
+                                    isSpaceRightAnnounced -> (dxStart > cancelDownThreshold) || (abs(dyStart) > cancelXThreshold)
+                                    else -> {
+                                        (dyStart > cancelDownThreshold) || (dyStart < -cancelDownThreshold) || (dxStart > cancelDownThreshold) || (abs(dxStart) > cancelXThreshold && dyStart > threshold) || (abs(dxStart) > cancelXThreshold && dyStart < dragUpThreshold) || (abs(dyStart) > cancelXThreshold && dxStart > dragRightThreshold)
+                                    }
+                                }
+                                if (shouldCancel) {
+                                    isSpaceDownAnnounced = false
+                                    isSpaceUpAnnounced = false
+                                    isSpaceRightAnnounced = false
+                                    isDraggingSpaceKey = false
+                                }
+                            }
+                        }
+                        return true
+                    }
+
                     val gestureType =
                         if (event.pointerCount == 1) getGestureType(event, 0) else getGestureType(
                             event, pressedKey.pointer

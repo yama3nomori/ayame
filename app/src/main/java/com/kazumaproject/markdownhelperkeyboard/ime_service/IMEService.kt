@@ -585,6 +585,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private val _cursorMoveMode = MutableStateFlow(false)
     private val cursorMoveMode: StateFlow<Boolean> = _cursorMoveMode
     private var hasConvertedKatakana = false
+    private var preInputKatakanaMode = 0 // 0 = Hiragana, 1 = Zenkaku Katakana, 2 = Hankaku Katakana
+
 
     private val deletedBuffer = StringBuilder()
 
@@ -4054,6 +4056,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                                     }
                                 }
                             }
+                        } else if (gestureType == GestureType.FlickTop) {
+                            convertToZenkakuKatakana()
+                        } else if (gestureType == GestureType.FlickRight) {
+                            convertToHankakuKatakana()
                         } else if (gestureType == GestureType.FlickLeft) {
                             val isHankaku = hankakuPreference == true
                             if (isHankaku) {
@@ -4334,6 +4340,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                                     }
                                 }
                             }
+                        } else if (gestureType == GestureType.FlickTop) {
+                            convertToZenkakuKatakana()
+                        } else if (gestureType == GestureType.FlickRight) {
+                            convertToHankakuKatakana()
                         } else if (gestureType == GestureType.FlickLeft) {
                             val isHankaku = hankakuPreference == true
                             if (isHankaku) {
@@ -6055,6 +6065,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     KeyAction.MoveCursorToNextLine -> {}
                     KeyAction.DeleteLeftWordOrSymbols -> {}
                     KeyAction.DeleteForward -> {}
+                    else -> {}
                 }
             }
 
@@ -6120,6 +6131,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     KeyAction.MoveCursorToNextLine -> {}
                     KeyAction.DeleteLeftWordOrSymbols -> {}
                     KeyAction.DeleteForward -> {}
+                    else -> {}
                 }
             }
 
@@ -6256,6 +6268,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     KeyAction.MoveCursorToNextLine -> {}
                     KeyAction.DeleteLeftWordOrSymbols -> {}
                     KeyAction.DeleteForward -> {}
+                    else -> {}
                 }
             }
 
@@ -6402,6 +6415,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     KeyAction.MoveCursorToNextLine -> {}
                     KeyAction.DeleteLeftWordOrSymbols -> {}
                     KeyAction.DeleteForward -> {}
+                    else -> {}
                 }
             }
 
@@ -6707,6 +6721,14 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                                 countToggleKatakana = 0
                             }
                         }
+                    }
+
+                    KeyAction.ConvertToZenkakuKatakana -> {
+                        convertToZenkakuKatakana()
+                    }
+
+                    KeyAction.ConvertToHankakuKatakana -> {
+                        convertToHankakuKatakana()
                     }
 
                     KeyAction.DeleteUntilSymbol -> {
@@ -7932,6 +7954,24 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
         launch {
             inputString.collectLatest { string ->
+                if (string.isNotEmpty()) {
+                    if (preInputKatakanaMode == 1) {
+                        val katakana = string.hiraganaToKatakana()
+                        if (katakana != string) {
+                            _inputString.update { katakana }
+                            return@collectLatest
+                        }
+                    } else if (preInputKatakanaMode == 2) {
+                        val hankaku = string.toHankakuKatakana()
+                        if (hankaku != string) {
+                            _inputString.update { hankaku }
+                            return@collectLatest
+                        }
+                    }
+                } else {
+                    preInputKatakanaMode = 0
+                }
+
                 val isComposing = string.isNotEmpty()
                 mainView.keyboardView.isInputComposing = isComposing
                 mainView.customLayoutDefault.isInputComposing = isComposing
@@ -9970,6 +10010,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                                     }
                                     isHenkan.set(true)
                                 }
+                            } else if (tap == '\u0015') {
+                                convertToZenkakuKatakana()
+                            } else if (tap == '\u0016') {
+                                convertToHankakuKatakana()
                             } else {
                                 if (!isSpaceKeyLongPressed) {
                                     handleSpaceKeyClickInQWERTY(insertString, mainView, suggestionList)
@@ -12695,6 +12739,26 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         resetFlagsKeySpace()
     }
 
+
+    private fun convertToZenkakuKatakana() {
+        val insertString = inputString.value
+        if (insertString.isNotEmpty()) {
+            _inputString.update { it.hiraganaToKatakana() }
+        } else {
+            preInputKatakanaMode = 1
+            android.widget.Toast.makeText(this, "カタカナ入力モード", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun convertToHankakuKatakana() {
+        val insertString = inputString.value
+        if (insertString.isNotEmpty()) {
+            _inputString.update { it.toHankakuKatakana() }
+        } else {
+            preInputKatakanaMode = 2
+            android.widget.Toast.makeText(this, "半角カタカナ入力モード", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
 
     private fun handleJapaneseModeSpaceKey(
         mainView: MainLayoutBinding, suggestions: List<Candidate>, insertString: String

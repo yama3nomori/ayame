@@ -69,7 +69,10 @@ sealed class KeyAction {
     data object MoveCursorToNextLine : KeyAction()
     data object DeleteLeftWordOrSymbols : KeyAction()
     data object DeleteForward : KeyAction()
+    data object ConvertToZenkakuKatakana : KeyAction()
+    data object ConvertToHankakuKatakana : KeyAction()
 }
+
 
 data class KeyData(
     val label: String,

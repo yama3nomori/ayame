@@ -1224,20 +1224,110 @@ class FlickKeyboardView @JvmOverloads constructor(
                                 true; this@FlickKeyboardView.listener?.onActionLongPress(currentAction); true
                         }
                     }
-                    keyView.setOnTouchListener { _, event ->
-                        if (event.action == MotionEvent.ACTION_UP || event.action == MotionEvent.ACTION_CANCEL) {
-                            if (isLongPressTriggered) {
-                                if (event.action == MotionEvent.ACTION_UP) {
-                                    val currentAction =
-                                        dynamicKeyMap[keyData.keyId]?.keyData?.action ?: action
-                                    this@FlickKeyboardView.listener?.onActionUpAfterLongPress(
-                                        currentAction
-                                    )
+                    if (action == KeyAction.Space) {
+                        var dragStartX = 0f
+                        var dragStartY = 0f
+                        var isDraggingSpace = false
+                        var isUpAnnounced = false
+                        var isRightAnnounced = false
+
+                        keyView.setOnTouchListener { _, event ->
+                            val density = context.resources.displayMetrics.density
+                            val threshold = 35f * density
+                            val cancelThreshold = 150f * density
+                            val cancelXThreshold = 60f * density
+
+                            when (event.action) {
+                                MotionEvent.ACTION_DOWN -> {
+                                    dragStartX = event.x
+                                    dragStartY = event.y
+                                    isDraggingSpace = true
+                                    isUpAnnounced = false
+                                    isRightAnnounced = false
+                                    isLongPressTriggered = false
+                                    false
                                 }
-                                isLongPressTriggered = false
+                                MotionEvent.ACTION_MOVE -> {
+                                    if (isDraggingSpace) {
+                                        val dx = event.x - dragStartX
+                                        val dy = event.y - dragStartY
+                                        
+                                        if (dy < -threshold && dy >= -cancelThreshold && abs(dx) <= cancelXThreshold) {
+                                            if (!isUpAnnounced && !isRightAnnounced) {
+                                                isUpAnnounced = true
+                                                val annText = "カタカナ変換"
+                                                announceForAccessibility(annText)
+                                                android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
+                                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                                            }
+                                        } else if (dx > threshold && dx <= cancelThreshold && abs(dy) <= cancelXThreshold) {
+                                            if (!isUpAnnounced && !isRightAnnounced) {
+                                                isRightAnnounced = true
+                                                val annText = "半角カタカナ"
+                                                announceForAccessibility(annText)
+                                                android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
+                                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                                            }
+                                        } else {
+                                            val shouldCancel = (dy < -cancelThreshold) || (dy > cancelThreshold) || (dx > cancelThreshold) || (dx < -cancelThreshold) ||
+                                                (isUpAnnounced && abs(dx) > cancelXThreshold) || (isRightAnnounced && abs(dy) > cancelXThreshold)
+                                            if (shouldCancel) {
+                                                isUpAnnounced = false
+                                                isRightAnnounced = false
+                                                isDraggingSpace = false
+                                            }
+                                        }
+                                    }
+                                    false
+                                }
+                                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                                    if (isDraggingSpace) {
+                                        isDraggingSpace = false
+                                        if (isUpAnnounced || isRightAnnounced) {
+                                            val actionTarget = if (isUpAnnounced) KeyAction.ConvertToZenkakuKatakana else KeyAction.ConvertToHankakuKatakana
+                                            isUpAnnounced = false
+                                            isRightAnnounced = false
+                                            this@FlickKeyboardView.listener?.onAction(actionTarget, keyView, true)
+                                            true
+                                        } else {
+                                            if (isLongPressTriggered) {
+                                                if (event.action == MotionEvent.ACTION_UP) {
+                                                    val currentAction = dynamicKeyMap[keyData.keyId]?.keyData?.action ?: action
+                                                    this@FlickKeyboardView.listener?.onActionUpAfterLongPress(currentAction)
+                                                }
+                                                isLongPressTriggered = false
+                                                true
+                                            } else {
+                                                false
+                                            }
+                                        }
+                                    } else {
+                                        false
+                                    }
+                                }
+                                else -> false
                             }
                         }
-                        false
+                    } else {
+                        keyView.setOnTouchListener { _, event ->
+                            if (event.action == MotionEvent.ACTION_UP || event.action == MotionEvent.ACTION_CANCEL) {
+                                if (isLongPressTriggered) {
+                                    if (event.action == MotionEvent.ACTION_UP) {
+                                        val currentAction =
+                                            dynamicKeyMap[keyData.keyId]?.keyData?.action ?: action
+                                        this@FlickKeyboardView.listener?.onActionUpAfterLongPress(
+                                            currentAction
+                                        )
+                                    }
+                                    isLongPressTriggered = false
+                                    true
+                                } else {
+                                    false
+                                }
+                            } else {
+                                false
+                            }
+                        }
                     }
                 }
                 return null // コントローラーなし
