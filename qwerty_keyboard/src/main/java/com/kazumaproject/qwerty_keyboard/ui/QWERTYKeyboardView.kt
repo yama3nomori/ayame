@@ -1371,6 +1371,12 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                             isLineUpAnnounced = false
                             isLineDownAnnounced = false
 
+                            rightCursorDragStartX = screenX
+                            rightCursorDragEndX = screenX
+                            rightCursorDragStartY = screenY
+                            rightCursorDragEndY = screenY
+                            rightCursorDragTopY = screenY
+
                             val button = qwertyButtonMap.filterValues { it == QWERTYKey.QWERTYKeyCursorRight }.keys.firstOrNull()
                             button?.let { view ->
                                 val textStr = (view as? TextView)?.text?.toString() ?: view.contentDescription?.toString() ?: "右移動"
@@ -1464,6 +1470,12 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                             isLeftLineUpAnnounced = false
                             isLeftLineDownAnnounced = false
 
+                            leftCursorDragStartX = screenX
+                            leftCursorDragEndX = screenX
+                            leftCursorDragStartY = screenY
+                            leftCursorDragEndY = screenY
+                            leftCursorDragTopY = screenY
+
                             val button = qwertyButtonMap.filterValues { it == QWERTYKey.QWERTYKeyCursorLeft }.keys.firstOrNull()
                             button?.let { view ->
                                 val textStr = (view as? TextView)?.text?.toString() ?: view.contentDescription?.toString() ?: "左移動"
@@ -1533,6 +1545,12 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                             isDeleteLeftAnnounced = false
                             isDeleteRightAnnounced = false
 
+                            deleteKeyDragStartX = screenX
+                            deleteKeyDragEndX = screenX
+                            deleteKeyDragStartY = screenY
+                            deleteKeyDragEndY = screenY
+                            deleteKeyDragTopY = screenY
+
                             val button = qwertyButtonMap.filterValues { it == QWERTYKey.QWERTYKeyDelete }.keys.firstOrNull()
                             button?.let { view ->
                                 val textStr = (view as? TextView)?.text?.toString() ?: view.contentDescription?.toString() ?: "削除"
@@ -1579,6 +1597,11 @@ class QWERTYKeyboardView @JvmOverloads constructor(
 
                         if (returnedToCenter) {
                             isSpaceDownAnnounced = false
+
+                            spaceKeyDragStartX = screenX
+                            spaceKeyDragEndX = screenX
+                            spaceKeyDragStartY = screenY
+                            spaceKeyDragEndY = screenY
 
                             val button = qwertyButtonMap.filterValues { it == QWERTYKey.QWERTYKeySpace }.keys.firstOrNull()
                             button?.let { view ->
@@ -1654,6 +1677,12 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                             isReadAloudLeftAnnounced = false
                             isReadAloudUpAnnounced = false
                             isReadAloudRightAnnounced = false
+
+                            readAloudKeyDragStartX = screenX
+                            readAloudKeyDragEndX = screenX
+                            readAloudKeyDragStartY = screenY
+                            readAloudKeyDragEndY = screenY
+                            readAloudKeyDragTopY = screenY
 
                             val button = qwertyButtonMap.filterValues { it == QWERTYKey.QWERTYKeyReadAloud }.keys.firstOrNull()
                             button?.let { view ->
