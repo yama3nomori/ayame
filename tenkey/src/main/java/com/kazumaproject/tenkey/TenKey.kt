@@ -1880,35 +1880,59 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                         }
                     } else {
-                        val shouldCancel = if (isLineStartAnnounced) {
-                            (dxStart >= -threshold / 2f) || (dxStart < cancelLeftThreshold) || (abs(screenY - hoverRightCursorDragStartY) > cancelYThreshold)
+                        val returnedToCenter = if (isLineStartAnnounced) {
+                            dxStart >= -threshold
                         } else if (isLineEndAnnounced) {
-                            (dxEnd <= threshold / 2f) || (dxEnd > cancelRightThreshold) || (abs(screenY - hoverRightCursorDragStartY) > cancelYThreshold)
+                            dxEnd <= threshold
                         } else if (isLineUpAnnounced) {
-                            (dyUp >= -threshold / 2f) || (dyUp < cancelUpThreshold) || (abs(screenX - hoverRightCursorDragStartX) > cancelXThreshold)
+                            dyUp >= -threshold
                         } else if (isLineDownAnnounced) {
-                            (dyDown <= threshold / 2f) || (dyDown > cancelDownThreshold) || (abs(screenX - hoverRightCursorDragStartX) > cancelXThreshold)
+                            dyDown <= threshold
                         } else {
-                            (dxStart < cancelLeftThreshold) || (dxEnd > cancelRightThreshold) || (dyUp < cancelUpThreshold) || (dyDown > cancelDownThreshold) || (abs(screenY - hoverRightCursorDragStartY) > cancelYThreshold && abs(screenX - hoverRightCursorDragStartX) > cancelXThreshold)
+                            false
                         }
-                        
-                        if (shouldCancel) {
-                            if (isLineStartAnnounced || isLineEndAnnounced || isLineUpAnnounced || isLineDownAnnounced) {
-                                Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Resetting drag announcement (cancelled by drag out of bounds)")
+
+                        if (returnedToCenter) {
+                            isLineStartAnnounced = false
+                            isLineEndAnnounced = false
+                            isLineUpAnnounced = false
+                            isLineDownAnnounced = false
+
+                            hoverRightCursorDragStartX = screenX
+                            hoverRightCursorDragEndX = screenX
+                            hoverRightCursorDragStartY = screenY
+                            hoverRightCursorDragEndY = screenY
+                            hoverRightCursorDragTopY = screenY
+
+                            val targetView = getButtonFromKey(key) as? View
+                            targetView?.let { view ->
+                                val textStr = view.contentDescription?.toString() ?: "右移動"
+                                if (accessibilityManager.isTouchExplorationEnabled) {
+                                    accessibilityManager.interrupt()
+                                }
+                                announceForAccessibility(textStr)
+                                android.widget.Toast.makeText(context, textStr, android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else {
+                            val shouldCancel = if (isLineStartAnnounced) {
+                                (dxStart < cancelLeftThreshold) || (abs(screenY - hoverRightCursorDragStartY) > cancelYThreshold)
+                            } else if (isLineEndAnnounced) {
+                                (dxEnd > cancelRightThreshold) || (abs(screenY - hoverRightCursorDragStartY) > cancelYThreshold)
+                            } else if (isLineUpAnnounced) {
+                                (dyUp < cancelUpThreshold) || (abs(screenX - hoverRightCursorDragStartX) > cancelXThreshold)
+                            } else if (isLineDownAnnounced) {
+                                (dyDown > cancelDownThreshold) || (abs(screenX - hoverRightCursorDragStartX) > cancelXThreshold)
+                            } else {
+                                (dxStart < cancelLeftThreshold) || (dxEnd > cancelRightThreshold) || (dyUp < cancelUpThreshold) || (dyDown > cancelDownThreshold) ||
+                                (abs(screenY - hoverRightCursorDragStartY) > cancelYThreshold && abs(screenX - hoverRightCursorDragStartX) > cancelXThreshold)
+                            }
+                            if (shouldCancel) {
                                 isLineStartAnnounced = false
                                 isLineEndAnnounced = false
                                 isLineUpAnnounced = false
                                 isLineDownAnnounced = false
-                            }
-                            isHoverDraggingRightCursor = false
-                            
-                            // Immediately announce the currently hovered key since we cancelled the drag gesture
-                            val targetView = getButtonFromKey(key)
-                            if (targetView is View) {
-                                if (accessibilityManager.isTouchExplorationEnabled) {
-                                    accessibilityManager.interrupt()
-                                }
-                                targetView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+                                isHoverDraggingRightCursor = false
                             }
                         }
                     }
@@ -1979,35 +2003,59 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                         }
                     } else {
-                        val shouldCancel = if (isLeftLineStartAnnounced) {
-                            (dxStart >= -threshold / 2f) || (dxStart < cancelLeftThreshold) || (abs(screenY - hoverLeftCursorDragStartY) > cancelYThreshold)
+                        val returnedToCenter = if (isLeftLineStartAnnounced) {
+                            dxStart >= -threshold
                         } else if (isLeftLineEndAnnounced) {
-                            (dxEnd <= threshold / 2f) || (dxEnd > cancelRightThreshold) || (abs(screenY - hoverLeftCursorDragStartY) > cancelYThreshold)
+                            dxEnd <= threshold
                         } else if (isLeftLineUpAnnounced) {
-                            (dyUp >= -threshold / 2f) || (dyUp < cancelUpThreshold) || (abs(screenX - hoverLeftCursorDragStartX) > cancelXThreshold)
+                            dyUp >= -threshold
                         } else if (isLeftLineDownAnnounced) {
-                            (dyDown <= threshold / 2f) || (dyDown > cancelDownThreshold) || (abs(screenX - hoverLeftCursorDragStartX) > cancelXThreshold)
+                            dyDown <= threshold
                         } else {
-                            (dxStart < cancelLeftThreshold) || (dxEnd > cancelRightThreshold) || (dyUp < cancelUpThreshold) || (dyDown > cancelDownThreshold) || (abs(screenY - hoverLeftCursorDragStartY) > cancelYThreshold && abs(screenX - hoverLeftCursorDragStartX) > cancelXThreshold)
+                            false
                         }
-                        
-                        if (shouldCancel) {
-                            if (isLeftLineStartAnnounced || isLeftLineEndAnnounced || isLeftLineUpAnnounced || isLeftLineDownAnnounced) {
-                                Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Resetting left drag announcement (cancelled by drag out of bounds)")
+
+                        if (returnedToCenter) {
+                            isLeftLineStartAnnounced = false
+                            isLeftLineEndAnnounced = false
+                            isLeftLineUpAnnounced = false
+                            isLeftLineDownAnnounced = false
+
+                            hoverLeftCursorDragStartX = screenX
+                            hoverLeftCursorDragEndX = screenX
+                            hoverLeftCursorDragStartY = screenY
+                            hoverLeftCursorDragEndY = screenY
+                            hoverLeftCursorDragTopY = screenY
+
+                            val targetView = getButtonFromKey(key) as? View
+                            targetView?.let { view ->
+                                val textStr = view.contentDescription?.toString() ?: "左移動"
+                                if (accessibilityManager.isTouchExplorationEnabled) {
+                                    accessibilityManager.interrupt()
+                                }
+                                announceForAccessibility(textStr)
+                                android.widget.Toast.makeText(context, textStr, android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else {
+                            val shouldCancel = if (isLeftLineStartAnnounced) {
+                                (dxStart < cancelLeftThreshold) || (abs(screenY - hoverLeftCursorDragStartY) > cancelYThreshold)
+                            } else if (isLeftLineEndAnnounced) {
+                                (dxEnd > cancelRightThreshold) || (abs(screenY - hoverLeftCursorDragStartY) > cancelYThreshold)
+                            } else if (isLeftLineUpAnnounced) {
+                                (dyUp < cancelUpThreshold) || (abs(screenX - hoverLeftCursorDragStartX) > cancelXThreshold)
+                            } else if (isLeftLineDownAnnounced) {
+                                (dyDown > cancelDownThreshold) || (abs(screenX - hoverLeftCursorDragStartX) > cancelXThreshold)
+                            } else {
+                                (dxStart < cancelLeftThreshold) || (dxEnd > cancelRightThreshold) || (dyUp < cancelUpThreshold) || (dyDown > cancelDownThreshold) ||
+                                (abs(screenY - hoverLeftCursorDragStartY) > cancelYThreshold && abs(screenX - hoverLeftCursorDragStartX) > cancelXThreshold)
+                            }
+                            if (shouldCancel) {
                                 isLeftLineStartAnnounced = false
                                 isLeftLineEndAnnounced = false
                                 isLeftLineUpAnnounced = false
                                 isLeftLineDownAnnounced = false
-                            }
-                            isHoverDraggingLeftCursor = false
-                            
-                            // Immediately announce the currently hovered key since we cancelled the drag gesture
-                            val targetView = getButtonFromKey(key)
-                            if (targetView is View) {
-                                if (accessibilityManager.isTouchExplorationEnabled) {
-                                    accessibilityManager.interrupt()
-                                }
-                                targetView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+                                isHoverDraggingLeftCursor = false
                             }
                         }
                     }
@@ -2049,30 +2097,46 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                         }
                     } else {
-                        val shouldCancel = if (isDeleteLeftAnnounced) {
-                            (dxStart >= -threshold / 2f) || (dxStart < cancelLeftThreshold) || (abs(screenY - hoverDeleteKeyDragStartY) > cancelYThreshold)
+                        val returnedToCenter = if (isDeleteLeftAnnounced) {
+                            dxStart >= -threshold
                         } else if (isDeleteRightAnnounced) {
-                            (dxStart <= threshold / 2f) || (dxStart > cancelRightThreshold) || (abs(screenY - hoverDeleteKeyDragStartY) > cancelYThreshold)
+                            dxStart <= threshold
                         } else {
-                            (dxStart < cancelLeftThreshold) || (dxStart > cancelRightThreshold) || (abs(screenY - hoverDeleteKeyDragStartY) > cancelYThreshold)
+                            false
                         }
-                        
-                        if (shouldCancel) {
-                            if (isDeleteLeftAnnounced || isDeleteRightAnnounced || isDeleteUpAnnounced) {
-                                Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Resetting Delete drag announcement (cancelled by drag out of bounds)")
-                                isDeleteLeftAnnounced = false
-                                isDeleteRightAnnounced = false
-                                isDeleteUpAnnounced = false
-                            }
-                            isHoverDraggingDeleteKey = false
-                            
-                            // Immediately announce the currently hovered key since we cancelled the drag gesture
-                            val targetView = getButtonFromKey(key)
-                            if (targetView is View) {
+
+                        if (returnedToCenter) {
+                            isDeleteLeftAnnounced = false
+                            isDeleteRightAnnounced = false
+
+                            hoverDeleteKeyDragStartX = screenX
+                            hoverDeleteKeyDragEndX = screenX
+                            hoverDeleteKeyDragStartY = screenY
+                            hoverDeleteKeyDragEndY = screenY
+                            hoverDeleteKeyDragTopY = screenY
+
+                            val targetView = getButtonFromKey(key) as? View
+                            targetView?.let { view ->
+                                val textStr = view.contentDescription?.toString() ?: "削除"
                                 if (accessibilityManager.isTouchExplorationEnabled) {
                                     accessibilityManager.interrupt()
                                 }
-                                targetView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+                                announceForAccessibility(textStr)
+                                android.widget.Toast.makeText(context, textStr, android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else {
+                            val shouldCancel = if (isDeleteLeftAnnounced) {
+                                (dxStart < cancelLeftThreshold) || (abs(screenY - hoverDeleteKeyDragStartY) > cancelYThreshold)
+                            } else if (isDeleteRightAnnounced) {
+                                (dxStart > cancelRightThreshold) || (abs(screenY - hoverDeleteKeyDragStartY) > cancelYThreshold)
+                            } else {
+                                (dxStart < cancelLeftThreshold) || (dxStart > cancelRightThreshold) || (abs(screenY - hoverDeleteKeyDragStartY) > cancelYThreshold)
+                            }
+                            if (shouldCancel) {
+                                isDeleteLeftAnnounced = false
+                                isDeleteRightAnnounced = false
+                                isHoverDraggingDeleteKey = false
                             }
                         }
                     }
@@ -2097,26 +2161,39 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                         }
                     } else {
-                        val shouldCancel = if (isSpaceDownAnnounced) {
-                            (dyStart <= threshold / 2f) || (dyStart > cancelDownThreshold) || (abs(screenX - hoverSpaceKeyDragStartX) > cancelXThreshold)
+                        val returnedToCenter = if (isSpaceDownAnnounced) {
+                            dyStart <= threshold
                         } else {
-                            (dyStart > cancelDownThreshold) || (abs(screenX - hoverSpaceKeyDragStartX) > cancelXThreshold)
+                            false
                         }
-                        
-                        if (shouldCancel) {
-                            if (isSpaceDownAnnounced) {
-                                Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Resetting Space drag announcement (cancelled by drag out of bounds)")
-                                isSpaceDownAnnounced = false
-                            }
-                            isHoverDraggingSpaceKey = false
-                            
-                            // Immediately announce the currently hovered key since we cancelled the drag gesture
-                            val targetView = getButtonFromKey(key)
-                            if (targetView is View) {
+
+                        if (returnedToCenter) {
+                            isSpaceDownAnnounced = false
+
+                            hoverSpaceKeyDragStartX = screenX
+                            hoverSpaceKeyDragEndX = screenX
+                            hoverSpaceKeyDragStartY = screenY
+                            hoverSpaceKeyDragEndY = screenY
+
+                            val targetView = getButtonFromKey(key) as? View
+                            targetView?.let { view ->
+                                val textStr = view.contentDescription?.toString() ?: "スペース"
                                 if (accessibilityManager.isTouchExplorationEnabled) {
                                     accessibilityManager.interrupt()
                                 }
-                                targetView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+                                announceForAccessibility(textStr)
+                                android.widget.Toast.makeText(context, textStr, android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else {
+                            val shouldCancel = if (isSpaceDownAnnounced) {
+                                (dyStart > cancelDownThreshold) || (abs(screenX - hoverSpaceKeyDragStartX) > cancelXThreshold)
+                            } else {
+                                (dyStart > cancelDownThreshold) || (abs(screenX - hoverSpaceKeyDragStartX) > cancelXThreshold)
+                            }
+                            if (shouldCancel) {
+                                isSpaceDownAnnounced = false
+                                isHoverDraggingSpaceKey = false
                             }
                         }
                     }
@@ -2180,33 +2257,53 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                         }
                     } else {
-                        val shouldCancel = if (isReadAloudLeftAnnounced) {
-                            (dxStart >= -threshold / 2f) || (dxStart < cancelLeftThreshold) || (abs(screenY - hoverReadAloudKeyDragStartY) > cancelYThreshold)
+                        val returnedToCenter = if (isReadAloudLeftAnnounced) {
+                            dxStart >= -threshold
                         } else if (isReadAloudRightAnnounced) {
-                            (dxEnd <= threshold / 2f) || (dxEnd > cancelRightThreshold) || (abs(screenY - hoverReadAloudKeyDragStartY) > cancelYThreshold)
+                            dxEnd <= threshold
                         } else if (isReadAloudUpAnnounced) {
-                            (dyUp >= -threshold / 2f) || (dyUp < cancelUpThreshold) || (abs(screenX - hoverReadAloudKeyDragStartX) > cancelXThreshold)
+                            dyUp >= -threshold
                         } else {
-                            (dxStart < cancelLeftThreshold) || (dxEnd > cancelRightThreshold) || (dyUp < cancelUpThreshold) || 
-                            (abs(screenY - hoverReadAloudKeyDragStartY) > cancelYThreshold && abs(screenX - hoverReadAloudKeyDragStartX) > cancelXThreshold)
+                            false
                         }
-                        
-                        if (shouldCancel) {
-                            if (isReadAloudLeftAnnounced || isReadAloudUpAnnounced || isReadAloudRightAnnounced) {
-                                Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Resetting Read Aloud drag announcement (cancelled by drag out of bounds)")
-                                isReadAloudLeftAnnounced = false
-                                isReadAloudUpAnnounced = false
-                                isReadAloudRightAnnounced = false
-                            }
-                            isHoverDraggingReadAloudKey = false
-                            
-                            // Immediately announce the currently hovered key since we cancelled the drag gesture
-                            val targetView = getButtonFromKey(key)
-                            if (targetView is View) {
+
+                        if (returnedToCenter) {
+                            isReadAloudLeftAnnounced = false
+                            isReadAloudUpAnnounced = false
+                            isReadAloudRightAnnounced = false
+
+                            hoverReadAloudKeyDragStartX = screenX
+                            hoverReadAloudKeyDragEndX = screenX
+                            hoverReadAloudKeyDragStartY = screenY
+                            hoverReadAloudKeyDragEndY = screenY
+                            hoverReadAloudKeyDragTopY = screenY
+
+                            val targetView = getButtonFromKey(key) as? View
+                            targetView?.let { view ->
+                                val textStr = view.contentDescription?.toString() ?: "読み上げ"
                                 if (accessibilityManager.isTouchExplorationEnabled) {
                                     accessibilityManager.interrupt()
                                 }
-                                targetView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+                                announceForAccessibility(textStr)
+                                android.widget.Toast.makeText(context, textStr, android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else {
+                            val shouldCancel = if (isReadAloudLeftAnnounced) {
+                                (dxStart < cancelLeftThreshold) || (abs(screenY - hoverReadAloudKeyDragStartY) > cancelYThreshold)
+                            } else if (isReadAloudRightAnnounced) {
+                                (dxEnd > cancelRightThreshold) || (abs(screenY - hoverReadAloudKeyDragStartY) > cancelYThreshold)
+                            } else if (isReadAloudUpAnnounced) {
+                                (dyUp < cancelUpThreshold) || (abs(screenX - hoverReadAloudKeyDragStartX) > cancelXThreshold)
+                            } else {
+                                (dxStart < cancelLeftThreshold) || (dxEnd > cancelRightThreshold) || (dyUp < cancelUpThreshold) || 
+                                (abs(screenY - hoverReadAloudKeyDragStartY) > cancelYThreshold && abs(screenX - hoverReadAloudKeyDragStartX) > cancelXThreshold)
+                            }
+                            if (shouldCancel) {
+                                isReadAloudLeftAnnounced = false
+                                isReadAloudUpAnnounced = false
+                                isReadAloudRightAnnounced = false
+                                isHoverDraggingReadAloudKey = false
                             }
                         }
                     }
@@ -3651,28 +3748,60 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                             }
                         } else {
-                            val shouldCancel = if (isLineStartAnnounced) {
-                                (dxStart >= -threshold / 2f) || (dxStart < cancelLeftThreshold) || (abs(screenY - rightCursorDragStartY) > cancelYThreshold)
+                            val returnedToCenter = if (isLineStartAnnounced) {
+                                dxStart >= -threshold
                             } else if (isLineEndAnnounced) {
-                                (dxEnd <= threshold / 2f) || (dxEnd > cancelRightThreshold) || (abs(screenY - rightCursorDragStartY) > cancelYThreshold)
+                                dxEnd <= threshold
                             } else if (isLineUpAnnounced) {
-                                (dyUp >= -threshold / 2f) || (dyUp < cancelUpThreshold) || (abs(screenX - rightCursorDragStartX) > cancelXThreshold)
+                                dyUp >= -threshold
                             } else if (isLineDownAnnounced) {
-                                (dyDown <= threshold / 2f) || (dyDown > cancelDownThreshold) || (abs(screenX - rightCursorDragStartX) > cancelXThreshold)
+                                dyDown <= threshold
                             } else {
-                                (dxStart < cancelLeftThreshold) || (dxEnd > cancelRightThreshold) || (dyUp < cancelUpThreshold) || (dyDown > cancelDownThreshold) || 
-                                (abs(screenY - rightCursorDragStartY) > cancelYThreshold && abs(screenX - rightCursorDragStartX) > cancelXThreshold)
+                                false
                             }
-                            
-                            if (shouldCancel) {
-                                if (isLineStartAnnounced || isLineEndAnnounced || isLineUpAnnounced || isLineDownAnnounced) {
-                                    Log.d("TenKeyDrag", "ACTION_MOVE: Resetting drag announcement (cancelled by drag out of bounds)")
+
+                            if (returnedToCenter) {
+                                isLineStartAnnounced = false
+                                isLineEndAnnounced = false
+                                isLineUpAnnounced = false
+                                isLineDownAnnounced = false
+
+                                rightCursorDragStartX = screenX
+                                rightCursorDragEndX = screenX
+                                rightCursorDragStartY = screenY
+                                rightCursorDragEndY = screenY
+                                rightCursorDragTopY = screenY
+
+                                val targetView = getButtonFromKey(Key.SideKeyCursorRight) as? View
+                                targetView?.let { view ->
+                                    val textStr = view.contentDescription?.toString() ?: "右移動"
+                                    if (accessibilityManager.isTouchExplorationEnabled) {
+                                        accessibilityManager.interrupt()
+                                    }
+                                    announceForAccessibility(textStr)
+                                    android.widget.Toast.makeText(context, textStr, android.widget.Toast.LENGTH_SHORT).show()
+                                    performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                                }
+                            } else {
+                                val shouldCancel = if (isLineStartAnnounced) {
+                                    (dxStart < cancelLeftThreshold) || (abs(screenY - rightCursorDragStartY) > cancelYThreshold)
+                                } else if (isLineEndAnnounced) {
+                                    (dxEnd > cancelRightThreshold) || (abs(screenY - rightCursorDragStartY) > cancelYThreshold)
+                                } else if (isLineUpAnnounced) {
+                                    (dyUp < cancelUpThreshold) || (abs(screenX - rightCursorDragStartX) > cancelXThreshold)
+                                } else if (isLineDownAnnounced) {
+                                    (dyDown > cancelDownThreshold) || (abs(screenX - rightCursorDragStartX) > cancelXThreshold)
+                                } else {
+                                    (dxStart < cancelLeftThreshold) || (dxEnd > cancelRightThreshold) || (dyUp < cancelUpThreshold) || (dyDown > cancelDownThreshold) || 
+                                    (abs(screenY - rightCursorDragStartY) > cancelYThreshold && abs(screenX - rightCursorDragStartX) > cancelXThreshold)
+                                }
+                                if (shouldCancel) {
                                     isLineStartAnnounced = false
                                     isLineEndAnnounced = false
                                     isLineUpAnnounced = false
                                     isLineDownAnnounced = false
+                                    isDraggingRightCursor = false
                                 }
-                                isDraggingRightCursor = false
                             }
                         }
                         return true // Consume this event to bypass popups and other move gesture handlers!
@@ -3743,28 +3872,60 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                             }
                         } else {
-                            val shouldCancel = if (isLeftLineStartAnnounced) {
-                                (dxStart >= -threshold / 2f) || (dxStart < cancelLeftThreshold) || (abs(screenY - leftCursorDragStartY) > cancelYThreshold)
+                            val returnedToCenter = if (isLeftLineStartAnnounced) {
+                                dxStart >= -threshold
                             } else if (isLeftLineEndAnnounced) {
-                                (dxEnd <= threshold / 2f) || (dxEnd > cancelRightThreshold) || (abs(screenY - leftCursorDragStartY) > cancelYThreshold)
+                                dxEnd <= threshold
                             } else if (isLeftLineUpAnnounced) {
-                                (dyUp >= -threshold / 2f) || (dyUp < cancelUpThreshold) || (abs(screenX - leftCursorDragStartX) > cancelXThreshold)
+                                dyUp >= -threshold
                             } else if (isLeftLineDownAnnounced) {
-                                (dyDown <= threshold / 2f) || (dyDown > cancelDownThreshold) || (abs(screenX - leftCursorDragStartX) > cancelXThreshold)
+                                dyDown <= threshold
                             } else {
-                                (dxStart < cancelLeftThreshold) || (dxEnd > cancelRightThreshold) || (dyUp < cancelUpThreshold) || (dyDown > cancelDownThreshold) || 
-                                (abs(screenY - leftCursorDragStartY) > cancelYThreshold && abs(screenX - leftCursorDragStartX) > cancelXThreshold)
+                                false
                             }
-                            
-                            if (shouldCancel) {
-                                if (isLeftLineStartAnnounced || isLeftLineEndAnnounced || isLeftLineUpAnnounced || isLeftLineDownAnnounced) {
-                                    Log.d("TenKeyDrag", "ACTION_MOVE: Resetting left drag announcement (cancelled by drag out of bounds)")
+
+                            if (returnedToCenter) {
+                                isLeftLineStartAnnounced = false
+                                isLeftLineEndAnnounced = false
+                                isLeftLineUpAnnounced = false
+                                isLeftLineDownAnnounced = false
+
+                                leftCursorDragStartX = screenX
+                                leftCursorDragEndX = screenX
+                                leftCursorDragStartY = screenY
+                                leftCursorDragEndY = screenY
+                                leftCursorDragTopY = screenY
+
+                                val targetView = getButtonFromKey(Key.SideKeyCursorLeft) as? View
+                                targetView?.let { view ->
+                                    val textStr = view.contentDescription?.toString() ?: "左移動"
+                                    if (accessibilityManager.isTouchExplorationEnabled) {
+                                        accessibilityManager.interrupt()
+                                    }
+                                    announceForAccessibility(textStr)
+                                    android.widget.Toast.makeText(context, textStr, android.widget.Toast.LENGTH_SHORT).show()
+                                    performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                                }
+                            } else {
+                                val shouldCancel = if (isLeftLineStartAnnounced) {
+                                    (dxStart < cancelLeftThreshold) || (abs(screenY - leftCursorDragStartY) > cancelYThreshold)
+                                } else if (isLeftLineEndAnnounced) {
+                                    (dxEnd > cancelRightThreshold) || (abs(screenY - leftCursorDragStartY) > cancelYThreshold)
+                                } else if (isLeftLineUpAnnounced) {
+                                    (dyUp < cancelUpThreshold) || (abs(screenX - leftCursorDragStartX) > cancelXThreshold)
+                                } else if (isLeftLineDownAnnounced) {
+                                    (dyDown > cancelDownThreshold) || (abs(screenX - leftCursorDragStartX) > cancelXThreshold)
+                                } else {
+                                    (dxStart < cancelLeftThreshold) || (dxEnd > cancelRightThreshold) || (dyUp < cancelUpThreshold) || (dyDown > cancelDownThreshold) || 
+                                    (abs(screenY - leftCursorDragStartY) > cancelYThreshold && abs(screenX - leftCursorDragStartX) > cancelXThreshold)
+                                }
+                                if (shouldCancel) {
                                     isLeftLineStartAnnounced = false
                                     isLeftLineEndAnnounced = false
                                     isLeftLineUpAnnounced = false
                                     isLeftLineDownAnnounced = false
+                                    isDraggingLeftCursor = false
                                 }
-                                isDraggingLeftCursor = false
                             }
                         }
                         return true // Consume this event to bypass popups and other move gesture handlers!
@@ -3806,21 +3967,47 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                             }
                         } else {
-                            val shouldCancel = if (isDeleteLeftAnnounced) {
-                                (dxStart >= -threshold / 2f) || (dxStart < cancelLeftThreshold) || (abs(screenY - deleteKeyDragStartY) > cancelYThreshold)
+                            val returnedToCenter = if (isDeleteLeftAnnounced) {
+                                dxStart >= -threshold
                             } else if (isDeleteRightAnnounced) {
-                                (dxStart <= threshold / 2f) || (dxStart > cancelRightThreshold) || (abs(screenY - deleteKeyDragStartY) > cancelYThreshold)
+                                dxStart <= threshold
                             } else {
-                                (dxStart < cancelLeftThreshold) || (dxStart > cancelRightThreshold) || (abs(screenY - deleteKeyDragStartY) > cancelYThreshold)
+                                false
                             }
-                            
-                            if (shouldCancel) {
-                                if (isDeleteLeftAnnounced || isDeleteRightAnnounced) {
-                                    Log.d("TenKeyDrag", "ACTION_MOVE: Resetting Delete drag announcement (cancelled by drag out of bounds)")
+
+                            if (returnedToCenter) {
+                                isDeleteLeftAnnounced = false
+                                isDeleteRightAnnounced = false
+
+                                deleteKeyDragStartX = screenX
+                                deleteKeyDragEndX = screenX
+                                deleteKeyDragStartY = screenY
+                                deleteKeyDragEndY = screenY
+                                deleteKeyDragTopY = screenY
+
+                                val targetView = getButtonFromKey(Key.SideKeyDelete) as? View
+                                targetView?.let { view ->
+                                    val textStr = view.contentDescription?.toString() ?: "削除"
+                                    if (accessibilityManager.isTouchExplorationEnabled) {
+                                        accessibilityManager.interrupt()
+                                    }
+                                    announceForAccessibility(textStr)
+                                    android.widget.Toast.makeText(context, textStr, android.widget.Toast.LENGTH_SHORT).show()
+                                    performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                                }
+                            } else {
+                                val shouldCancel = if (isDeleteLeftAnnounced) {
+                                    (dxStart < cancelLeftThreshold) || (abs(screenY - deleteKeyDragStartY) > cancelYThreshold)
+                                } else if (isDeleteRightAnnounced) {
+                                    (dxStart > cancelRightThreshold) || (abs(screenY - deleteKeyDragStartY) > cancelYThreshold)
+                                } else {
+                                    (dxStart < cancelLeftThreshold) || (dxStart > cancelRightThreshold) || (abs(screenY - deleteKeyDragStartY) > cancelYThreshold)
+                                }
+                                if (shouldCancel) {
                                     isDeleteLeftAnnounced = false
                                     isDeleteRightAnnounced = false
+                                    isDraggingDeleteKey = false
                                 }
-                                isDraggingDeleteKey = false
                             }
                         }
                         return true // Consume this event to bypass popups and other move gesture handlers!
@@ -3845,18 +4032,40 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                             }
                         } else {
-                            val shouldCancel = if (isSpaceDownAnnounced) {
-                                (dyStart <= threshold / 2f) || (dyStart > cancelDownThreshold) || (abs(screenX - spaceKeyDragStartX) > cancelXThreshold)
+                            val returnedToCenter = if (isSpaceDownAnnounced) {
+                                dyStart <= threshold
                             } else {
-                                (dyStart > cancelDownThreshold) || (abs(screenX - spaceKeyDragStartX) > cancelXThreshold)
+                                false
                             }
-                            
-                            if (shouldCancel) {
-                                if (isSpaceDownAnnounced) {
-                                    Log.d("TenKeyDrag", "ACTION_MOVE: Resetting Space drag announcement (cancelled by drag out of bounds)")
-                                    isSpaceDownAnnounced = false
+
+                            if (returnedToCenter) {
+                                isSpaceDownAnnounced = false
+
+                                spaceKeyDragStartX = screenX
+                                spaceKeyDragEndX = screenX
+                                spaceKeyDragStartY = screenY
+                                spaceKeyDragEndY = screenY
+
+                                val targetView = getButtonFromKey(Key.SideKeySpace) as? View
+                                targetView?.let { view ->
+                                    val textStr = view.contentDescription?.toString() ?: "スペース"
+                                    if (accessibilityManager.isTouchExplorationEnabled) {
+                                        accessibilityManager.interrupt()
+                                    }
+                                    announceForAccessibility(textStr)
+                                    android.widget.Toast.makeText(context, textStr, android.widget.Toast.LENGTH_SHORT).show()
+                                    performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                                 }
-                                isDraggingSpaceKey = false
+                            } else {
+                                val shouldCancel = if (isSpaceDownAnnounced) {
+                                    (dyStart > cancelDownThreshold) || (abs(screenX - spaceKeyDragStartX) > cancelXThreshold)
+                                } else {
+                                    (dyStart > cancelDownThreshold) || (abs(screenX - spaceKeyDragStartX) > cancelXThreshold)
+                                }
+                                if (shouldCancel) {
+                                    isSpaceDownAnnounced = false
+                                    isDraggingSpaceKey = false
+                                }
                             }
                         }
                         return true // Consume this event to bypass popups and other move gesture handlers!
@@ -3920,25 +4129,54 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                             }
                         } else {
-                            val shouldCancel = if (isReadAloudLeftAnnounced) {
-                                (dxStart >= -threshold / 2f) || (dxStart < cancelLeftThreshold) || (abs(screenY - readAloudKeyDragStartY) > cancelYThreshold)
+                            val returnedToCenter = if (isReadAloudLeftAnnounced) {
+                                dxStart >= -threshold
                             } else if (isReadAloudRightAnnounced) {
-                                (dxEnd <= threshold / 2f) || (dxEnd > cancelRightThreshold) || (abs(screenY - readAloudKeyDragStartY) > cancelYThreshold)
+                                dxEnd <= threshold
                             } else if (isReadAloudUpAnnounced) {
-                                (dyUp >= -threshold / 2f) || (dyUp < cancelUpThreshold) || (abs(screenX - readAloudKeyDragStartX) > cancelXThreshold)
+                                dyUp >= -threshold
                             } else {
-                                (dxStart < cancelLeftThreshold) || (dxEnd > cancelRightThreshold) || (dyUp < cancelUpThreshold) || 
-                                (abs(screenY - readAloudKeyDragStartY) > cancelYThreshold && abs(screenX - readAloudKeyDragStartX) > cancelXThreshold)
+                                false
                             }
-                            
-                            if (shouldCancel) {
-                                if (isReadAloudLeftAnnounced || isReadAloudUpAnnounced || isReadAloudRightAnnounced) {
-                                    Log.d("TenKeyDrag", "ACTION_MOVE: Resetting Read Aloud drag announcement (cancelled by drag out of bounds)")
+
+                            if (returnedToCenter) {
+                                isReadAloudLeftAnnounced = false
+                                isReadAloudUpAnnounced = false
+                                isReadAloudRightAnnounced = false
+
+                                readAloudKeyDragStartX = screenX
+                                readAloudKeyDragEndX = screenX
+                                readAloudKeyDragStartY = screenY
+                                readAloudKeyDragEndY = screenY
+                                readAloudKeyDragTopY = screenY
+
+                                val targetView = getButtonFromKey(Key.SideKeyReadAloud) as? View
+                                targetView?.let { view ->
+                                    val textStr = view.contentDescription?.toString() ?: "読み上げ"
+                                    if (accessibilityManager.isTouchExplorationEnabled) {
+                                        accessibilityManager.interrupt()
+                                    }
+                                    announceForAccessibility(textStr)
+                                    android.widget.Toast.makeText(context, textStr, android.widget.Toast.LENGTH_SHORT).show()
+                                    performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                                }
+                            } else {
+                                val shouldCancel = if (isReadAloudLeftAnnounced) {
+                                    (dxStart < cancelLeftThreshold) || (abs(screenY - readAloudKeyDragStartY) > cancelYThreshold)
+                                } else if (isReadAloudRightAnnounced) {
+                                    (dxEnd > cancelRightThreshold) || (abs(screenY - readAloudKeyDragStartY) > cancelYThreshold)
+                                } else if (isReadAloudUpAnnounced) {
+                                    (dyUp < cancelUpThreshold) || (abs(screenX - readAloudKeyDragStartX) > cancelXThreshold)
+                                } else {
+                                    (dxStart < cancelLeftThreshold) || (dxEnd > cancelRightThreshold) || (dyUp < cancelUpThreshold) || 
+                                    (abs(screenY - readAloudKeyDragStartY) > cancelYThreshold && abs(screenX - readAloudKeyDragStartX) > cancelXThreshold)
+                                }
+                                if (shouldCancel) {
                                     isReadAloudLeftAnnounced = false
                                     isReadAloudUpAnnounced = false
                                     isReadAloudRightAnnounced = false
+                                    isDraggingReadAloudKey = false
                                 }
-                                isDraggingReadAloudKey = false
                             }
                         }
                         return true // Consume this event to bypass popups and other move gesture handlers!

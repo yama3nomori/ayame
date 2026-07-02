@@ -8246,7 +8246,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 } else if (view == mainView.suggestionViewParent) {
                     params.bottomMargin = heightPx
                 }
-                params.gravity = gravity
+                
+                if (view == mainView.candidateTabLayout) {
+                    params.gravity = Gravity.TOP or (gravity and Gravity.RELATIVE_HORIZONTAL_GRAVITY_MASK)
+                } else {
+                    params.gravity = gravity
+                }
                 view.layoutParams = params
             }
         }
@@ -9267,8 +9272,14 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
         candidateTabOrder.forEach { tabType ->
             val tab = mainView.candidateTabLayout.newTab()
-            tab.text = getCandidateTabDisplayName(tabType)
+            val displayName = getCandidateTabDisplayName(tabType)
+            tab.text = displayName
+            tab.contentDescription = displayName
             mainView.candidateTabLayout.addTab(tab)
+            tab.view.apply {
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+                isFocusable = true
+            }
         }
     }
 
@@ -9284,6 +9295,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         mainView: MainLayoutBinding
     ) {
         mainView.candidateTabLayout.apply {
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+            isFocusable = false
             when (keyboardThemeMode) {
                 "custom" -> {
                     setSelectedTabIndicatorColor(customThemeSpecialKeyTextColor ?: Color.BLACK)

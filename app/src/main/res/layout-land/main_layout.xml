@@ -56,7 +56,9 @@
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/candidate_tab_layout"
         android:layout_width="match_parent"
-        android:layout_height="36dp" />
+        android:layout_height="36dp"
+        android:importantForAccessibility="yes"
+        android:focusable="false" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/shortcut_toolbar_recyclerview"
