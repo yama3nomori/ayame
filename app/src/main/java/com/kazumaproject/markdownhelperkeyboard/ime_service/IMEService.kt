@@ -12740,10 +12740,27 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     }
 
 
+    private fun getDetailedReadingForKatakana(text: String, prefix: String): String {
+        if (text.isEmpty()) return ""
+        val detailedList = text.map { char ->
+            val charStr = char.toString()
+            val charDetailed = tamachiRepository.getDetailedReading(charStr) ?: charStr
+            charDetailed
+                .replaceFirst("^カタカナ\\s*".toRegex(), "")
+                .replaceFirst("^半角カタカナ\\s*".toRegex(), "")
+                .replaceFirst("^ひらがな\\s*".toRegex(), "")
+                .trim()
+        }
+        return "${prefix}、${detailedList.joinToString("、")}"
+    }
+
     private fun convertToZenkakuKatakana() {
         val insertString = inputString.value
         if (insertString.isNotEmpty()) {
-            _inputString.update { it.hiraganaToKatakana() }
+            val converted = insertString.hiraganaToKatakana()
+            _inputString.update { converted }
+            val announcement = getDetailedReadingForKatakana(converted, "カタカナ")
+            announceText(announcement)
         } else {
             preInputKatakanaMode = 1
             android.widget.Toast.makeText(this, "カタカナ入力モード", android.widget.Toast.LENGTH_SHORT).show()
@@ -12753,7 +12770,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private fun convertToHankakuKatakana() {
         val insertString = inputString.value
         if (insertString.isNotEmpty()) {
-            _inputString.update { it.toHankakuKatakana() }
+            val converted = insertString.toHankakuKatakana()
+            _inputString.update { converted }
+            val announcement = getDetailedReadingForKatakana(converted, "半角カタカナ")
+            announceText(announcement)
         } else {
             preInputKatakanaMode = 2
             android.widget.Toast.makeText(this, "半角カタカナ入力モード", android.widget.Toast.LENGTH_SHORT).show()

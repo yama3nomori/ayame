@@ -162,6 +162,8 @@ class QWERTYKeyboardView @JvmOverloads constructor(
     private var spaceKeyDragStartY = 0f
     private var spaceKeyDragEndY = 0f
     private var isSpaceDownAnnounced = false
+    private var isSpaceUpAnnounced = false
+    private var isSpaceRightAnnounced = false
     private var spaceTouchSlideInEntryTime = 0L
     private var spaceTouchSlideInEntryX = 0f
     private var spaceTouchSlideInEntryY = 0f
@@ -1064,6 +1066,8 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                                 QWERTYKey.QWERTYKeySpace -> {
                                     isDraggingSpaceKey = true
                                     isSpaceDownAnnounced = false
+                                    isSpaceUpAnnounced = false
+                                    isSpaceRightAnnounced = false
                                     spaceKeyDragStartX = screenX
                                     spaceKeyDragEndX = screenX
                                     spaceKeyDragStartY = screenY
@@ -1252,6 +1256,8 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                                     spaceKeyDragStartY = screenY
                                     spaceKeyDragEndY = screenY
                                     isSpaceDownAnnounced = false
+                                    isSpaceUpAnnounced = false
+                                    isSpaceRightAnnounced = false
                                     spaceTouchSlideInEntryTime = 0L
                                 }
                             }
@@ -1262,6 +1268,8 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                     if (isDraggingSpaceKey && currentKey != null) {
                         isDraggingSpaceKey = false
                         isSpaceDownAnnounced = false
+                        isSpaceUpAnnounced = false
+                        isSpaceRightAnnounced = false
                     }
                 }
 
@@ -1580,23 +1588,46 @@ class QWERTYKeyboardView @JvmOverloads constructor(
 
                 if (isDraggingSpaceKey) {
                     val dyStart = screenY - spaceKeyDragStartY
+                    val dxStart = screenX - spaceKeyDragStartX
+                    val dragUpThreshold = -35f
+                    val dragRightThreshold = 35f
+
                     if (dyStart > threshold && dyStart <= cancelThreshold && abs(screenX - spaceKeyDragStartX) <= cancelXThreshold) {
-                        if (!isSpaceDownAnnounced) {
+                        if (!isSpaceDownAnnounced && !isSpaceUpAnnounced && !isSpaceRightAnnounced) {
                             isSpaceDownAnnounced = true
                             val annText = "予測変換"
                             announceForAccessibility(annText)
                             android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
                             performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                         }
+                    } else if (dyStart < dragUpThreshold && dyStart >= -cancelThreshold && abs(screenX - spaceKeyDragStartX) <= cancelXThreshold) {
+                        if (!isSpaceDownAnnounced && !isSpaceUpAnnounced && !isSpaceRightAnnounced) {
+                            isSpaceUpAnnounced = true
+                            val annText = "カタカナ変換"
+                            announceForAccessibility(annText)
+                            android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
+                            performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                        }
+                    } else if (dxStart > dragRightThreshold && dxStart <= cancelThreshold && abs(screenY - spaceKeyDragStartY) <= cancelXThreshold) {
+                        if (!isSpaceDownAnnounced && !isSpaceUpAnnounced && !isSpaceRightAnnounced) {
+                            isSpaceRightAnnounced = true
+                            val annText = "半角カタカナ"
+                            announceForAccessibility(annText)
+                            android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
+                            performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                        }
                     } else {
-                        val returnedToCenter = if (isSpaceDownAnnounced) {
-                            dyStart <= threshold
-                        } else {
-                            false
+                        val returnedToCenter = when {
+                            isSpaceDownAnnounced -> dyStart <= threshold
+                            isSpaceUpAnnounced -> dyStart >= dragUpThreshold
+                            isSpaceRightAnnounced -> dxStart <= dragRightThreshold
+                            else -> false
                         }
 
                         if (returnedToCenter) {
                             isSpaceDownAnnounced = false
+                            isSpaceUpAnnounced = false
+                            isSpaceRightAnnounced = false
 
                             spaceKeyDragStartX = screenX
                             spaceKeyDragEndX = screenX
@@ -1614,13 +1645,18 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                                 performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                             }
                         } else {
-                            val shouldCancel = if (isSpaceDownAnnounced) {
-                                (dyStart > cancelThreshold) || (abs(screenX - spaceKeyDragStartX) > cancelXThreshold)
-                            } else {
-                                (dyStart > cancelThreshold) || (abs(screenX - spaceKeyDragStartX) > cancelXThreshold)
+                            val shouldCancel = when {
+                                isSpaceDownAnnounced -> (dyStart > cancelThreshold) || (abs(screenX - spaceKeyDragStartX) > cancelXThreshold)
+                                isSpaceUpAnnounced -> (dyStart < -cancelThreshold) || (abs(screenX - spaceKeyDragStartX) > cancelXThreshold)
+                                isSpaceRightAnnounced -> (dxStart > cancelThreshold) || (abs(screenY - spaceKeyDragStartY) > cancelXThreshold)
+                                else -> {
+                                    (dyStart > cancelThreshold) || (dyStart < -cancelThreshold) || (dxStart > cancelThreshold) || (abs(screenX - spaceKeyDragStartX) > cancelXThreshold && dyStart > threshold) || (abs(screenX - spaceKeyDragStartX) > cancelXThreshold && dyStart < dragUpThreshold) || (abs(screenY - spaceKeyDragStartY) > cancelXThreshold && dxStart > dragRightThreshold)
+                                }
                             }
                             if (shouldCancel) {
                                 isSpaceDownAnnounced = false
+                                isSpaceUpAnnounced = false
+                                isSpaceRightAnnounced = false
                                 isDraggingSpaceKey = false
                             }
                         }
@@ -1791,10 +1827,23 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                         QWERTYKey.QWERTYKeySpace -> {
                             if (isDraggingSpaceKey) {
                                 isDraggingSpaceKey = false
-                                if (isSpaceDownAnnounced) {
-                                    gestureChar = '\u0014'
-                                    handledGesture = true
+                                when {
+                                    isSpaceDownAnnounced -> {
+                                        gestureChar = '\u0014'
+                                        handledGesture = true
+                                    }
+                                    isSpaceUpAnnounced -> {
+                                        gestureChar = '\u0015'
+                                        handledGesture = true
+                                    }
+                                    isSpaceRightAnnounced -> {
+                                        gestureChar = '\u0016'
+                                        handledGesture = true
+                                    }
                                 }
+                                isSpaceDownAnnounced = false
+                                isSpaceUpAnnounced = false
+                                isSpaceRightAnnounced = false
                             }
                         }
                         QWERTYKey.QWERTYKeyReadAloud -> {
@@ -1913,6 +1962,8 @@ class QWERTYKeyboardView @JvmOverloads constructor(
 
         isDraggingSpaceKey = false
         isSpaceDownAnnounced = false
+        isSpaceUpAnnounced = false
+        isSpaceRightAnnounced = false
         spaceTouchSlideInEntryTime = 0L
 
         isDraggingReadAloudKey = false
