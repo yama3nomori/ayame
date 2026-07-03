@@ -12740,27 +12740,50 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     }
 
 
-    private fun getDetailedReadingForKatakana(text: String, prefix: String): String {
-        if (text.isEmpty()) return ""
-        val detailedList = text.map { char ->
-            val charStr = char.toString()
-            val charDetailed = tamachiRepository.getDetailedReading(charStr) ?: charStr
-            charDetailed
-                .replaceFirst("^カタカナ\\s*".toRegex(), "")
-                .replaceFirst("^半角カタカナ\\s*".toRegex(), "")
-                .replaceFirst("^ひらがな\\s*".toRegex(), "")
-                .trim()
-        }
-        return "${prefix}、${detailedList.joinToString("、")}"
-    }
-
     private fun convertToZenkakuKatakana() {
         val insertString = inputString.value
         if (insertString.isNotEmpty()) {
             val converted = insertString.hiraganaToKatakana()
-            _inputString.update { converted }
-            val announcement = getDetailedReadingForKatakana(converted, "カタカナ")
-            announceText(announcement)
+            val convertedCandidate = Candidate(
+                string = converted,
+                type = 4, // Katakana
+                length = converted.length.toUByte(),
+                score = Int.MAX_VALUE
+            )
+            val currentSuggestions = suggestionAdapter?.suggestions ?: emptyList()
+            val newSuggestions = mutableListOf(convertedCandidate).apply {
+                addAll(currentSuggestions.filter { it.string != converted })
+            }
+            suggestionAdapter?.suggestions = newSuggestions
+            suggestionAdapterFull?.suggestions = newSuggestions
+            filteredCandidateList = newSuggestions
+
+            isHenkan.set(true)
+            suggestionClickNum = 1
+
+            if (isKeyboardFloatingMode == true) {
+                floatingKeyboardBinding?.suggestionRecyclerView?.apply {
+                    smoothScrollToPosition(0)
+                    suggestionAdapter?.updateHighlightPosition(0)
+                    newSuggestions.getOrNull(0)?.let {
+                        announceCandidateHighlight(it.string, 0, newSuggestions.size)
+                    }
+                }
+                floatingKeyboardBinding?.let { binding ->
+                    setConvertLetterInJapaneseFromButtonFloating(newSuggestions, true, binding, insertString)
+                }
+            } else {
+                mainLayoutBinding?.suggestionRecyclerView?.apply {
+                    smoothScrollToPosition(0)
+                    suggestionAdapter?.updateHighlightPosition(0)
+                    newSuggestions.getOrNull(0)?.let {
+                        announceCandidateHighlight(it.string, 0, newSuggestions.size)
+                    }
+                }
+                mainLayoutBinding?.let { binding ->
+                    setConvertLetterInJapaneseFromButton(newSuggestions, true, binding, insertString)
+                }
+            }
         } else {
             preInputKatakanaMode = 1
             android.widget.Toast.makeText(this, "カタカナ入力モード", android.widget.Toast.LENGTH_SHORT).show()
@@ -12771,9 +12794,46 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         val insertString = inputString.value
         if (insertString.isNotEmpty()) {
             val converted = insertString.toHankakuKatakana()
-            _inputString.update { converted }
-            val announcement = getDetailedReadingForKatakana(converted, "半角カタカナ")
-            announceText(announcement)
+            val convertedCandidate = Candidate(
+                string = converted,
+                type = 4, // Katakana
+                length = converted.length.toUByte(),
+                score = Int.MAX_VALUE
+            )
+            val currentSuggestions = suggestionAdapter?.suggestions ?: emptyList()
+            val newSuggestions = mutableListOf(convertedCandidate).apply {
+                addAll(currentSuggestions.filter { it.string != converted })
+            }
+            suggestionAdapter?.suggestions = newSuggestions
+            suggestionAdapterFull?.suggestions = newSuggestions
+            filteredCandidateList = newSuggestions
+
+            isHenkan.set(true)
+            suggestionClickNum = 1
+
+            if (isKeyboardFloatingMode == true) {
+                floatingKeyboardBinding?.suggestionRecyclerView?.apply {
+                    smoothScrollToPosition(0)
+                    suggestionAdapter?.updateHighlightPosition(0)
+                    newSuggestions.getOrNull(0)?.let {
+                        announceCandidateHighlight(it.string, 0, newSuggestions.size)
+                    }
+                }
+                floatingKeyboardBinding?.let { binding ->
+                    setConvertLetterInJapaneseFromButtonFloating(newSuggestions, true, binding, insertString)
+                }
+            } else {
+                mainLayoutBinding?.suggestionRecyclerView?.apply {
+                    smoothScrollToPosition(0)
+                    suggestionAdapter?.updateHighlightPosition(0)
+                    newSuggestions.getOrNull(0)?.let {
+                        announceCandidateHighlight(it.string, 0, newSuggestions.size)
+                    }
+                }
+                mainLayoutBinding?.let { binding ->
+                    setConvertLetterInJapaneseFromButton(newSuggestions, true, binding, insertString)
+                }
+            }
         } else {
             preInputKatakanaMode = 2
             android.widget.Toast.makeText(this, "半角カタカナ入力モード", android.widget.Toast.LENGTH_SHORT).show()
