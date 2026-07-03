@@ -12513,41 +12513,19 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         mainView: MainLayoutBinding
     ) {
         if (insertString.isNotBlank()) {
-            val finalSuggestions = if (!isHenkan.get() && suggestions.isNotEmpty()) {
-                val filtered = suggestions.filter { it.length.toInt() == insertString.length }
-                if (filtered.isNotEmpty()) {
-                    suggestionAdapter?.suggestions = filtered
-                    suggestionAdapterFull?.suggestions = filtered
-                    filteredCandidateList = filtered
-                    filtered
-                } else {
-                    suggestions
-                }
-            } else {
-                suggestions
-            }
             mainView.apply {
                 if (isTablet == true) {
                     tabletView.let { tabletKey ->
                         when (tabletKey.currentInputMode.get()) {
-                            InputMode.ModeJapanese -> if (finalSuggestions.isNotEmpty()) {
+                            InputMode.ModeJapanese -> if (suggestions.isNotEmpty()) {
                                 handleJapaneseModeSpaceKey(
-                                    this, finalSuggestions, insertString
+                                    this, suggestions, insertString
                                 )
-                            } else {
-                                val isHankaku = hankakuPreference == true
-                                val spaceChar = if (isHankaku) " " else "　"
-                                commitText("$insertString$spaceChar", 1)
-                                _inputString.update { "" }
-                                isHenkan.set(false)
-                                henkanPressedWithBunsetsuDetect = false
-                                suggestionClickNum = 0
-                                suggestionAdapter?.updateHighlightPosition(-1)
                             }
 
                             else -> {
-                                if (isHenkan.get() && finalSuggestions.isNotEmpty()) {
-                                    handleJapaneseModeSpaceKey(this, finalSuggestions, insertString)
+                                if (isHenkan.get() && suggestions.isNotEmpty()) {
+                                    handleJapaneseModeSpaceKey(this, suggestions, insertString)
                                 } else {
                                     setSpaceKeyActionEnglishAndNumberNotEmpty(insertString)
                                 }
@@ -12557,33 +12535,24 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 } else {
                     keyboardView.let { tenkey ->
                         when (tenkey.currentInputMode.value) {
-                            InputMode.ModeJapanese -> if (finalSuggestions.isNotEmpty()) {
+                            InputMode.ModeJapanese -> if (suggestions.isNotEmpty()) {
                                 if (bunsetsuSeparation == true) {
                                     handleJapaneseModeSpaceKeyWithBunsetsu(
-                                        this, finalSuggestions, insertString
+                                        this, suggestions, insertString
                                     )
                                 } else {
                                     handleJapaneseModeSpaceKey(
-                                        this, finalSuggestions, insertString
+                                        this, suggestions, insertString
                                     )
                                 }
-                            } else {
-                                val isHankaku = hankakuPreference == true
-                                val spaceChar = if (isHankaku) " " else "　"
-                                commitText("$insertString$spaceChar", 1)
-                                _inputString.update { "" }
-                                isHenkan.set(false)
-                                henkanPressedWithBunsetsuDetect = false
-                                suggestionClickNum = 0
-                                suggestionAdapter?.updateHighlightPosition(-1)
                             }
 
                             else -> {
-                                if (isHenkan.get() && finalSuggestions.isNotEmpty()) {
+                                if (isHenkan.get() && suggestions.isNotEmpty()) {
                                     if (bunsetsuSeparation == true) {
-                                        handleJapaneseModeSpaceKeyWithBunsetsu(this, finalSuggestions, insertString)
+                                        handleJapaneseModeSpaceKeyWithBunsetsu(this, suggestions, insertString)
                                     } else {
-                                        handleJapaneseModeSpaceKey(this, finalSuggestions, insertString)
+                                        handleJapaneseModeSpaceKey(this, suggestions, insertString)
                                     }
                                 } else {
                                     setSpaceKeyActionEnglishAndNumberNotEmpty(insertString)
@@ -12607,53 +12576,31 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         floatingKeyboardLayoutBinding: FloatingKeyboardLayoutBinding
     ) {
         if (insertString.isNotBlank()) {
-            val finalSuggestions = if (!isHenkan.get() && suggestions.isNotEmpty()) {
-                val filtered = suggestions.filter { it.length.toInt() == insertString.length }
-                if (filtered.isNotEmpty()) {
-                    suggestionAdapter?.suggestions = filtered
-                    suggestionAdapterFull?.suggestions = filtered
-                    filteredCandidateList = filtered
-                    filtered
-                } else {
-                    suggestions
-                }
-            } else {
-                suggestions
-            }
             floatingKeyboardLayoutBinding.keyboardViewFloating.let { tenkey ->
                 when (tenkey.currentInputMode.value) {
                     InputMode.ModeJapanese -> {
-                        if (finalSuggestions.isNotEmpty()) {
+                        if (suggestions.isNotEmpty()) {
                             if (bunsetsuSeparation == true) {
                                 handleJapaneseModeSpaceKeyWithBunsetsuFloating(
-                                    floatingKeyboardLayoutBinding, finalSuggestions, insertString
+                                    floatingKeyboardLayoutBinding, suggestions, insertString
                                 )
                             } else {
                                 handleJapaneseModeSpaceKeyFloating(
-                                    floatingKeyboardLayoutBinding, finalSuggestions, insertString
+                                    floatingKeyboardLayoutBinding, suggestions, insertString
                                 )
                             }
-                        } else {
-                            val isHankaku = hankakuPreference == true
-                            val spaceChar = if (isHankaku) " " else "　"
-                            commitText("$insertString$spaceChar", 1)
-                            _inputString.update { "" }
-                            isHenkan.set(false)
-                            henkanPressedWithBunsetsuDetect = false
-                            suggestionClickNum = 0
-                            suggestionAdapter?.updateHighlightPosition(-1)
                         }
                     }
 
                     else -> {
-                        if (isHenkan.get() && finalSuggestions.isNotEmpty()) {
+                        if (isHenkan.get() && suggestions.isNotEmpty()) {
                             if (bunsetsuSeparation == true) {
                                 handleJapaneseModeSpaceKeyWithBunsetsuFloating(
-                                    floatingKeyboardLayoutBinding, finalSuggestions, insertString
+                                    floatingKeyboardLayoutBinding, suggestions, insertString
                                 )
                             } else {
                                 handleJapaneseModeSpaceKeyFloating(
-                                    floatingKeyboardLayoutBinding, finalSuggestions, insertString
+                                    floatingKeyboardLayoutBinding, suggestions, insertString
                                 )
                             }
                         } else {
