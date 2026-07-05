@@ -604,6 +604,12 @@ class QWERTYKeyboardView @JvmOverloads constructor(
 
     private fun handleShiftClick() {
         val currentMode = qwertyMode.value
+        val romajiMode = romajiModeState.value
+        if (romajiMode && currentMode is QWERTYMode.Default) {
+            qwertyKeyListener?.onReleasedQWERTYKey(QWERTYKey.QWERTYKeyShift, null, null)
+            return
+        }
+
         if (currentMode is QWERTYMode.Number) {
             setQwertyMode(QWERTYMode.Symbol)
             announceForAccessibility("他の記号を表示")

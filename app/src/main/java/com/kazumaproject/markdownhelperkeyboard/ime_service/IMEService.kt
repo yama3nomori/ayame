@@ -586,6 +586,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private val cursorMoveMode: StateFlow<Boolean> = _cursorMoveMode
     private var hasConvertedKatakana = false
     private var preInputKatakanaMode = 0 // 0 = Hiragana, 1 = Zenkaku Katakana, 2 = Hankaku Katakana
+    private var isTenKeyEnglishCapsLock = false
 
 
     private val deletedBuffer = StringBuilder()
@@ -4463,10 +4464,16 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             suggestionClickNum = 0
         }
         char?.let {
+            val isEnglish = if (isTablet == true) mainView.tabletView.currentInputMode.get() == InputMode.ModeEnglish else mainView.keyboardView.currentInputMode.value == InputMode.ModeEnglish
+            val finalChar = if (isTenKeyEnglishCapsLock && isEnglish && it.isLowerCase()) {
+                it.uppercaseChar()
+            } else {
+                it
+            }
             sendCharFlick(
-                charToSend = it, insertString = insertString, sb = sb
+                charToSend = finalChar, insertString = insertString, sb = sb
             )
-            announceChar(it)
+            announceChar(finalChar)
         }
         isContinuousTapInputEnabled.set(true)
         lastFlickConvertedNextHiragana.set(true)
@@ -4485,10 +4492,16 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             suggestionClickNum = 0
         }
         char?.let {
+            val isEnglish = floatingKeyboardLayoutBinding.keyboardViewFloating.currentInputMode.value == InputMode.ModeEnglish
+            val finalChar = if (isTenKeyEnglishCapsLock && isEnglish && it.isLowerCase()) {
+                it.uppercaseChar()
+            } else {
+                it
+            }
             sendCharFlick(
-                charToSend = it, insertString = insertString, sb = sb
+                charToSend = finalChar, insertString = insertString, sb = sb
             )
-            announceChar(it)
+            announceChar(finalChar)
         }
         isContinuousTapInputEnabled.set(true)
         lastFlickConvertedNextHiragana.set(true)
@@ -4504,8 +4517,14 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             suggestionClickNum = 0
         }
         char?.let {
+            val isEnglish = if (isTablet == true) mainView.tabletView.currentInputMode.get() == InputMode.ModeEnglish else mainView.keyboardView.currentInputMode.value == InputMode.ModeEnglish
+            val finalChar = if (isTenKeyEnglishCapsLock && isEnglish && it.isLowerCase()) {
+                it.uppercaseChar()
+            } else {
+                it
+            }
             sendCharTap(
-                charToSend = it, insertString = insertString, sb = sb
+                charToSend = finalChar, insertString = insertString, sb = sb
             )
             val currentKeyboard = keyboardOrder.getOrNull(currentKeyboardOrder)
             if (currentKeyboard == KeyboardType.AYAME_TENKEY || currentKeyboard == KeyboardType.TENKEY) {
@@ -4513,10 +4532,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 if (lastChar != null) {
                     announceChar(lastChar)
                 } else {
-                    announceChar(it)
+                    announceChar(finalChar)
                 }
             } else {
-                announceChar(it)
+                announceChar(finalChar)
             }
         }
     }
@@ -4534,8 +4553,14 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             suggestionClickNum = 0
         }
         char?.let {
+            val isEnglish = floatingKeyboardLayoutBinding.keyboardViewFloating.currentInputMode.value == InputMode.ModeEnglish
+            val finalChar = if (isTenKeyEnglishCapsLock && isEnglish && it.isLowerCase()) {
+                it.uppercaseChar()
+            } else {
+                it
+            }
             sendCharTap(
-                charToSend = it, insertString = insertString, sb = sb
+                charToSend = finalChar, insertString = insertString, sb = sb
             )
             val currentKeyboard = keyboardOrder.getOrNull(currentKeyboardOrder)
             if (currentKeyboard == KeyboardType.AYAME_TENKEY || currentKeyboard == KeyboardType.TENKEY) {
@@ -4543,10 +4568,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 if (lastChar != null) {
                     announceChar(lastChar)
                 } else {
-                    announceChar(it)
+                    announceChar(finalChar)
                 }
             } else {
-                announceChar(it)
+                announceChar(finalChar)
             }
         }
     }
@@ -8002,8 +8027,6 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                             return@collectLatest
                         }
                     }
-                } else {
-                    preInputKatakanaMode = 0
                 }
 
                 val isComposing = string.isNotEmpty()
@@ -9971,7 +9994,15 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     when (qwertyKey) {
                         QWERTYKey.QWERTYKeyNotSelect -> {}
                         QWERTYKey.QWERTYKeyShift -> {
-                            hardKeyboardShiftPressd = true
+                            if (preInputKatakanaMode == 0) {
+                                preInputKatakanaMode = 1
+                                announceText("カタカナ入力モード")
+                                android.widget.Toast.makeText(this@IMEService, "カタカナ入力モード", android.widget.Toast.LENGTH_SHORT).show()
+                            } else {
+                                preInputKatakanaMode = 0
+                                announceText("ひらがな入力モード")
+                                android.widget.Toast.makeText(this@IMEService, "ひらがな入力モード", android.widget.Toast.LENGTH_SHORT).show()
+                            }
                         }
 
                         QWERTYKey.QWERTYKeyDelete -> {
@@ -13949,8 +13980,13 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 }
             }
         } else {
-            if (!onKeyboardSwitchLongPressUp && tenkeyShowIMEButtonPreference == true) {
-                switchNextKeyboard()
+            isTenKeyEnglishCapsLock = !isTenKeyEnglishCapsLock
+            if (isTenKeyEnglishCapsLock) {
+                announceText("キャプスロックオン")
+                android.widget.Toast.makeText(this, "キャプスロックオン", android.widget.Toast.LENGTH_SHORT).show()
+            } else {
+                announceText("キャプスロックオフ")
+                android.widget.Toast.makeText(this, "キャプスロックオフ", android.widget.Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -13969,6 +14005,15 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                         setStringBuilderForConvertStringInHiragana(dakutenChar, sb, insertString)
                     }
                 }
+            }
+        } else {
+            isTenKeyEnglishCapsLock = !isTenKeyEnglishCapsLock
+            if (isTenKeyEnglishCapsLock) {
+                announceText("キャプスロックオン")
+                android.widget.Toast.makeText(this, "キャプスロックオン", android.widget.Toast.LENGTH_SHORT).show()
+            } else {
+                announceText("キャプスロックオフ")
+                android.widget.Toast.makeText(this, "キャプスロックオフ", android.widget.Toast.LENGTH_SHORT).show()
             }
         }
     }

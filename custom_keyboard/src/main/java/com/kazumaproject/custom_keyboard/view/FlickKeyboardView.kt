@@ -427,6 +427,7 @@ class FlickKeyboardView @JvmOverloads constructor(
 
             this.removeViewAt(info.index) // 古いViewをGridから削除
             this.addView(newView, info.index) // 新しいViewを同じ位置に追加
+            updateKeyVisuals(newView, newKeyData) // 新しいViewのビジュアルとアクセシビリティ設定を適用
         } else {
             // Viewタイプが同じ場合：Viewの表示内容だけ更新
             Log.d("FlickKeyboardView", "updateDynamicKey: Updating View for $keyId")
@@ -441,8 +442,6 @@ class FlickKeyboardView @JvmOverloads constructor(
         info.view = newView
         info.keyData = newKeyData
         info.controller = newController
-        
-        setupAccessibility()
     }
 
     /** keyDataに基づいてViewを生成し、基本的な設定（背景、テキスト、パディング等）を行います */
