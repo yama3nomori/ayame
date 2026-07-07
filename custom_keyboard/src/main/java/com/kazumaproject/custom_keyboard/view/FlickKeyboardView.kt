@@ -2446,8 +2446,8 @@ class FlickKeyboardView @JvmOverloads constructor(
                 when (flickAction.action) {
                     KeyAction.MoveCursorToStartOfLine -> "行頭移動"
                     KeyAction.MoveCursorToEndOfLine -> "行末移動"
-                    KeyAction.MoveCursorToPrevLine -> "前行移動"
-                    KeyAction.MoveCursorToNextLine -> "次行移動"
+                    KeyAction.MoveCursorToPrevLine -> "上カーソル"
+                    KeyAction.MoveCursorToNextLine -> "下カーソル"
                     KeyAction.DeleteLeftWordOrSymbols -> if (isInputComposing) "一括削除" else "行頭まで削除"
                     KeyAction.DeleteForward -> "行末まで削除"
                     else -> getActionDescription(flickAction.action)

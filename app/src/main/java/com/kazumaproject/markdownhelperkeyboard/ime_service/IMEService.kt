@@ -805,15 +805,18 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 override fun run() {
                     am.interrupt()
                     val viewHolder = recyclerView?.findViewHolderForAdapterPosition(index)
+                    Timber.d("announceCandidateHighlight: index=$index, total=$total, viewHolder=$viewHolder, retryCount=$retryCount")
                     if (viewHolder != null) {
-                        viewHolder.itemView.performAccessibilityAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
-                        viewHolder.itemView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED)
+                        val success = viewHolder.itemView.performAccessibilityAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
+                        val successEvent = viewHolder.itemView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED)
+                        Timber.d("announceCandidateHighlight: performAccessibilityAction success=$success, sendAccessibilityEvent=$successEvent")
                     } else if (retryCount < 5) {
                         retryCount++
                         recyclerView?.postDelayed(this, 100)
                     } else {
                         val announcementText = "$text、${index + 1}番目の候補、全${total}個"
                         recyclerView?.announceForAccessibility(announcementText)
+                        Timber.d("announceCandidateHighlight: fallback announce=$announcementText")
                     }
                 }
             }, 300)
@@ -904,15 +907,18 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 override fun run() {
                     am.interrupt()
                     val viewHolder = recyclerView?.findViewHolderForAdapterPosition(index)
+                    Timber.d("announceCandidateItemHighlight: index=$index, total=$total, viewHolder=$viewHolder, retryCount=$retryCount")
                     if (viewHolder != null) {
-                        viewHolder.itemView.performAccessibilityAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
-                        viewHolder.itemView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED)
+                        val success = viewHolder.itemView.performAccessibilityAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
+                        val successEvent = viewHolder.itemView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED)
+                        Timber.d("announceCandidateItemHighlight: performAccessibilityAction success=$success, sendAccessibilityEvent=$successEvent")
                     } else if (retryCount < 5) {
                         retryCount++
                         recyclerView?.postDelayed(this, 100)
                     } else {
                         val announcementText = "${item.word}、${index + 1}番目の候補、全${total}個"
                         recyclerView?.announceForAccessibility(announcementText)
+                        Timber.d("announceCandidateItemHighlight: fallback announce=$announcementText")
                     }
                 }
             }, 300)
@@ -2387,6 +2393,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         floatingKeyboardBinding = FloatingKeyboardLayoutBinding.inflate(LayoutInflater.from(ctx))
 
         floatingKeyboardBinding?.let { floatingKeyboardLayoutBinding ->
+            val currentKeyboard = keyboardOrder.getOrNull(currentKeyboardOrder)
+            floatingKeyboardLayoutBinding.keyboardViewFloating.isAyameMode = currentKeyboard == KeyboardType.AYAME_TENKEY
             setFloatingKeyboardListeners(floatingKeyboardLayoutBinding = floatingKeyboardLayoutBinding)
             val heightPref = tenkeyHeightPreferenceValue ?: 280
             val widthPref = tenkeyWidthPreferenceValue ?: 100
@@ -5327,6 +5335,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             val isAyame = type == KeyboardType.AYAME_TENKEY || type == KeyboardType.AYAME_QWERTY || type == KeyboardType.AYAME_ROMAJI || type == KeyboardType.AYAME_NUMERIC
             Timber.d("showKeyboard: isAyame=$isAyame, type=$type")
             keyboardView.isAyameMode = type == KeyboardType.AYAME_TENKEY
+            floatingKeyboardBinding?.keyboardViewFloating?.isAyameMode = type == KeyboardType.AYAME_TENKEY
             qwertyView.isAyameMode = type == KeyboardType.AYAME_QWERTY || type == KeyboardType.AYAME_ROMAJI
             customLayoutDefault.isAyameMode = type == KeyboardType.AYAME_NUMERIC
             Timber.d("setting isAyameMode on suggestionAdapter: current=${suggestionAdapter?.isAyameMode}")
@@ -8031,6 +8040,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                 val isComposing = string.isNotEmpty()
                 mainView.keyboardView.isInputComposing = isComposing
+                mainView.qwertyView.isInputComposing = isComposing
                 mainView.customLayoutDefault.isInputComposing = isComposing
                 floatingKeyboardBinding?.keyboardViewFloating?.isInputComposing = isComposing
                 processInputString(string, mainView)

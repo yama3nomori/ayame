@@ -216,6 +216,15 @@ class QWERTYKeyboardView @JvmOverloads constructor(
             setupAccessibilityDelegates(this)
         }
 
+    var isInputComposing: Boolean = false
+        set(value) {
+            val changed = field != value
+            field = value
+            if (changed && isAyameMode) {
+                setupAccessibilityDelegates(this)
+            }
+        }
+
     private val accessibilityManager: AccessibilityManager =
         context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
 
@@ -373,15 +382,20 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                                 QWERTYKey.QWERTYKeyCursorRight, QWERTYKey.QWERTYKeyCursorLeft -> {
                                     info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_left, "行頭移動 (左フリック)"))
                                     info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_right, "行末移動 (右フリック)"))
-                                    info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_top, "前行移動 (上フリック)"))
-                                    info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_bottom, "次行移動 (下フリック)"))
+                                    info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_top, "上カーソル (上フリック)"))
+                                    info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_bottom, "下カーソル (下フリック)"))
                                 }
                                 QWERTYKey.QWERTYKeyDelete -> {
-                                    info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_left, "一括削除 (左フリック)"))
+                                    val leftLabel = if (isInputComposing) "一括削除 (左フリック)" else "行頭まで削除 (左フリック)"
+                                    info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_left, leftLabel))
                                     info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_right, "行末まで削除 (右フリック)"))
                                 }
                                 QWERTYKey.QWERTYKeySpace -> {
-                                    info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_bottom, "予測変換 (下フリック)"))
+                                    if (isInputComposing) {
+                                        info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_bottom, "予測変換 (下フリック)"))
+                                        info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_top, "全角カタカナ変換 (上フリック)"))
+                                        info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_right, "半角カタカナ変換 (右フリック)"))
+                                    }
                                 }
                                 QWERTYKey.QWERTYKeyReadAloud -> {
                                     info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_left, "詳細読み上げ (左フリック)"))
@@ -543,8 +557,14 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                 }
             }
             QWERTYKey.QWERTYKeySpace -> {
-                if (gesture == com.kazumaproject.core.domain.state.GestureType.FlickBottom) {
-                    qwertyKeyListener?.onReleasedQWERTYKey(key, '\u0014', null)
+                val charCode = when (gesture) {
+                    com.kazumaproject.core.domain.state.GestureType.FlickBottom -> '\u0014'
+                    com.kazumaproject.core.domain.state.GestureType.FlickTop -> '\u0015'
+                    com.kazumaproject.core.domain.state.GestureType.FlickRight -> '\u0016'
+                    else -> null
+                }
+                if (charCode != null) {
+                    qwertyKeyListener?.onReleasedQWERTYKey(key, charCode, null)
                 }
             }
             QWERTYKey.QWERTYKeyReadAloud -> {

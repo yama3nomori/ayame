@@ -337,8 +337,12 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
     // Drag tracking variables for Key.SideKeyDelete
     var isInputComposing = false
         set(value) {
+            val changed = field != value
             field = value
             updateSideKeySymbolLabel()
+            if (changed && isAyameMode) {
+                setupAccessibility()
+            }
         }
     private var isDraggingDeleteKey = false
     private var isHoverDraggingDeleteKey = false
@@ -2692,7 +2696,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         triggerSpaceDown -> GestureType.FlickBottom
                         triggerSpaceUp -> GestureType.FlickTop
                         triggerSpaceRight -> GestureType.FlickRight
-                        else -> GestureType.Null
+                        else -> GestureType.Tap
                     }
                     isSpaceDownAnnounced = false
                     isSpaceUpAnnounced = false
@@ -5726,8 +5730,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 Key.SideKeyCursorRight, Key.SideKeyCursorLeft -> {
                                     info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_left, "行頭移動 (左フリック)"))
                                     info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_right, "行末移動 (右フリック)"))
-                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_top, "前行移動 (上フリック)"))
-                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_bottom, "次行移動 (下フリック)"))
+                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_top, "上カーソル (上フリック)"))
+                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_bottom, "下カーソル (下フリック)"))
                                 }
                                 Key.SideKeyDelete -> {
                                     val leftLabel = if (isInputComposing) "一括削除 (左フリック)" else "行頭まで削除 (左フリック)"
@@ -5737,12 +5741,16 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 Key.SideKeySpace -> {
                                     if (isInputComposing) {
                                         info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_bottom, "変換候補選択 (下フリック)"))
+                                        info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_top, "全角カタカナ変換 (上フリック)"))
+                                        info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_right, "半角カタカナ変換 (右フリック)"))
+                                    } else {
+                                        info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_left, "全半スペース切替 (左フリック)"))
                                     }
                                 }
                                 Key.SideKeyReadAloud -> {
-                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_left, "詳細読み (左フリック)"))
-                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_top, "切り取り (上フリック)"))
-                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_right, "コピー (右フリック)"))
+                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_left, "詳細読み上げ (左フリック)"))
+                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_top, "文頭から読み上げ (上フリック)"))
+                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_right, "文末まで読み上げ (右フリック)"))
                                 }
                                 else -> {
                                     val keyInfo = currentInputMode.value.next(keyMap = keyMap, key = key, isTablet = false)
@@ -5824,7 +5832,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                 }
             }
             Key.SideKeySpace -> {
-                if (gesture == GestureType.FlickBottom || gesture == GestureType.FlickTop || gesture == GestureType.FlickRight) {
+                if (gesture == GestureType.FlickBottom || gesture == GestureType.FlickTop || gesture == GestureType.FlickRight || gesture == GestureType.FlickLeft) {
                     flickListener?.onFlick(gesture, key, null)
                 }
             }
