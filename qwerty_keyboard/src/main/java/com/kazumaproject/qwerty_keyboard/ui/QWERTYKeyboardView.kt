@@ -393,7 +393,8 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                                 QWERTYKey.QWERTYKeySpace -> {
                                     if (isInputComposing) {
                                         info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_bottom, "予測変換 (下フリック)"))
-                                        info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_top, "全角カタカナ変換 (上フリック)"))
+                                        val label = if (romajiModeState.value) "全角カタカナ変換 (上フリック)" else "全角英語変換 (上フリック)"
+                                        info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_top, label))
                                         if (romajiModeState.value) {
                                             info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_right, "半角カタカナ変換 (右フリック)"))
                                         }
@@ -1631,7 +1632,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                     } else if (dyStart < dragUpThreshold && dyStart >= -cancelThreshold && abs(screenX - spaceKeyDragStartX) <= cancelXThreshold) {
                         if (!isSpaceDownAnnounced && !isSpaceUpAnnounced && !isSpaceRightAnnounced) {
                             isSpaceUpAnnounced = true
-                            val annText = "カタカナ変換"
+                            val annText = if (romajiModeState.value) "カタカナ変換" else "全角英語変換"
                             announceForAccessibility(annText)
                             android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
                             performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)

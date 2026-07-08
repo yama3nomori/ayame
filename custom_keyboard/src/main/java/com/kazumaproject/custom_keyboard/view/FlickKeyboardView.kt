@@ -1260,7 +1260,7 @@ class FlickKeyboardView @JvmOverloads constructor(
                                         if (!isNumberMode && dy < -threshold && dy >= -cancelThreshold && abs(dx) <= cancelXThreshold) {
                                             if (!isUpAnnounced && !isRightAnnounced) {
                                                 isUpAnnounced = true
-                                                val annText = "カタカナ変換"
+                                                val annText = if (!isJapaneseMode && !isNumberMode) "全角英語変換" else "カタカナ変換"
                                                 announceForAccessibility(annText)
                                                 android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
                                                 performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)

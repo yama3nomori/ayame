@@ -2172,7 +2172,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     } else if (currentInputMode.value != InputMode.ModeNumber && dyStart < dragUpThreshold && dyStart >= -cancelDownThreshold && abs(dxStart) <= cancelXThreshold) {
                         if (!isSpaceDownAnnounced && !isSpaceUpAnnounced && !isSpaceRightAnnounced) {
                             isSpaceUpAnnounced = true
-                            val annText = "カタカナ変換"
+                            val annText = if (currentInputMode.value == InputMode.ModeEnglish) "全角英語変換" else "カタカナ変換"
                             Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Space Up threshold reached! Announcing '$annText'")
                             announceForAccessibility(annText)
                             android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
@@ -4093,7 +4093,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         } else if (currentInputMode.value != InputMode.ModeNumber && dyStart < dragUpThreshold && dyStart >= -cancelDownThreshold && abs(dxStart) <= cancelXThreshold) {
                             if (!isSpaceDownAnnounced && !isSpaceUpAnnounced && !isSpaceRightAnnounced) {
                                 isSpaceUpAnnounced = true
-                                val annText = "カタカナ変換"
+                                val annText = if (currentInputMode.value == InputMode.ModeEnglish) "全角英語変換" else "カタカナ変換"
                                 Log.d("TenKeyDrag", "ACTION_MOVE: Space Up threshold reached! Announcing '$annText'")
                                 announceForAccessibility(annText)
                                 android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
@@ -5742,7 +5742,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                     if (isInputComposing) {
                                         info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_bottom, "変換候補選択 (下フリック)"))
                                         if (currentInputMode.value != InputMode.ModeNumber) {
-                                            info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_top, "全角カタカナ変換 (上フリック)"))
+                                            val label = if (currentInputMode.value == InputMode.ModeEnglish) "全角英語変換 (上フリック)" else "全角カタカナ変換 (上フリック)"
+                                            info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_top, label))
                                         }
                                         if (currentInputMode.value == InputMode.ModeJapanese) {
                                             info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_right, "半角カタカナ変換 (右フリック)"))

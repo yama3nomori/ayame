@@ -4090,13 +4090,21 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                                 }
                             }
                         } else if (gestureType == GestureType.FlickTop) {
-                            val isNumber = if (isTablet == true) {
-                                mainView.tabletView.currentInputMode.get() == InputMode.ModeNumber
+                            val currentMode = if (isTablet == true) {
+                                mainView.tabletView.currentInputMode.get()
                             } else {
-                                mainView.keyboardView.currentInputMode.value == InputMode.ModeNumber
+                                mainView.keyboardView.currentInputMode.value
                             }
-                            if (!isNumber) {
-                                convertToZenkakuKatakana()
+                            when (currentMode) {
+                                InputMode.ModeNumber -> {
+                                    // 何もしない
+                                }
+                                InputMode.ModeEnglish -> {
+                                    convertToZenkakuEnglish()
+                                }
+                                else -> {
+                                    convertToZenkakuKatakana()
+                                }
                             }
                         } else if (gestureType == GestureType.FlickRight) {
                             val isJapanese = if (isTablet == true) {
@@ -4388,9 +4396,17 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                                 }
                             }
                         } else if (gestureType == GestureType.FlickTop) {
-                            val isNumber = floatingKeyboardLayoutBinding.keyboardViewFloating.currentInputMode.value == InputMode.ModeNumber
-                            if (!isNumber) {
-                                convertToZenkakuKatakana()
+                            val currentMode = floatingKeyboardLayoutBinding.keyboardViewFloating.currentInputMode.value
+                            when (currentMode) {
+                                InputMode.ModeNumber -> {
+                                    // 何もしない
+                                }
+                                InputMode.ModeEnglish -> {
+                                    convertToZenkakuEnglish()
+                                }
+                                else -> {
+                                    convertToZenkakuKatakana()
+                                }
                             }
                         } else if (gestureType == GestureType.FlickRight) {
                             val isJapanese = floatingKeyboardLayoutBinding.keyboardViewFloating.currentInputMode.value == InputMode.ModeJapanese
@@ -10112,7 +10128,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                                     isHenkan.set(true)
                                 }
                             } else if (tap == '\u0015') {
-                                convertToZenkakuKatakana()
+                                if (mainView.qwertyView.getRomajiMode()) {
+                                    convertToZenkakuKatakana()
+                                } else {
+                                    convertToZenkakuEnglish()
+                                }
                             } else if (tap == '\u0016') {
                                 if (mainView.qwertyView.getRomajiMode()) {
                                     convertToHankakuKatakana()
@@ -12854,6 +12874,58 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         resetFlagsKeySpace()
     }
 
+
+    private fun convertToZenkakuEnglish() {
+        val insertString = inputString.value
+        if (insertString.isNotEmpty()) {
+            val converted = if (insertString.isAllEnglishLetters()) {
+                insertString.lowercase().toZenkakuAlphabet()
+            } else {
+                romajiConverter?.hiraganaToRomaji(insertString.toHiragana())
+                    ?.toZenkakuAlphabet() ?: insertString
+            }
+            val convertedCandidate = Candidate(
+                string = converted,
+                type = 4, // 英数・Katakanaと同等
+                length = converted.length.toUByte(),
+                score = Int.MAX_VALUE
+            )
+            val currentSuggestions = suggestionAdapter?.suggestions ?: emptyList()
+            val newSuggestions = mutableListOf(convertedCandidate).apply {
+                addAll(currentSuggestions.filter { it.string != converted })
+            }
+            suggestionAdapter?.suggestions = newSuggestions
+            suggestionAdapterFull?.suggestions = newSuggestions
+            filteredCandidateList = newSuggestions
+
+            isHenkan.set(true)
+            suggestionClickNum = 1
+
+            if (isKeyboardFloatingMode == true) {
+                floatingKeyboardBinding?.suggestionRecyclerView?.apply {
+                    smoothScrollToPosition(0)
+                    suggestionAdapter?.updateHighlightPosition(0)
+                    newSuggestions.getOrNull(0)?.let {
+                        announceCandidateHighlight(it.string, 0, newSuggestions.size)
+                    }
+                }
+                floatingKeyboardBinding?.let { binding ->
+                    setConvertLetterInJapaneseFromButtonFloating(newSuggestions, true, binding, insertString)
+                }
+            } else {
+                mainLayoutBinding?.suggestionRecyclerView?.apply {
+                    smoothScrollToPosition(0)
+                    suggestionAdapter?.updateHighlightPosition(0)
+                    newSuggestions.getOrNull(0)?.let {
+                        announceCandidateHighlight(it.string, 0, newSuggestions.size)
+                    }
+                }
+                mainLayoutBinding?.let { binding ->
+                    setConvertLetterInJapaneseFromButton(newSuggestions, true, binding, insertString)
+                }
+            }
+        }
+    }
 
     private fun convertToZenkakuKatakana() {
         val insertString = inputString.value
