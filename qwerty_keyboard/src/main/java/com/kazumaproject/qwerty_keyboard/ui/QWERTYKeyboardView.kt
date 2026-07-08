@@ -394,7 +394,9 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                                     if (isInputComposing) {
                                         info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_bottom, "予測変換 (下フリック)"))
                                         info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_top, "全角カタカナ変換 (上フリック)"))
-                                        info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_right, "半角カタカナ変換 (右フリック)"))
+                                        if (romajiModeState.value) {
+                                            info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_right, "半角カタカナ変換 (右フリック)"))
+                                        }
                                     }
                                 }
                                 QWERTYKey.QWERTYKeyReadAloud -> {
@@ -1634,7 +1636,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                             android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
                             performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                         }
-                    } else if (dxStart > dragRightThreshold && dxStart <= cancelThreshold && abs(screenY - spaceKeyDragStartY) <= cancelXThreshold) {
+                    } else if (romajiModeState.value && dxStart > dragRightThreshold && dxStart <= cancelThreshold && abs(screenY - spaceKeyDragStartY) <= cancelXThreshold) {
                         if (!isSpaceDownAnnounced && !isSpaceUpAnnounced && !isSpaceRightAnnounced) {
                             isSpaceRightAnnounced = true
                             val annText = "半角カタカナ"

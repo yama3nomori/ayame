@@ -2169,7 +2169,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
                             performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                         }
-                    } else if (dyStart < dragUpThreshold && dyStart >= -cancelDownThreshold && abs(dxStart) <= cancelXThreshold) {
+                    } else if (currentInputMode.value != InputMode.ModeNumber && dyStart < dragUpThreshold && dyStart >= -cancelDownThreshold && abs(dxStart) <= cancelXThreshold) {
                         if (!isSpaceDownAnnounced && !isSpaceUpAnnounced && !isSpaceRightAnnounced) {
                             isSpaceUpAnnounced = true
                             val annText = "カタカナ変換"
@@ -2178,7 +2178,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
                             performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                         }
-                    } else if (dxStart > dragRightThreshold && dxStart <= cancelDownThreshold && abs(dyStart) <= cancelXThreshold) {
+                    } else if (currentInputMode.value == InputMode.ModeJapanese && dxStart > dragRightThreshold && dxStart <= cancelDownThreshold && abs(dyStart) <= cancelXThreshold) {
                         if (!isSpaceDownAnnounced && !isSpaceUpAnnounced && !isSpaceRightAnnounced) {
                             isSpaceRightAnnounced = true
                             val annText = "半角カタカナ"
@@ -2685,9 +2685,9 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         
                         if (abs(dx) <= cancelXThreshold && dy > threshold) {
                             triggerSpaceDown = true
-                        } else if (abs(dx) <= cancelXThreshold && dy < -threshold) {
+                        } else if (currentInputMode.value != InputMode.ModeNumber && abs(dx) <= cancelXThreshold && dy < -threshold) {
                             triggerSpaceUp = true
-                        } else if (abs(dy) <= cancelXThreshold && dx > threshold) {
+                        } else if (currentInputMode.value == InputMode.ModeJapanese && abs(dy) <= cancelXThreshold && dx > threshold) {
                             triggerSpaceRight = true
                         }
                     }
@@ -4090,7 +4090,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
                                 performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                             }
-                        } else if (dyStart < dragUpThreshold && dyStart >= -cancelDownThreshold && abs(dxStart) <= cancelXThreshold) {
+                        } else if (currentInputMode.value != InputMode.ModeNumber && dyStart < dragUpThreshold && dyStart >= -cancelDownThreshold && abs(dxStart) <= cancelXThreshold) {
                             if (!isSpaceDownAnnounced && !isSpaceUpAnnounced && !isSpaceRightAnnounced) {
                                 isSpaceUpAnnounced = true
                                 val annText = "カタカナ変換"
@@ -4099,7 +4099,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
                                 performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                             }
-                        } else if (dxStart > dragRightThreshold && dxStart <= cancelDownThreshold && abs(dyStart) <= cancelXThreshold) {
+                        } else if (currentInputMode.value == InputMode.ModeJapanese && dxStart > dragRightThreshold && dxStart <= cancelDownThreshold && abs(dyStart) <= cancelXThreshold) {
                             if (!isSpaceDownAnnounced && !isSpaceUpAnnounced && !isSpaceRightAnnounced) {
                                 isSpaceRightAnnounced = true
                                 val annText = "半角カタカナ"
@@ -5741,8 +5741,12 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 Key.SideKeySpace -> {
                                     if (isInputComposing) {
                                         info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_bottom, "変換候補選択 (下フリック)"))
-                                        info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_top, "全角カタカナ変換 (上フリック)"))
-                                        info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_right, "半角カタカナ変換 (右フリック)"))
+                                        if (currentInputMode.value != InputMode.ModeNumber) {
+                                            info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_top, "全角カタカナ変換 (上フリック)"))
+                                        }
+                                        if (currentInputMode.value == InputMode.ModeJapanese) {
+                                            info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_right, "半角カタカナ変換 (右フリック)"))
+                                        }
                                     } else {
                                         info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_left, "全半スペース切替 (左フリック)"))
                                     }

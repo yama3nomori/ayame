@@ -144,6 +144,12 @@ class FlickKeyboardView @JvmOverloads constructor(
     // アヤメモードフラグ（IMEServiceからセットされる）
     var isAyameMode = false
 
+    // 日本語モードフラグ（IMEServiceからセットされる。英語・数字モード時にスペースの右フリック等を無効化するため）
+    var isJapaneseMode = true
+
+    // 数字モードフラグ（IMEServiceからセットされる。数字モード時にスペースの上フリック等を無効化するため）
+    var isNumberMode = false
+
     // TalkBack時のホバードラッグ追跡変数
     // カーソル左
     private var isHoverDraggingLeftCursor = false
@@ -1251,7 +1257,7 @@ class FlickKeyboardView @JvmOverloads constructor(
                                         val dx = event.x - dragStartX
                                         val dy = event.y - dragStartY
                                         
-                                        if (dy < -threshold && dy >= -cancelThreshold && abs(dx) <= cancelXThreshold) {
+                                        if (!isNumberMode && dy < -threshold && dy >= -cancelThreshold && abs(dx) <= cancelXThreshold) {
                                             if (!isUpAnnounced && !isRightAnnounced) {
                                                 isUpAnnounced = true
                                                 val annText = "カタカナ変換"
@@ -1259,7 +1265,7 @@ class FlickKeyboardView @JvmOverloads constructor(
                                                 android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
                                                 performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                                             }
-                                        } else if (dx > threshold && dx <= cancelThreshold && abs(dy) <= cancelXThreshold) {
+                                        } else if (isJapaneseMode && dx > threshold && dx <= cancelThreshold && abs(dy) <= cancelXThreshold) {
                                             if (!isUpAnnounced && !isRightAnnounced) {
                                                 isRightAnnounced = true
                                                 val annText = "半角カタカナ"

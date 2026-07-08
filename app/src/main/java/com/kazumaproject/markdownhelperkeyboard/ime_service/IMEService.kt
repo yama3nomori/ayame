@@ -4090,9 +4090,23 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                                 }
                             }
                         } else if (gestureType == GestureType.FlickTop) {
-                            convertToZenkakuKatakana()
+                            val isNumber = if (isTablet == true) {
+                                mainView.tabletView.currentInputMode.get() == InputMode.ModeNumber
+                            } else {
+                                mainView.keyboardView.currentInputMode.value == InputMode.ModeNumber
+                            }
+                            if (!isNumber) {
+                                convertToZenkakuKatakana()
+                            }
                         } else if (gestureType == GestureType.FlickRight) {
-                            convertToHankakuKatakana()
+                            val isJapanese = if (isTablet == true) {
+                                mainView.tabletView.currentInputMode.get() == InputMode.ModeJapanese
+                            } else {
+                                mainView.keyboardView.currentInputMode.value == InputMode.ModeJapanese
+                            }
+                            if (isJapanese) {
+                                convertToHankakuKatakana()
+                            }
                         } else if (gestureType == GestureType.FlickLeft) {
                             val isHankaku = hankakuPreference == true
                             if (isHankaku) {
@@ -4374,9 +4388,15 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                                 }
                             }
                         } else if (gestureType == GestureType.FlickTop) {
-                            convertToZenkakuKatakana()
+                            val isNumber = floatingKeyboardLayoutBinding.keyboardViewFloating.currentInputMode.value == InputMode.ModeNumber
+                            if (!isNumber) {
+                                convertToZenkakuKatakana()
+                            }
                         } else if (gestureType == GestureType.FlickRight) {
-                            convertToHankakuKatakana()
+                            val isJapanese = floatingKeyboardLayoutBinding.keyboardViewFloating.currentInputMode.value == InputMode.ModeJapanese
+                            if (isJapanese) {
+                                convertToHankakuKatakana()
+                            }
                         } else if (gestureType == GestureType.FlickLeft) {
                             val isHankaku = hankakuPreference == true
                             if (isHankaku) {
@@ -5537,6 +5557,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         val isAyameNumeric = appPreference.numeric_keyboard_type == "ayame_numeric"
         mainLayoutBinding?.customLayoutDefault?.apply {
             isAyameMode = isAyameNumeric
+            isJapaneseMode = false
+            isNumberMode = true
             setKeyboard(
                 if (isAyameNumeric) KeyboardDefaultLayouts.createAyameNumberLayout()
                 else KeyboardDefaultLayouts.createNumberLayout()
@@ -5558,6 +5580,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 Timber.d("updateKeyboardLayout: $isFlickOnlyMode $sumireInputKeyType")
 
                 mainLayoutBinding?.customLayoutDefault?.apply {
+                    isJapaneseMode = (customKeyboardMode == KeyboardInputMode.HIRAGANA)
+                    isNumberMode = (customKeyboardMode == KeyboardInputMode.SYMBOLS)
                     updateDynamicKey(
                         keyId = "enter_key", stateIndex = currentEnterKeyIndex
                     )
@@ -5705,6 +5729,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             }
 
         }
+        mainLayoutBinding?.customLayoutDefault?.isJapaneseMode = (customKeyboardMode == KeyboardInputMode.HIRAGANA)
+        mainLayoutBinding?.customLayoutDefault?.isNumberMode = (customKeyboardMode == KeyboardInputMode.SYMBOLS)
     }
 
     private var isCustomLayoutRomajiMode = false
@@ -10088,7 +10114,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                             } else if (tap == '\u0015') {
                                 convertToZenkakuKatakana()
                             } else if (tap == '\u0016') {
-                                convertToHankakuKatakana()
+                                if (mainView.qwertyView.getRomajiMode()) {
+                                    convertToHankakuKatakana()
+                                }
                             } else {
                                 if (!isSpaceKeyLongPressed) {
                                     handleSpaceKeyClickInQWERTY(insertString, mainView, suggestionList)
