@@ -5740,7 +5740,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 }
                                 Key.SideKeySpace -> {
                                     if (isInputComposing) {
-                                        info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_bottom, "変換候補選択 (下フリック)"))
+                                        info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_bottom, "予測変換 (下フリック)"))
                                         if (currentInputMode.value != InputMode.ModeNumber) {
                                             val label = if (currentInputMode.value == InputMode.ModeEnglish) "全角英語変換 (上フリック)" else "全角カタカナ変換 (上フリック)"
                                             info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_top, label))
