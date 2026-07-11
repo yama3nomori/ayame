@@ -199,8 +199,21 @@ class StandardFlickInputController(context: Context) {
     }
 
     private fun calculateDirection(dx: Float, dy: Float): FlickDirection {
+        val currentAnchor = anchorView
+        val threshold = if (currentAnchor != null) {
+            val keyWidth = currentAnchor.width.toFloat()
+            val keyHeight = currentAnchor.height.toFloat()
+            if (keyWidth > 0f && keyHeight > 0f) {
+                kotlin.math.min(keyWidth / 6f, keyHeight / 6f)
+            } else {
+                flickThreshold
+            }
+        } else {
+            flickThreshold
+        }
+
         val distance = sqrt(dx * dx + dy * dy)
-        if (distance < flickThreshold) {
+        if (distance < threshold) {
             return FlickDirection.TAP
         }
 

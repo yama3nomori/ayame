@@ -1132,11 +1132,22 @@ class TabletKeyboardView @JvmOverloads constructor(
                         val dyStart = screenY - spaceKeyDragStartY
                         val dxStart = screenX - spaceKeyDragStartX
                         
-                        val threshold = 35f // Highly sensitive and responsive
-                        val dragUpThreshold = -35f
-                        val dragRightThreshold = 35f
-                        val cancelDownThreshold = 150f
-                        val cancelXThreshold = 60f
+                        val spaceButton = binding.keySpace
+                        val threshold = if (spaceButton != null) {
+                            val keyWidth = spaceButton.width.toFloat()
+                            val keyHeight = spaceButton.height.toFloat()
+                            if (keyWidth > 0f && keyHeight > 0f) {
+                                kotlin.math.min(keyWidth / 6f, keyHeight / 6f)
+                            } else {
+                                35f
+                            }
+                        } else {
+                            35f
+                        }
+                        val dragUpThreshold = -threshold
+                        val dragRightThreshold = threshold
+                        val cancelDownThreshold = threshold * 4.3f
+                        val cancelXThreshold = threshold * 1.7f
                         
                         Log.d("TabletKeyDrag", "ACTION_MOVE: isDraggingSpaceKey=true, screenX=$screenX, screenY=$screenY, dyStart=$dyStart, dxStart=$dxStart")
                         
@@ -1196,12 +1207,12 @@ class TabletKeyboardView @JvmOverloads constructor(
                                         (dyStart > cancelDownThreshold) || (dyStart < -cancelDownThreshold) || (dxStart > cancelDownThreshold) || (abs(dxStart) > cancelXThreshold && dyStart > threshold) || (abs(dxStart) > cancelXThreshold && dyStart < dragUpThreshold) || (abs(dyStart) > cancelXThreshold && dxStart > dragRightThreshold)
                                     }
                                 }
-                                if (shouldCancel) {
+                                /* if (shouldCancel) {
                                     isSpaceDownAnnounced = false
                                     isSpaceUpAnnounced = false
                                     isSpaceRightAnnounced = false
                                     isDraggingSpaceKey = false
-                                }
+                                } */
                             }
                         }
                         return true

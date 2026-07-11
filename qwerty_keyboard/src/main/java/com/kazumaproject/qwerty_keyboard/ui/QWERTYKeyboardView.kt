@@ -1171,13 +1171,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                     }
                 } else {
                     touchSlideInEntryTime = 0L
-                    if (isDraggingRightCursor && currentKey != null) {
-                        isDraggingRightCursor = false
-                        isLineStartAnnounced = false
-                        isLineEndAnnounced = false
-                        isLineUpAnnounced = false
-                        isLineDownAnnounced = false
-                    }
+                    // slide-off cancel disabled
                 }
 
                 if (currentKey == QWERTYKey.QWERTYKeyCursorLeft) {
@@ -1214,13 +1208,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                     }
                 } else {
                     leftTouchSlideInEntryTime = 0L
-                    if (isDraggingLeftCursor && currentKey != null) {
-                        isDraggingLeftCursor = false
-                        isLeftLineStartAnnounced = false
-                        isLeftLineEndAnnounced = false
-                        isLeftLineUpAnnounced = false
-                        isLeftLineDownAnnounced = false
-                    }
+                    // slide-off cancel disabled
                 }
 
                 if (currentKey == QWERTYKey.QWERTYKeyDelete) {
@@ -1255,11 +1243,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                     }
                 } else {
                     deleteTouchSlideInEntryTime = 0L
-                    if (isDraggingDeleteKey && currentKey != null) {
-                        isDraggingDeleteKey = false
-                        isDeleteLeftAnnounced = false
-                        isDeleteRightAnnounced = false
-                    }
+                    // slide-off cancel disabled
                 }
 
                 if (currentKey == QWERTYKey.QWERTYKeySpace) {
@@ -1294,12 +1278,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                     }
                 } else {
                     spaceTouchSlideInEntryTime = 0L
-                    if (isDraggingSpaceKey && currentKey != null) {
-                        isDraggingSpaceKey = false
-                        isSpaceDownAnnounced = false
-                        isSpaceUpAnnounced = false
-                        isSpaceRightAnnounced = false
-                    }
+                    // slide-off cancel disabled
                 }
 
                 if (currentKey == QWERTYKey.QWERTYKeyReadAloud) {
@@ -1335,12 +1314,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                     }
                 } else {
                     readAloudTouchSlideInEntryTime = 0L
-                    if (isDraggingReadAloudKey && currentKey != null) {
-                        isDraggingReadAloudKey = false
-                        isReadAloudLeftAnnounced = false
-                        isReadAloudUpAnnounced = false
-                        isReadAloudRightAnnounced = false
-                    }
+                    // slide-off cancel disabled
                 }
 
                 // --- Drag and Hold thresholds ---
@@ -2042,7 +2016,18 @@ class QWERTYKeyboardView @JvmOverloads constructor(
         val distanceX = if (abs(dX1) > abs(dX2)) dX1 else dX2
         val distanceY = if (abs(dY1) > abs(dY2)) dY1 else dY2
 
-        val threshold = 35f
+        val buttonView = qwertyButtonMap.entries.find { it.value == key }?.key
+        val threshold = if (buttonView != null) {
+            val keyWidth = buttonView.width.toFloat()
+            val keyHeight = buttonView.height.toFloat()
+            if (keyWidth > 0f && keyHeight > 0f) {
+                kotlin.math.min(keyWidth / 6f, keyHeight / 6f)
+            } else {
+                35f
+            }
+        } else {
+            35f
+        }
         val cancelThreshold = 60f
 
         var isFastX = true

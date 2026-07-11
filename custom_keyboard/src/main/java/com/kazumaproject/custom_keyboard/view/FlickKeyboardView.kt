@@ -2682,7 +2682,7 @@ class FlickKeyboardView @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_MOVE -> {
-                // 指が動いた。追跡中のすべての指に対して、それぞれ専用のMOVEイベントを作成する
+                // Finger moved. Create a dedicated MOVE event for each tracked pointer
                 for (i in 0 until event.pointerCount) {
                     val pId = event.getPointerId(i)
                     val oldTarget = motionTargets[pId]
@@ -2690,52 +2690,75 @@ class FlickKeyboardView @JvmOverloads constructor(
                     val y = event.getY(i)
                     val newTarget = findTargetView(x, y)
 
-                    if (oldTarget != newTarget) {
-                        // ターゲットが変わった場合
+                    val downTime = pointerDownTime[pId] ?: event.downTime
+                    val elapsed = event.eventTime - downTime
+                    val shouldLockTarget = if (isTouchExplorationEnabled()) {
+                        elapsed >= 500L
+                    } else {
+                        true
+                    }
 
-                        // 1. 古いターゲットにCANCELを送る
+                    if (shouldLockTarget) {
+                        // If locked, do not switch targets; always send MOVE to the old target
                         if (oldTarget != null) {
-                            val downTime = pointerDownTime[pId] ?: event.downTime
-                            val cancelEvent = MotionEvent.obtain(
-                                downTime, event.eventTime, MotionEvent.ACTION_CANCEL,
-                                x, y, event.metaState
-                            )
-                            cancelEvent.offsetLocation(
+                            val moveEvent = MotionEvent.obtain(event).apply {
+                                setAction(MotionEvent.ACTION_MOVE)
+                            }
+                            moveEvent.offsetLocation(
                                 -oldTarget.left.toFloat(),
                                 -oldTarget.top.toFloat()
                             )
-                            oldTarget.dispatchTouchEvent(cancelEvent)
-                            cancelEvent.recycle()
-                            motionTargets.remove(pId)
-                            pointerDownTime.remove(pId)
+                            oldTarget.dispatchTouchEvent(moveEvent)
+                            moveEvent.recycle()
                         }
+                    } else {
+                        // If not locked (e.g., during TalkBack exploration), perform standard target switching
+                        if (oldTarget != newTarget) {
+                            // Target changed
 
-                        // 2. 新しいターゲットにDOWNを送る（新たなタップとして開始）
-                        if (newTarget != null) {
-                            motionTargets[pId] = newTarget
-                            pointerDownTime[pId] = event.eventTime
-                            val downEvent = MotionEvent.obtain(
-                                event.eventTime, event.eventTime, MotionEvent.ACTION_DOWN,
-                                x, y, event.metaState
-                            )
-                            downEvent.offsetLocation(
+                            // 1. Send CANCEL to the old target
+                            if (oldTarget != null) {
+                                val cancelEvent = MotionEvent.obtain(
+                                    downTime, event.eventTime, MotionEvent.ACTION_CANCEL,
+                                    x, y, event.metaState
+                                )
+                                cancelEvent.offsetLocation(
+                                    -oldTarget.left.toFloat(),
+                                    -oldTarget.top.toFloat()
+                                )
+                                oldTarget.dispatchTouchEvent(cancelEvent)
+                                cancelEvent.recycle()
+                                motionTargets.remove(pId)
+                                pointerDownTime.remove(pId)
+                            }
+
+                            // 2. Send DOWN to the new target (starts a new tap)
+                            if (newTarget != null) {
+                                motionTargets[pId] = newTarget
+                                pointerDownTime[pId] = event.eventTime
+                                val downEvent = MotionEvent.obtain(
+                                    event.eventTime, event.eventTime, MotionEvent.ACTION_DOWN,
+                                    x, y, event.metaState
+                                )
+                                downEvent.offsetLocation(
+                                    -newTarget.left.toFloat(),
+                                    -newTarget.top.toFloat()
+                                )
+                                newTarget.dispatchTouchEvent(downEvent)
+                                downEvent.recycle()
+                            }
+                        } else if (newTarget != null) {
+                            // If target hasn't changed, send MOVE
+                            val moveEvent = MotionEvent.obtain(event).apply {
+                                setAction(MotionEvent.ACTION_MOVE)
+                            }
+                            moveEvent.offsetLocation(
                                 -newTarget.left.toFloat(),
                                 -newTarget.top.toFloat()
                             )
-                            newTarget.dispatchTouchEvent(downEvent)
-                            downEvent.recycle()
+                            newTarget.dispatchTouchEvent(moveEvent)
+                            moveEvent.recycle()
                         }
-                    } else if (newTarget != null) {
-                        // ターゲットが変わっていない場合、MOVEを送る
-                        val moveEvent = MotionEvent.obtain(event).apply {
-                            setAction(MotionEvent.ACTION_MOVE)
-                        }
-                        moveEvent.offsetLocation(
-                            -newTarget.left.toFloat(),
-                            -newTarget.top.toFloat()
-                        )
-                        newTarget.dispatchTouchEvent(moveEvent)
-                        moveEvent.recycle()
                     }
                 }
                 return true

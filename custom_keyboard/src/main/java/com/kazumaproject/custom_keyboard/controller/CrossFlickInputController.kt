@@ -221,7 +221,20 @@ class CrossFlickInputController(private val context: Context) {
         val absDx = abs(dx)
         val absDy = abs(dy)
 
-        if (absDx < flickThreshold && absDy < flickThreshold) {
+        val currentAnchor = anchorView
+        val threshold = if (currentAnchor != null) {
+            val keyWidth = currentAnchor.width.toFloat()
+            val keyHeight = currentAnchor.height.toFloat()
+            if (keyWidth > 0f && keyHeight > 0f) {
+                kotlin.math.min(keyWidth / 6f, keyHeight / 6f)
+            } else {
+                flickThreshold
+            }
+        } else {
+            flickThreshold
+        }
+
+        if (absDx < threshold && absDy < threshold) {
             return CrossDirection.TAP
         }
 

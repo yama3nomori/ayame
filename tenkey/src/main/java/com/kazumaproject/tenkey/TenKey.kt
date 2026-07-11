@@ -1564,14 +1564,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     }
                 } else {
                     hoverSlideInEntryTime = 0L
-                    if (isHoverDraggingRightCursor) {
-                        Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid off Right Cursor (Hover) to $key. Drag cancelled.")
-                        isHoverDraggingRightCursor = false
-                        isLineStartAnnounced = false
-                        isLineEndAnnounced = false
-                        isLineUpAnnounced = false
-                        isLineDownAnnounced = false
-                    }
+                    // hover slide-off cancel disabled
                 }
 
                 // Handle slide-in / slide-out state transition for SideKeyCursorLeft
@@ -1610,14 +1603,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     }
                 } else {
                     leftHoverSlideInEntryTime = 0L
-                    if (isHoverDraggingLeftCursor) {
-                        Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid off Left Cursor (Hover) to $key. Drag cancelled.")
-                        isHoverDraggingLeftCursor = false
-                        isLeftLineStartAnnounced = false
-                        isLeftLineEndAnnounced = false
-                        isLeftLineUpAnnounced = false
-                        isLeftLineDownAnnounced = false
-                    }
+                    // hover slide-off cancel disabled
                 }
 
                 // Handle slide-in / slide-out state transition for SideKeyDelete
@@ -1654,12 +1640,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     }
                 } else {
                     deleteHoverSlideInEntryTime = 0L
-                    if (isHoverDraggingDeleteKey) {
-                        Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid off Delete Key (Hover) to $key. Drag cancelled.")
-                        isHoverDraggingDeleteKey = false
-                        isDeleteLeftAnnounced = false
-                        isDeleteUpAnnounced = false
-                    }
+                    // hover slide-off cancel disabled
                 }
 
                 // Handle slide-in / slide-out state transition for SideKeySpace
@@ -1694,11 +1675,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     }
                 } else {
                     spaceHoverSlideInEntryTime = 0L
-                    if (isHoverDraggingSpaceKey) {
-                        Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid off Space Key (Hover) to $key. Drag cancelled.")
-                        isHoverDraggingSpaceKey = false
-                        isSpaceDownAnnounced = false
-                    }
+                    // hover slide-off cancel disabled
                 }
 
                 // Handle slide-in / slide-out state transition for SideKeyReadAloud
@@ -1736,23 +1713,13 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     }
                 } else {
                     readAloudHoverSlideInEntryTime = 0L
-                    if (isHoverDraggingReadAloudKey) {
-                        Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid off Read Aloud Key (Hover) to $key. Drag cancelled.")
-                        isHoverDraggingReadAloudKey = false
-                        isReadAloudLeftAnnounced = false
-                        isReadAloudUpAnnounced = false
-                        isReadAloudRightAnnounced = false
-                    }
+                    // hover slide-off cancel disabled
                 }
 
                 // Handle slide-in / slide-out state transition for Character Keys
                 val charKeyInfo = currentInputMode.value.next(keyMap = keyMap, key = key, isTablet = false)
                 if (charKeyInfo is KeyInfo.KeyTapFlickInfo) {
-                    if (isHoverDraggingCharKey && key != hoverCharKey) {
-                        Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid off active Char Key $hoverCharKey (Hover) to $key. Drag cancelled.")
-                        isHoverDraggingCharKey = false
-                        hoverCharKey = Key.NotSelected
-                    }
+                    // hover slide-off cancel disabled
                     if (!isHoverDraggingCharKey) {
                         if (charHoverSlideInEntryTime == 0L) {
                             charHoverSlideInEntryTime = System.currentTimeMillis()
@@ -1785,11 +1752,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     }
                 } else {
                     charHoverSlideInEntryTime = 0L
-                    if (isHoverDraggingCharKey) {
-                        Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid off active Char Key $hoverCharKey (Hover) to non-char key $key. Drag cancelled.")
-                        isHoverDraggingCharKey = false
-                        hoverCharKey = Key.NotSelected
-                    }
+                    // hover slide-off cancel disabled
                 }
 
                 if (key != currentHoverKey) {
@@ -3761,13 +3724,20 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         val dyUp = screenY - rightCursorDragEndY       // negative when sliding up
                         val dyDown = screenY - rightCursorDragTopY     // positive when sliding down
                         
-                        val threshold = 35f // Highly sensitive and responsive
-                        val cancelLeftThreshold = -150f
-                        val cancelRightThreshold = 150f
-                        val cancelUpThreshold = -150f
-                        val cancelDownThreshold = 150f
-                        val cancelXThreshold = 60f
-                        val cancelYThreshold = 60f
+                        val button = binding.keyMoveCursorRight
+                        val threshold = if (button != null) {
+                            val w = button.width.toFloat()
+                            val h = button.height.toFloat()
+                            if (w > 0f && h > 0f) kotlin.math.min(w / 6f, h / 6f) else 35f
+                        } else {
+                            35f
+                        }
+                        val cancelLeftThreshold = -threshold * 4.3f
+                        val cancelRightThreshold = threshold * 4.3f
+                        val cancelUpThreshold = -threshold * 4.3f
+                        val cancelDownThreshold = threshold * 4.3f
+                        val cancelXThreshold = threshold * 1.7f
+                        val cancelYThreshold = threshold * 1.7f
                         
                         Log.d("TenKeyDrag", "ACTION_MOVE: isDraggingRightCursor=true, screenX=$screenX, screenY=$screenY, dxStart=$dxStart, dxEnd=$dxEnd, dyUp=$dyUp, dyDown=$dyDown")
                         
@@ -3851,13 +3821,13 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                     (dxStart < cancelLeftThreshold) || (dxEnd > cancelRightThreshold) || (dyUp < cancelUpThreshold) || (dyDown > cancelDownThreshold) || 
                                     (abs(screenY - rightCursorDragStartY) > cancelYThreshold && abs(screenX - rightCursorDragStartX) > cancelXThreshold)
                                 }
-                                if (shouldCancel) {
+                                /* if (shouldCancel) {
                                     isLineStartAnnounced = false
                                     isLineEndAnnounced = false
                                     isLineUpAnnounced = false
                                     isLineDownAnnounced = false
                                     isDraggingRightCursor = false
-                                }
+                                } */
                             }
                         }
                         return true // Consume this event to bypass popups and other move gesture handlers!
@@ -3885,13 +3855,20 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         val dyUp = screenY - leftCursorDragEndY       // negative when sliding up
                         val dyDown = screenY - leftCursorDragTopY     // positive when sliding down
                         
-                        val threshold = 35f // Highly sensitive and responsive
-                        val cancelLeftThreshold = -150f
-                        val cancelRightThreshold = 150f
-                        val cancelUpThreshold = -150f
-                        val cancelDownThreshold = 150f
-                        val cancelXThreshold = 60f
-                        val cancelYThreshold = 60f
+                        val button = binding.keySoftLeft
+                        val threshold = if (button != null) {
+                            val w = button.width.toFloat()
+                            val h = button.height.toFloat()
+                            if (w > 0f && h > 0f) kotlin.math.min(w / 6f, h / 6f) else 35f
+                        } else {
+                            35f
+                        }
+                        val cancelLeftThreshold = -threshold * 4.3f
+                        val cancelRightThreshold = threshold * 4.3f
+                        val cancelUpThreshold = -threshold * 4.3f
+                        val cancelDownThreshold = threshold * 4.3f
+                        val cancelXThreshold = threshold * 1.7f
+                        val cancelYThreshold = threshold * 1.7f
                         
                         Log.d("TenKeyDrag", "ACTION_MOVE: isDraggingLeftCursor=true, screenX=$screenX, screenY=$screenY, dxStart=$dxStart, dxEnd=$dxEnd, dyUp=$dyUp, dyDown=$dyDown")
                         
@@ -3975,13 +3952,13 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                     (dxStart < cancelLeftThreshold) || (dxEnd > cancelRightThreshold) || (dyUp < cancelUpThreshold) || (dyDown > cancelDownThreshold) || 
                                     (abs(screenY - leftCursorDragStartY) > cancelYThreshold && abs(screenX - leftCursorDragStartX) > cancelXThreshold)
                                 }
-                                if (shouldCancel) {
+                                /* if (shouldCancel) {
                                     isLeftLineStartAnnounced = false
                                     isLeftLineEndAnnounced = false
                                     isLeftLineUpAnnounced = false
                                     isLeftLineDownAnnounced = false
                                     isDraggingLeftCursor = false
-                                }
+                                } */
                             }
                         }
                         return true // Consume this event to bypass popups and other move gesture handlers!
@@ -3997,10 +3974,17 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
                         val dxStart = screenX - deleteKeyDragStartX // negative when sliding left
                         
-                        val threshold = 35f // Highly sensitive and responsive
-                        val cancelLeftThreshold = -150f
-                        val cancelRightThreshold = 150f
-                        val cancelYThreshold = 60f
+                        val button = binding.keyDelete
+                        val threshold = if (button != null) {
+                            val w = button.width.toFloat()
+                            val h = button.height.toFloat()
+                            if (w > 0f && h > 0f) kotlin.math.min(w / 6f, h / 6f) else 35f
+                        } else {
+                            35f
+                        }
+                        val cancelLeftThreshold = -threshold * 4.3f
+                        val cancelRightThreshold = threshold * 4.3f
+                        val cancelYThreshold = threshold * 1.7f
                         
                         Log.d("TenKeyDrag", "ACTION_MOVE: isDraggingDeleteKey=true, screenX=$screenX, screenY=$screenY, dxStart=$dxStart")
                         
@@ -4059,11 +4043,11 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 } else {
                                     (dxStart < cancelLeftThreshold) || (dxStart > cancelRightThreshold) || (abs(screenY - deleteKeyDragStartY) > cancelYThreshold)
                                 }
-                                if (shouldCancel) {
+                                /* if (shouldCancel) {
                                     isDeleteLeftAnnounced = false
                                     isDeleteRightAnnounced = false
                                     isDraggingDeleteKey = false
-                                }
+                                } */
                             }
                         }
                         return true // Consume this event to bypass popups and other move gesture handlers!
@@ -4073,11 +4057,22 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         val dyStart = screenY - spaceKeyDragStartY
                         val dxStart = screenX - spaceKeyDragStartX
                         
-                        val threshold = 35f // Highly sensitive and responsive
-                        val dragUpThreshold = -35f
-                        val dragRightThreshold = 35f
-                        val cancelDownThreshold = 150f
-                        val cancelXThreshold = 60f
+                        val spaceButton = binding.keySpace
+                        val threshold = if (spaceButton != null) {
+                            val keyWidth = spaceButton.width.toFloat()
+                            val keyHeight = spaceButton.height.toFloat()
+                            if (keyWidth > 0f && keyHeight > 0f) {
+                                kotlin.math.min(keyWidth / 6f, keyHeight / 6f)
+                            } else {
+                                35f
+                            }
+                        } else {
+                            35f
+                        }
+                        val dragUpThreshold = -threshold
+                        val dragRightThreshold = threshold
+                        val cancelDownThreshold = threshold * 4.3f
+                        val cancelXThreshold = threshold * 1.7f
                         
                         Log.d("TenKeyDrag", "ACTION_MOVE: isDraggingSpaceKey=true, screenX=$screenX, screenY=$screenY, dyStart=$dyStart, dxStart=$dxStart")
                         
@@ -4145,12 +4140,12 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                         (dyStart > cancelDownThreshold) || (dyStart < -cancelDownThreshold) || (dxStart > cancelDownThreshold) || (abs(dxStart) > cancelXThreshold && dyStart > threshold) || (abs(dxStart) > cancelXThreshold && dyStart < dragUpThreshold) || (abs(dyStart) > cancelXThreshold && dxStart > dragRightThreshold)
                                     }
                                 }
-                                if (shouldCancel) {
+                                /* if (shouldCancel) {
                                     isSpaceDownAnnounced = false
                                     isSpaceUpAnnounced = false
                                     isSpaceRightAnnounced = false
                                     isDraggingSpaceKey = false
-                                }
+                                } */
                             }
                         }
                         return true // Consume this event to bypass popups and other move gesture handlers!
@@ -4177,12 +4172,19 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         val dxEnd = screenX - readAloudKeyDragEndX     // positive when sliding right
                         val dyUp = screenY - readAloudKeyDragEndY       // negative when sliding up
                         
-                        val threshold = 35f // Highly sensitive and responsive
-                        val cancelLeftThreshold = -150f
-                        val cancelRightThreshold = 150f
-                        val cancelUpThreshold = -150f
-                        val cancelXThreshold = 60f
-                        val cancelYThreshold = 60f
+                        val button = binding.sideKeyReadAloud
+                        val threshold = if (button != null) {
+                            val w = button.width.toFloat()
+                            val h = button.height.toFloat()
+                            if (w > 0f && h > 0f) kotlin.math.min(w / 6f, h / 6f) else 35f
+                        } else {
+                            35f
+                        }
+                        val cancelLeftThreshold = -threshold * 4.3f
+                        val cancelRightThreshold = threshold * 4.3f
+                        val cancelUpThreshold = -threshold * 4.3f
+                        val cancelXThreshold = threshold * 1.7f
+                        val cancelYThreshold = threshold * 1.7f
                         
                         Log.d("TenKeyDrag", "ACTION_MOVE: isDraggingReadAloudKey=true, screenX=$screenX, screenY=$screenY, dxStart=$dxStart, dxEnd=$dxEnd, dyUp=$dyUp")
                         
@@ -4256,12 +4258,12 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                     (dxStart < cancelLeftThreshold) || (dxEnd > cancelRightThreshold) || (dyUp < cancelUpThreshold) || 
                                     (abs(screenY - readAloudKeyDragStartY) > cancelYThreshold && abs(screenX - readAloudKeyDragStartX) > cancelXThreshold)
                                 }
-                                if (shouldCancel) {
+                                /* if (shouldCancel) {
                                     isReadAloudLeftAnnounced = false
                                     isReadAloudUpAnnounced = false
                                     isReadAloudRightAnnounced = false
                                     isDraggingReadAloudKey = false
-                                }
+                                } */
                             }
                         }
                         return true // Consume this event to bypass popups and other move gesture handlers!
@@ -4821,8 +4823,21 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
             isFastY = abs(yVel) > swipeThreshold
         }
 
+        val button = getButtonFromKey(pressedKey.key) as? View
+        val threshold = if (button != null) {
+            val keyWidth = button.width.toFloat()
+            val keyHeight = button.height.toFloat()
+            if (keyWidth > 0f && keyHeight > 0f) {
+                kotlin.math.min(keyWidth / 6f, keyHeight / 6f)
+            } else {
+                flickSensitivity.toFloat()
+            }
+        } else {
+            flickSensitivity.toFloat()
+        }
+
         return when {
-            absX < flickSensitivity && absY < flickSensitivity -> GestureType.Tap
+            absX < threshold && absY < threshold -> GestureType.Tap
             absX > absY && distanceX <= 0f && isFastX -> GestureType.FlickLeft
             absX <= absY && distanceY <= 0f && isFastY -> GestureType.FlickTop
             absX > absY && distanceX > 0f && isFastX -> GestureType.FlickRight
