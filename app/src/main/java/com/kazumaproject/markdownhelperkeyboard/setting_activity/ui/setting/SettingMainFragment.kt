@@ -83,6 +83,12 @@ class SettingMainFragment : Fragment() {
         // 設定カテゴリ一覧を定義
         val categories = listOf(
             SettingCategory(
+                iconRes = com.kazumaproject.core.R.drawable.keyboard_24px,
+                titleRes = R.string.keyboard_selection_preference_title,
+                summaryRes = R.string.keyboard_selection_summary,
+                actionId = R.id.action_navigation_setting_to_keyboardSelectionFragment,
+            ),
+            SettingCategory(
                 iconRes = com.kazumaproject.core.R.drawable.baseline_settings_24,
                 titleRes = R.string.category_common,
                 summaryRes = R.string.setting_category_common_summary,
@@ -125,16 +131,10 @@ class SettingMainFragment : Fragment() {
                 actionId = R.id.action_navigation_setting_to_tabletPreferenceFragment,
             ),
             SettingCategory(
-                iconRes = com.kazumaproject.core.R.drawable.baseline_emoji_emotions_24,
-                titleRes = R.string.zenz_preference_category_title,
-                summaryRes = R.string.setting_category_zenz_summary,
-                actionId = R.id.action_navigation_setting_to_zenzPreferenceFragment,
-            ),
-            SettingCategory(
-                iconRes = com.kazumaproject.core.R.drawable.ic_custom_icon,
-                titleRes = R.string.category_custom_keyboard_title,
-                summaryRes = R.string.setting_category_custom_summary,
-                actionId = R.id.action_navigation_setting_to_customKeyboardPreferenceFragment,
+                iconRes = com.kazumaproject.core.R.drawable.question_mark_24dp,
+                titleRes = R.string.category_about_app_title,
+                summaryRes = R.string.category_about_app_title,
+                actionId = R.id.action_navigation_setting_to_aboutPreferenceFragment,
             ),
         )
 

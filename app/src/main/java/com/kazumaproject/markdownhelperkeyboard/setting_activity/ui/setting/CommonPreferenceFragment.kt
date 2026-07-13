@@ -72,18 +72,7 @@ class CommonPreferenceFragment : PreferenceFragmentCompat() {
             }
         }
 
-        val appVersionPreference = findPreference<Preference>("app_version_preference")
-        appVersionPreference?.apply {
-            summary = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                "version name: ${packageInfo.versionName}\nversion code: ${packageInfo.longVersionCode}"
-            } else {
-                "version name: ${packageInfo.versionName}\nversion code: ${packageInfo.versionCode}"
-            }
-            setOnPreferenceClickListener {
-                count += 1
-                true
-            }
-        }
+
 
         val customRomajiPreference = findPreference<Preference>("custom_romaji_preference")
         customRomajiPreference?.setOnPreferenceClickListener {
@@ -116,15 +105,7 @@ class CommonPreferenceFragment : PreferenceFragmentCompat() {
             }
         }
 
-        val keyboardSelectionPreference =
-            findPreference<Preference>("keyboard_selection_preference")
 
-        keyboardSelectionPreference?.setOnPreferenceClickListener {
-            findNavController().navigate(
-                R.id.action_commonPreferenceFragment_to_keyboardSelectionFragment
-            )
-            true
-        }
 
         val keyboardLetterSizePreference =
             findPreference<Preference>("keyboard_key_letter_size_fragment_preference")
@@ -260,14 +241,7 @@ class CommonPreferenceFragment : PreferenceFragmentCompat() {
             true
         }
 
-        val openSourcePreference = findPreference<Preference>("preference_open_source")
 
-        openSourcePreference?.setOnPreferenceClickListener {
-            findNavController().navigate(
-                R.id.action_commonPreferenceFragment_to_openSourceFragment
-            )
-            true
-        }
 
         val seedColorPickerPreference =
             findPreference<Preference>("keyboard_theme_fragment_preference")

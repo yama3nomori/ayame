@@ -386,7 +386,7 @@
     <string name="qwerty_key_letter_size">キーの文字サイズ</string>
     <string name="reset_to_default">Reset to Default</string>
     <string name="preview">Preview</string>
-    <string name="qwertymarginsettingfragment">Key Settings</string>
+    <string name="qwertymarginsettingfragment">QWERTY Keyboard Settings</string>
     <string name="theme_category_system">System</string>
     <string name="theme_default">Default</string>
     <string name="theme_light">Light</string>

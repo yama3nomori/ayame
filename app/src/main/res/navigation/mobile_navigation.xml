@@ -74,6 +74,9 @@
             android:id="@+id/action_navigation_setting_to_dictionaryPreferenceFragment"
             app:destination="@id/dictionaryPreferenceFragment" />
         <action
+            android:id="@+id/action_navigation_setting_to_aboutPreferenceFragment"
+            app:destination="@id/aboutPreferenceFragment" />
+        <action
             android:id="@+id/action_navigation_setting_to_kanaPreferenceFragment"
             app:destination="@id/kanaPreferenceFragment" />
         <action
@@ -304,5 +307,13 @@
         android:id="@+id/tabletPreferenceFragment"
         android:name="com.kazumaproject.markdownhelperkeyboard.setting_activity.ui.setting.TabletPreferenceFragment"
         android:label="@string/tablet_preference_category_title" />
+    <fragment
+        android:id="@+id/aboutPreferenceFragment"
+        android:name="com.kazumaproject.markdownhelperkeyboard.setting_activity.ui.setting.AboutPreferenceFragment"
+        android:label="@string/category_about_app_title">
+        <action
+            android:id="@+id/action_aboutPreferenceFragment_to_openSourceFragment"
+            app:destination="@id/openSourceFragment" />
+    </fragment>
 
 </navigation>

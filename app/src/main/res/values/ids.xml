@@ -4,4 +4,5 @@
     <item name="accessibility_action_move_down" type="id" />
     <item name="accessibility_action_move_top" type="id" />
     <item name="accessibility_action_move_bottom" type="id" />
+    <item name="accessibility_action_delete" type="id" />
 </resources>

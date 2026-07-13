@@ -124,6 +124,89 @@ class CandidateTabOrderFragment : Fragment() {
                     currentList.removeAt(position)
                     viewModel.updateTabOrder(currentList)
                 }
+            },
+            onItemClick = { position, candidateTab ->
+                if (viewModel.uiState.value.isEditing) {
+                    val options = if (viewModel.uiState.value.candidateTabs.size > 1) {
+                        arrayOf("上に移動", "下に移動", "先頭に移動", "最後に移動", "削除")
+                    } else {
+                        arrayOf("上に移動", "下に移動", "先頭に移動", "最後に移動")
+                    }
+                    AlertDialog.Builder(requireContext())
+                        .setTitle(getCandidateTabDisplayName(candidateTab))
+                        .setItems(options) { dialog, which ->
+                            val list = viewModel.uiState.value.candidateTabs.toMutableList()
+                            when (which) {
+                                0 -> { // 上に移動
+                                    if (position > 0) {
+                                        Collections.swap(list, position, position - 1)
+                                        viewModel.updateTabOrder(list)
+                                    }
+                                }
+                                1 -> { // 下に移動
+                                    if (position < list.size - 1) {
+                                        Collections.swap(list, position, position + 1)
+                                        viewModel.updateTabOrder(list)
+                                    }
+                                }
+                                2 -> { // 先頭に移動
+                                    if (position != 0) {
+                                        val item = list.removeAt(position)
+                                        list.add(0, item)
+                                        viewModel.updateTabOrder(list)
+                                    }
+                                }
+                                3 -> { // 最後に移動
+                                    if (position != list.size - 1) {
+                                        val item = list.removeAt(position)
+                                        list.add(item)
+                                        viewModel.updateTabOrder(list)
+                                    }
+                                }
+                                4 -> { // 削除
+                                    if (list.size > 1) {
+                                        list.removeAt(position)
+                                        viewModel.updateTabOrder(list)
+                                    }
+                                }
+                            }
+                            dialog.dismiss()
+                        }
+                        .show()
+                }
+            },
+            onAccessibilityAction = { position, action ->
+                val list = viewModel.uiState.value.candidateTabs.toMutableList()
+                when (action) {
+                    CandidateTabOrderAdapter.AccessibilityAction.MOVE_UP -> {
+                        if (position > 0) {
+                            Collections.swap(list, position, position - 1)
+                        }
+                    }
+                    CandidateTabOrderAdapter.AccessibilityAction.MOVE_DOWN -> {
+                        if (position < list.size - 1) {
+                            Collections.swap(list, position, position + 1)
+                        }
+                    }
+                    CandidateTabOrderAdapter.AccessibilityAction.MOVE_TOP -> {
+                        if (position != 0) {
+                            val item = list.removeAt(position)
+                            list.add(0, item)
+                        }
+                    }
+                    CandidateTabOrderAdapter.AccessibilityAction.MOVE_BOTTOM -> {
+                        if (position != list.size - 1) {
+                            val item = list.removeAt(position)
+                            list.add(item)
+                        }
+                    }
+                    CandidateTabOrderAdapter.AccessibilityAction.DELETE -> {
+                        if (list.size > 1) {
+                            list.removeAt(position)
+                        }
+                    }
+                }
+                viewModel.updateTabOrder(list)
             }
         )
 
