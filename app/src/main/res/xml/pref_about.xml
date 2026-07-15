@@ -6,6 +6,31 @@
         android:title="@string/tamachi_reading_title"
         android:summary="@string/tamachi_reading_summary" />
     <Preference
+        android:key="preference_author"
+        android:title="@string/author_title"
+        android:summary="@string/author_summary"
+        android:icon="@drawable/logo_yamasan">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="https://yama3nomori.jp" />
+    </Preference>
+    <Preference
+        android:key="preference_contact"
+        android:title="@string/contact_title"
+        android:summary="https://yama3nomori.jp/mail.html">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="https://yama3nomori.jp/mail.html" />
+    </Preference>
+    <Preference
+        android:key="preference_github"
+        android:title="@string/github_title"
+        android:summary="https://github.com/yama3nomori/ayame">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="https://github.com/yama3nomori/ayame" />
+    </Preference>
+    <Preference
         android:key="preference_open_source"
         android:title="@string/open_source_libraries_title" />
     <Preference

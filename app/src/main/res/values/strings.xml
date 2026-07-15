@@ -469,4 +469,10 @@
     <string name="tamachi_reading_title">About Tamachi Reading</string>
     <string name="tamachi_reading_summary">About Tamachi reading based on the research results from Niigata University\'s \"Kanji and Visually Impaired\" page.</string>
     <string name="tamachi_reading_dialog_message">Tamachi Reading (New Detailed Reading) is a list of detailed readings created by the research team for \"Easy-to-Understand Detailed Kanji Reading\" (Grant-in-Aid for Scientific Research, Project No. 16300191).\n\nIt is characterized by selecting easy-to-understand descriptive words considering the user\'s vocabulary and word familiarity.\n\nExperiments have shown that using detailed readings significantly increases the accuracy of kanji writing compared to detailed readings in existing screen reader products.\n\nCopyright is held by the Tamachi phonetic kanji alphabet development team (Watanabe Laboratory, Department of Welfare Technology, Faculty of Engineering, Niigata University, etc.) and distributed under the MIT License.\n\nFor details: http://kanji.eng.niigata-u.ac.jp/</string>
+
+    <string name="contact_title">Contact</string>
+    <string name="github_title">GitHub</string>
+
+    <string name="author_title">Author\'s Website</string>
+    <string name="author_summary">Yamasan no Mori (https://yama3nomori.jp)</string>
 </resources>

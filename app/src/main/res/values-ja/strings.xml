@@ -466,4 +466,10 @@
     <string name="tamachi_reading_title">田町読みについて</string>
     <string name="tamachi_reading_summary">新潟大学の「視覚障害者と漢字のページ」の研究成果に基づく田町読みについて</string>
     <string name="tamachi_reading_dialog_message">田町読み（新しい詳細読み）は、科研費「理解しやすい漢字詳細読み」（課題番号：16300191）の研究チームで作成された詳細読みの一覧です。\n\n利用者の語彙と単語親密度を考慮して、理解しやすい説明語を選んでいる点が特徴です。\n\n詳細読みを使った実験で、既存のスクリーンリーダ製品の詳細読みより漢字書き取りの正答率が有意に上がることが検証されています。\n\n著作権は田町読み等開発チーム（新潟大学工学部福祉人間工学科渡辺研究室など）が有し、MITライセンスの下で頒布されています。\n\n詳細情報：http://kanji.eng.niigata-u.ac.jp/</string>
+
+    <string name="contact_title">問い合わせ</string>
+    <string name="github_title">GitHub</string>
+
+    <string name="author_title">作者ホームページ</string>
+    <string name="author_summary">やまさんの森 (https://yama3nomori.jp)</string>
 </resources>
