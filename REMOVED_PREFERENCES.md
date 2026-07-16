@@ -387,3 +387,20 @@
   ```
 * **備考**:
   アヤメ（スミレ）キーボードの入力スタイル（デフォルト/円形など）を選択するリスト項目。削除されましたが、デフォルトの `"default"`（デフォルトスタイル）が適用されます。
+
+---
+
+## 23. 共通設定の「フリック速度判定を有効にする」
+
+* **削除日**: 2026-07-16
+* **削除対象ファイル**: [pref_common.xml](file:///c:/Users/nyama/OneDrive/APPS/JapaneseKeyboard/app/src/main/res/xml/pref_common.xml)
+* **削除された定義**:
+  ```xml
+  <SwitchPreferenceCompat
+      android:defaultValue="true"
+      android:key="flick_velocity_filter_preference"
+      android:summary="@string/flick_velocity_filter_summary"
+      android:title="@string/flick_velocity_filter_title" />
+  ```
+* **備考**:
+  フリック時の速度判定を有効にするトグルスイッチ項目。設定項目は削除されましたが、コード上で常に `true` (判定を有効にする) として動作するように標準化（固定化）されました。

@@ -553,9 +553,7 @@ object AppPreference {
         }
 
     var flick_velocity_filter_preference: Boolean
-        get() = preferences.getBoolean(
-            FLICK_VELOCITY_FILTER.first, FLICK_VELOCITY_FILTER.second
-        )
+        get() = true
         set(value) = preferences.edit {
             it.putBoolean(FLICK_VELOCITY_FILTER.first, value)
         }
