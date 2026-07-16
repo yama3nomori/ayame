@@ -1564,7 +1564,14 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     }
                 } else {
                     hoverSlideInEntryTime = 0L
-                    // hover slide-off cancel disabled
+                    if (isHoverDraggingRightCursor) {
+                        Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid off Right Cursor (Hover) to $key. Drag cancelled.")
+                        isHoverDraggingRightCursor = false
+                        isLineStartAnnounced = false
+                        isLineEndAnnounced = false
+                        isLineUpAnnounced = false
+                        isLineDownAnnounced = false
+                    }
                 }
 
                 // Handle slide-in / slide-out state transition for SideKeyCursorLeft
@@ -1603,7 +1610,14 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     }
                 } else {
                     leftHoverSlideInEntryTime = 0L
-                    // hover slide-off cancel disabled
+                    if (isHoverDraggingLeftCursor) {
+                        Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid off Left Cursor (Hover) to $key. Drag cancelled.")
+                        isHoverDraggingLeftCursor = false
+                        isLeftLineStartAnnounced = false
+                        isLeftLineEndAnnounced = false
+                        isLeftLineUpAnnounced = false
+                        isLeftLineDownAnnounced = false
+                    }
                 }
 
                 // Handle slide-in / slide-out state transition for SideKeyDelete
@@ -1640,7 +1654,12 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     }
                 } else {
                     deleteHoverSlideInEntryTime = 0L
-                    // hover slide-off cancel disabled
+                    if (isHoverDraggingDeleteKey) {
+                        Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid off Delete Key (Hover) to $key. Drag cancelled.")
+                        isHoverDraggingDeleteKey = false
+                        isDeleteLeftAnnounced = false
+                        isDeleteUpAnnounced = false
+                    }
                 }
 
                 // Handle slide-in / slide-out state transition for SideKeySpace
@@ -1675,7 +1694,11 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     }
                 } else {
                     spaceHoverSlideInEntryTime = 0L
-                    // hover slide-off cancel disabled
+                    if (isHoverDraggingSpaceKey) {
+                        Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid off Space Key (Hover) to $key. Drag cancelled.")
+                        isHoverDraggingSpaceKey = false
+                        isSpaceDownAnnounced = false
+                    }
                 }
 
                 // Handle slide-in / slide-out state transition for SideKeyReadAloud
@@ -1713,7 +1736,13 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     }
                 } else {
                     readAloudHoverSlideInEntryTime = 0L
-                    // hover slide-off cancel disabled
+                    if (isHoverDraggingReadAloudKey) {
+                        Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid off Read Aloud Key (Hover) to $key. Drag cancelled.")
+                        isHoverDraggingReadAloudKey = false
+                        isReadAloudLeftAnnounced = false
+                        isReadAloudUpAnnounced = false
+                        isReadAloudRightAnnounced = false
+                    }
                 }
 
                 // Handle slide-in / slide-out state transition for Character Keys
@@ -3481,6 +3510,15 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         0f to 0f
                     }
 
+                    val density = context.resources.displayMetrics.density
+                    val swipeThreshold = 500f * density
+                    velocityTracker?.computeCurrentVelocity(1000)
+                    val xVel = velocityTracker?.getXVelocity(0) ?: 0f
+                    val yVel = velocityTracker?.getYVelocity(0) ?: 0f
+                    val speed = kotlin.math.sqrt(xVel * xVel + yVel * yVel)
+                    val elapsed = event.eventTime - event.downTime
+                    val isFlicking = speed > swipeThreshold || elapsed < 250L
+
                     // Handle slide-in / slide-out state transition for SideKeyCursorRight
                     if (currentKey == Key.SideKeyCursorRight) {
                         if (!isDraggingRightCursor) {
@@ -3821,13 +3859,13 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                     (dxStart < cancelLeftThreshold) || (dxEnd > cancelRightThreshold) || (dyUp < cancelUpThreshold) || (dyDown > cancelDownThreshold) || 
                                     (abs(screenY - rightCursorDragStartY) > cancelYThreshold && abs(screenX - rightCursorDragStartX) > cancelXThreshold)
                                 }
-                                /* if (shouldCancel) {
+                                if (shouldCancel && !isFlicking) {
                                     isLineStartAnnounced = false
                                     isLineEndAnnounced = false
                                     isLineUpAnnounced = false
                                     isLineDownAnnounced = false
                                     isDraggingRightCursor = false
-                                } */
+                                }
                             }
                         }
                         return true // Consume this event to bypass popups and other move gesture handlers!
@@ -3952,13 +3990,13 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                     (dxStart < cancelLeftThreshold) || (dxEnd > cancelRightThreshold) || (dyUp < cancelUpThreshold) || (dyDown > cancelDownThreshold) || 
                                     (abs(screenY - leftCursorDragStartY) > cancelYThreshold && abs(screenX - leftCursorDragStartX) > cancelXThreshold)
                                 }
-                                /* if (shouldCancel) {
+                                if (shouldCancel && !isFlicking) {
                                     isLeftLineStartAnnounced = false
                                     isLeftLineEndAnnounced = false
                                     isLeftLineUpAnnounced = false
                                     isLeftLineDownAnnounced = false
                                     isDraggingLeftCursor = false
-                                } */
+                                }
                             }
                         }
                         return true // Consume this event to bypass popups and other move gesture handlers!
@@ -4043,11 +4081,11 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 } else {
                                     (dxStart < cancelLeftThreshold) || (dxStart > cancelRightThreshold) || (abs(screenY - deleteKeyDragStartY) > cancelYThreshold)
                                 }
-                                /* if (shouldCancel) {
+                                if (shouldCancel && !isFlicking) {
                                     isDeleteLeftAnnounced = false
                                     isDeleteRightAnnounced = false
                                     isDraggingDeleteKey = false
-                                } */
+                                }
                             }
                         }
                         return true // Consume this event to bypass popups and other move gesture handlers!
@@ -4140,12 +4178,12 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                         (dyStart > cancelDownThreshold) || (dyStart < -cancelDownThreshold) || (dxStart > cancelDownThreshold) || (abs(dxStart) > cancelXThreshold && dyStart > threshold) || (abs(dxStart) > cancelXThreshold && dyStart < dragUpThreshold) || (abs(dyStart) > cancelXThreshold && dxStart > dragRightThreshold)
                                     }
                                 }
-                                /* if (shouldCancel) {
+                                if (shouldCancel && !isFlicking) {
                                     isSpaceDownAnnounced = false
                                     isSpaceUpAnnounced = false
                                     isSpaceRightAnnounced = false
                                     isDraggingSpaceKey = false
-                                } */
+                                }
                             }
                         }
                         return true // Consume this event to bypass popups and other move gesture handlers!
@@ -4258,12 +4296,12 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                     (dxStart < cancelLeftThreshold) || (dxEnd > cancelRightThreshold) || (dyUp < cancelUpThreshold) || 
                                     (abs(screenY - readAloudKeyDragStartY) > cancelYThreshold && abs(screenX - readAloudKeyDragStartX) > cancelXThreshold)
                                 }
-                                /* if (shouldCancel) {
+                                if (shouldCancel && !isFlicking) {
                                     isReadAloudLeftAnnounced = false
                                     isReadAloudUpAnnounced = false
                                     isReadAloudRightAnnounced = false
                                     isDraggingReadAloudKey = false
-                                } */
+                                }
                             }
                         }
                         return true // Consume this event to bypass popups and other move gesture handlers!

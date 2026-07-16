@@ -122,6 +122,7 @@ class TabletKeyboardView @JvmOverloads constructor(
     private var lastViewHeight: Int = 0
 
     private var flickSensitivity: Int = 100
+    private var velocityTracker: android.view.VelocityTracker? = null
 
     // All AppCompatButton keys (all the character keys)
     private val allButtonKeys = listOf(
@@ -842,6 +843,14 @@ class TabletKeyboardView @JvmOverloads constructor(
             if (this.visibility != View.VISIBLE) {
                 return false
             }
+            if (event.action == MotionEvent.ACTION_DOWN) {
+                velocityTracker?.recycle()
+                velocityTracker = android.view.VelocityTracker.obtain()
+            }
+            val act = event.action and MotionEvent.ACTION_MASK
+            if (act != MotionEvent.ACTION_UP && act != MotionEvent.ACTION_POINTER_UP && act != MotionEvent.ACTION_CANCEL) {
+                velocityTracker?.addMovement(event)
+            }
             if (skipNextTouches) {
                 if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_POINTER_UP) {
                     skipNextTouches = false
@@ -953,6 +962,8 @@ class TabletKeyboardView @JvmOverloads constructor(
                 }
 
                 MotionEvent.ACTION_UP -> {
+                    velocityTracker?.recycle()
+                    velocityTracker = null
                     resetLongPressAction()
                     if (isDraggingSpaceKey) {
                         isDraggingSpaceKey = false
@@ -1123,6 +1134,15 @@ class TabletKeyboardView @JvmOverloads constructor(
                 }
 
                 MotionEvent.ACTION_MOVE -> {
+                    val density = context.resources.displayMetrics.density
+                    val swipeThreshold = 500f * density
+                    velocityTracker?.computeCurrentVelocity(1000)
+                    val xVel = velocityTracker?.getXVelocity(0) ?: 0f
+                    val yVel = velocityTracker?.getYVelocity(0) ?: 0f
+                    val speed = kotlin.math.sqrt(xVel * xVel + yVel * yVel)
+                    val elapsed = event.eventTime - event.downTime
+                    val isFlicking = speed > swipeThreshold || elapsed < 250L
+
                     if (isDraggingSpaceKey) {
                         val (screenX, screenY) = if (event.pointerCount > 0) {
                             getRawCoordinates(event, 0)
@@ -1207,12 +1227,12 @@ class TabletKeyboardView @JvmOverloads constructor(
                                         (dyStart > cancelDownThreshold) || (dyStart < -cancelDownThreshold) || (dxStart > cancelDownThreshold) || (abs(dxStart) > cancelXThreshold && dyStart > threshold) || (abs(dxStart) > cancelXThreshold && dyStart < dragUpThreshold) || (abs(dyStart) > cancelXThreshold && dxStart > dragRightThreshold)
                                     }
                                 }
-                                /* if (shouldCancel) {
+                                if (shouldCancel && !isFlicking) {
                                     isSpaceDownAnnounced = false
                                     isSpaceUpAnnounced = false
                                     isSpaceRightAnnounced = false
                                     isDraggingSpaceKey = false
-                                } */
+                                }
                             }
                         }
                         return true
@@ -1418,6 +1438,11 @@ class TabletKeyboardView @JvmOverloads constructor(
                     return false
                 }
 
+                MotionEvent.ACTION_CANCEL -> {
+                    velocityTracker?.recycle()
+                    velocityTracker = null
+                    return false
+                }
                 else -> {
                     return false
                 }

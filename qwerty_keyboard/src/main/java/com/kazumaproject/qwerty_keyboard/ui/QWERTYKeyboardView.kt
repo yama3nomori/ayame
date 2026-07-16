@@ -1136,6 +1136,15 @@ class QWERTYKeyboardView @JvmOverloads constructor(
             MotionEvent.ACTION_MOVE -> {
                 val currentKey = target?.let { qwertyButtonMap[it] }
 
+                val density = context.resources.displayMetrics.density
+                val swipeThreshold = 500f * density
+                velocityTracker?.computeCurrentVelocity(1000)
+                val xVel = velocityTracker?.getXVelocity(0) ?: 0f
+                val yVel = velocityTracker?.getYVelocity(0) ?: 0f
+                val speed = kotlin.math.sqrt(xVel * xVel + yVel * yVel)
+                val elapsed = event.eventTime - event.downTime
+                val isFlicking = speed > swipeThreshold || elapsed < 250L
+
                 // --- Slide-in / Slide-out transitions ---
                 if (currentKey == QWERTYKey.QWERTYKeyCursorRight) {
                     if (!isDraggingRightCursor) {
@@ -1171,7 +1180,13 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                     }
                 } else {
                     touchSlideInEntryTime = 0L
-                    // slide-off cancel disabled
+                    if (isDraggingRightCursor && currentKey != null && !isFlicking) {
+                        isDraggingRightCursor = false
+                        isLineStartAnnounced = false
+                        isLineEndAnnounced = false
+                        isLineUpAnnounced = false
+                        isLineDownAnnounced = false
+                    }
                 }
 
                 if (currentKey == QWERTYKey.QWERTYKeyCursorLeft) {
@@ -1208,7 +1223,13 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                     }
                 } else {
                     leftTouchSlideInEntryTime = 0L
-                    // slide-off cancel disabled
+                    if (isDraggingLeftCursor && currentKey != null && !isFlicking) {
+                        isDraggingLeftCursor = false
+                        isLeftLineStartAnnounced = false
+                        isLeftLineEndAnnounced = false
+                        isLeftLineUpAnnounced = false
+                        isLeftLineDownAnnounced = false
+                    }
                 }
 
                 if (currentKey == QWERTYKey.QWERTYKeyDelete) {
@@ -1243,7 +1264,11 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                     }
                 } else {
                     deleteTouchSlideInEntryTime = 0L
-                    // slide-off cancel disabled
+                    if (isDraggingDeleteKey && currentKey != null && !isFlicking) {
+                        isDraggingDeleteKey = false
+                        isDeleteLeftAnnounced = false
+                        isDeleteRightAnnounced = false
+                    }
                 }
 
                 if (currentKey == QWERTYKey.QWERTYKeySpace) {
@@ -1278,7 +1303,12 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                     }
                 } else {
                     spaceTouchSlideInEntryTime = 0L
-                    // slide-off cancel disabled
+                    if (isDraggingSpaceKey && currentKey != null && !isFlicking) {
+                        isDraggingSpaceKey = false
+                        isSpaceDownAnnounced = false
+                        isSpaceUpAnnounced = false
+                        isSpaceRightAnnounced = false
+                    }
                 }
 
                 if (currentKey == QWERTYKey.QWERTYKeyReadAloud) {
@@ -1314,7 +1344,12 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                     }
                 } else {
                     readAloudTouchSlideInEntryTime = 0L
-                    // slide-off cancel disabled
+                    if (isDraggingReadAloudKey && currentKey != null && !isFlicking) {
+                        isDraggingReadAloudKey = false
+                        isReadAloudLeftAnnounced = false
+                        isReadAloudUpAnnounced = false
+                        isReadAloudRightAnnounced = false
+                    }
                 }
 
                 // --- Drag and Hold thresholds ---
