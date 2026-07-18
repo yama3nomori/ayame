@@ -1650,6 +1650,8 @@ class FlickKeyboardView @JvmOverloads constructor(
 
     private val motionTargets = mutableMapOf<Int, View>()
     private val pointerDownTime = mutableMapOf<Int, Long>()
+    private val pointerDownX = mutableMapOf<Int, Float>()
+    private val pointerDownY = mutableMapOf<Int, Float>()
     private val TAG = "FlickKeyboardViewTouch"
 
     private fun findTargetView(x: Float, y: Float): View? {
@@ -2564,6 +2566,10 @@ class FlickKeyboardView @JvmOverloads constructor(
 
                 // この指の情報を保存
                 pointerDownTime[pointerId] = event.downTime
+                pointerDownX.clear()
+                pointerDownY.clear()
+                pointerDownX[pointerId] = event.x
+                pointerDownY[pointerId] = event.y
                 val x = event.x
                 val y = event.y
                 val targetView = findTargetView(x, y)
@@ -2645,6 +2651,8 @@ class FlickKeyboardView @JvmOverloads constructor(
                 // 既存のポインター情報をすべてクリア
                 motionTargets.clear()
                 pointerDownTime.clear()
+                pointerDownX.clear()
+                pointerDownY.clear()
 
                 // 2. 新しい指（2本目）のジェスチャーを新しく開始する
                 val newPointerId = event.getPointerId(pointerIndex)
@@ -2653,6 +2661,8 @@ class FlickKeyboardView @JvmOverloads constructor(
 
                 // 新しい指の情報を保存
                 pointerDownTime[newPointerId] = event.eventTime
+                pointerDownX[newPointerId] = x
+                pointerDownY[newPointerId] = y
                 val targetView = findTargetView(x, y)
 
 
@@ -2692,10 +2702,25 @@ class FlickKeyboardView @JvmOverloads constructor(
 
                     val downTime = pointerDownTime[pId] ?: event.downTime
                     val elapsed = event.eventTime - downTime
-                    val shouldLockTarget = if (isTouchExplorationEnabled()) {
+                    var shouldLockTarget = if (isTouchExplorationEnabled()) {
                         elapsed >= 500L
                     } else {
                         true
+                    }
+
+                    if (isTouchExplorationEnabled() && !shouldLockTarget) {
+                        val startX = pointerDownX[pId] ?: x
+                        val startY = pointerDownY[pId] ?: y
+                        val dx = x - startX
+                        val dy = y - startY
+                        val density = context.resources.displayMetrics.density
+                        val movementThreshold = 10f * density
+                        if (kotlin.math.abs(dx) > movementThreshold || kotlin.math.abs(dy) > movementThreshold) {
+                            pointerDownTime[pId] = event.eventTime
+                            pointerDownX[pId] = x
+                            pointerDownY[pId] = y
+                            shouldLockTarget = false
+                        }
                     }
 
                     if (shouldLockTarget) {
@@ -2730,12 +2755,16 @@ class FlickKeyboardView @JvmOverloads constructor(
                                 cancelEvent.recycle()
                                 motionTargets.remove(pId)
                                 pointerDownTime.remove(pId)
+                                pointerDownX.remove(pId)
+                                pointerDownY.remove(pId)
                             }
 
                             // 2. Send DOWN to the new target (starts a new tap)
                             if (newTarget != null) {
                                 motionTargets[pId] = newTarget
                                 pointerDownTime[pId] = event.eventTime
+                                pointerDownX[pId] = x
+                                pointerDownY[pId] = y
                                 val downEvent = MotionEvent.obtain(
                                     event.eventTime, event.eventTime, MotionEvent.ACTION_DOWN,
                                     x, y, event.metaState
@@ -2818,6 +2847,8 @@ class FlickKeyboardView @JvmOverloads constructor(
                 // 離された指の情報を削除
                 motionTargets.remove(pointerId)
                 pointerDownTime.remove(pointerId)
+                pointerDownX.remove(pointerId)
+                pointerDownY.remove(pointerId)
                 return true
             }
 
@@ -2842,6 +2873,8 @@ class FlickKeyboardView @JvmOverloads constructor(
                 // すべての状態をクリア
                 motionTargets.clear()
                 pointerDownTime.clear()
+                pointerDownX.clear()
+                pointerDownY.clear()
                 lastHoverTarget = null
                 return true
             }

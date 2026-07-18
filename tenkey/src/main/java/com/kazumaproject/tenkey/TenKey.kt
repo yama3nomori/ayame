@@ -127,6 +127,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
     private var flickSensitivity: Int = 100
     private var isVelocityFilterEnabled: Boolean = false
     private var velocityTracker: VelocityTracker? = null
+    private var hoverVelocityTracker: VelocityTracker? = null
 
     private var keySizeDelta = 0
 
@@ -1380,6 +1381,18 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
         }
 
         // Hover event x/y are view-relative; convert to screen-absolute for key detection
+        if (event.action == MotionEvent.ACTION_HOVER_ENTER) {
+            hoverVelocityTracker?.recycle()
+            hoverVelocityTracker = VelocityTracker.obtain()
+        }
+        val tempEvent = MotionEvent.obtain(event)
+        if (event.action == MotionEvent.ACTION_HOVER_MOVE) {
+            tempEvent.action = MotionEvent.ACTION_MOVE
+        } else if (event.action == MotionEvent.ACTION_HOVER_ENTER) {
+            tempEvent.action = MotionEvent.ACTION_DOWN
+        }
+        hoverVelocityTracker?.addMovement(tempEvent)
+        tempEvent.recycle()
         val location = IntArray(2)
         this.getLocationOnScreen(location)
         val screenX = event.x + location[0]
@@ -1528,6 +1541,14 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                 }
             }
             MotionEvent.ACTION_HOVER_MOVE -> {
+                val density = context.resources.displayMetrics.density
+                val swipeThreshold = 500f * density
+                hoverVelocityTracker?.computeCurrentVelocity(1000)
+                val xVel = hoverVelocityTracker?.getXVelocity(0) ?: 0f
+                val yVel = hoverVelocityTracker?.getYVelocity(0) ?: 0f
+                val speed = kotlin.math.sqrt(xVel * xVel + yVel * yVel)
+                val isFlicking = speed > swipeThreshold
+
                 // Handle slide-in / slide-out state transition for SideKeyCursorRight
                 if (key == Key.SideKeyCursorRight) {
                     if (!isHoverDraggingRightCursor) {
@@ -1564,7 +1585,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     }
                 } else {
                     hoverSlideInEntryTime = 0L
-                    if (isHoverDraggingRightCursor) {
+                    if (isHoverDraggingRightCursor && !isFlicking) {
                         Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid off Right Cursor (Hover) to $key. Drag cancelled.")
                         isHoverDraggingRightCursor = false
                         isLineStartAnnounced = false
@@ -1610,7 +1631,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     }
                 } else {
                     leftHoverSlideInEntryTime = 0L
-                    if (isHoverDraggingLeftCursor) {
+                    if (isHoverDraggingLeftCursor && !isFlicking) {
                         Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid off Left Cursor (Hover) to $key. Drag cancelled.")
                         isHoverDraggingLeftCursor = false
                         isLeftLineStartAnnounced = false
@@ -1654,7 +1675,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     }
                 } else {
                     deleteHoverSlideInEntryTime = 0L
-                    if (isHoverDraggingDeleteKey) {
+                    if (isHoverDraggingDeleteKey && !isFlicking) {
                         Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid off Delete Key (Hover) to $key. Drag cancelled.")
                         isHoverDraggingDeleteKey = false
                         isDeleteLeftAnnounced = false
@@ -1694,7 +1715,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     }
                 } else {
                     spaceHoverSlideInEntryTime = 0L
-                    if (isHoverDraggingSpaceKey) {
+                    if (isHoverDraggingSpaceKey && !isFlicking) {
                         Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid off Space Key (Hover) to $key. Drag cancelled.")
                         isHoverDraggingSpaceKey = false
                         isSpaceDownAnnounced = false
@@ -1736,13 +1757,19 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     }
                 } else {
                     readAloudHoverSlideInEntryTime = 0L
-                    if (isHoverDraggingReadAloudKey) {
+                    if (isHoverDraggingReadAloudKey && !isFlicking) {
                         Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid off Read Aloud Key (Hover) to $key. Drag cancelled.")
                         isHoverDraggingReadAloudKey = false
                         isReadAloudLeftAnnounced = false
                         isReadAloudUpAnnounced = false
                         isReadAloudRightAnnounced = false
                     }
+                }
+
+                if (isHoverDraggingCharKey && key != hoverCharKey && !isFlicking) {
+                    Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid off Char Key (Hover) from $hoverCharKey to $key. Drag cancelled.")
+                    isHoverDraggingCharKey = false
+                    hoverCharKey = Key.NotSelected
                 }
 
                 // Handle slide-in / slide-out state transition for Character Keys
@@ -2391,6 +2418,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                 }
             }
             MotionEvent.ACTION_HOVER_EXIT -> {
+                hoverVelocityTracker?.recycle()
+                hoverVelocityTracker = null
                 // Prevent accidental input when sliding off the keyboard edge.
                 val buffer = 2f // Tolerance pixels for the view boundary
                 val viewWidth = width.toFloat()
