@@ -423,6 +423,13 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
     private var hoverCharKeyDragStartX = 0f
     private var hoverCharKeyDragStartY = 0f
     private var hoverActiveGesture: GestureType = GestureType.Tap
+
+    // DTalker IME-style Hover Hold activation variables
+    private var hoverCurrentKey: Key = Key.NotSelected
+    private var hoverCurrentKeyEntryTime: Long = 0L
+    private var hoverCurrentKeyEntryX: Float = 0f
+    private var hoverCurrentKeyEntryY: Float = 0f
+    private var isHoverDragActive: Boolean = false
     private var hoverLastAnnouncedChar: String? = null
     private var charHoverSlideInEntryTime = 0L
     private var charHoverSlideInEntryX = 0f
@@ -1401,146 +1408,57 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
         when (event.action) {
             MotionEvent.ACTION_HOVER_ENTER -> {
-                // 1. Interrupt any previous announcement first
                 if (accessibilityManager.isTouchExplorationEnabled) {
                     accessibilityManager.interrupt()
                 }
-                // 2. Update current hover key and move focus
-                if (key != currentHoverKey) {
-                    currentHoverKey = key
-                    val targetView = getButtonFromKey(key) as? View
-                    if (targetView is View) {
-                        targetView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
-                    }
-                }
-                // 3. Immediately announce the character upon touch
-                if (key == Key.SideKeyCursorRight) {
-                    isHoverDraggingRightCursor = true
-                    hoverRightCursorDragStartX = screenX
-                    hoverRightCursorDragEndX = screenX
-                    hoverRightCursorDragStartY = screenY
-                    hoverRightCursorDragEndY = screenY
-                    hoverRightCursorDragTopY = screenY
-                    isLineStartAnnounced = false
-                    isLineEndAnnounced = false
-                    isLineUpAnnounced = false
-                    isLineDownAnnounced = false
-                    isHoverDraggingLeftCursor = false
-                    isHoverDraggingDeleteKey = false
-                    isHoverDraggingSpaceKey = false
-                    isSpaceDownAnnounced = false
-                } else if (key == Key.SideKeyCursorLeft) {
-                    isHoverDraggingLeftCursor = true
-                    hoverLeftCursorDragStartX = screenX
-                    hoverLeftCursorDragEndX = screenX
-                    hoverLeftCursorDragStartY = screenY
-                    hoverLeftCursorDragEndY = screenY
-                    hoverLeftCursorDragTopY = screenY
-                    isLeftLineStartAnnounced = false
-                    isLeftLineEndAnnounced = false
-                    isLeftLineUpAnnounced = false
-                    isLeftLineDownAnnounced = false
-                    isHoverDraggingRightCursor = false
-                    isHoverDraggingDeleteKey = false
-                    isHoverDraggingSpaceKey = false
-                    isSpaceDownAnnounced = false
-                } else if (key == Key.SideKeyDelete) {
-                    isHoverDraggingDeleteKey = true
-                    hoverDeleteKeyDragStartX = screenX
-                    hoverDeleteKeyDragEndX = screenX
-                    hoverDeleteKeyDragStartY = screenY
-                    hoverDeleteKeyDragEndY = screenY
-                    hoverDeleteKeyDragTopY = screenY
-                    isDeleteLeftAnnounced = false
-                    isDeleteRightAnnounced = false
-                    isDeleteUpAnnounced = false
-                    isHoverDraggingRightCursor = false
-                    isHoverDraggingLeftCursor = false
-                    isHoverDraggingSpaceKey = false
-                    isSpaceDownAnnounced = false
-                } else if (key == Key.SideKeyReadAloud) {
-                    isHoverDraggingReadAloudKey = true
-                    hoverReadAloudKeyDragStartX = screenX
-                    hoverReadAloudKeyDragEndX = screenX
-                    hoverReadAloudKeyDragStartY = screenY
-                    hoverReadAloudKeyDragEndY = screenY
-                    hoverReadAloudKeyDragTopY = screenY
-                    isReadAloudLeftAnnounced = false
-                    isReadAloudUpAnnounced = false
-                    isReadAloudRightAnnounced = false
-                    isHoverDraggingRightCursor = false
-                    isHoverDraggingLeftCursor = false
-                    isHoverDraggingDeleteKey = false
-                    isHoverDraggingSpaceKey = false
-                    isSpaceDownAnnounced = false
-                } else if (key == Key.SideKeySpace) {
-                    isHoverDraggingSpaceKey = true
-                    hoverSpaceKeyDragStartX = screenX
-                    hoverSpaceKeyDragEndX = screenX
-                    hoverSpaceKeyDragStartY = screenY
-                    hoverSpaceKeyDragEndY = screenY
-                    isSpaceDownAnnounced = false
-                    isHoverDraggingRightCursor = false
-                    isHoverDraggingLeftCursor = false
-                    isHoverDraggingDeleteKey = false
-                    isHoverDraggingCharKey = false
-                    hoverCharKey = Key.NotSelected
-                } else {
-                    val keyInfo = currentInputMode.value.next(keyMap = keyMap, key = key, isTablet = false)
-                    if (keyInfo is KeyInfo.KeyTapFlickInfo) {
-                        isHoverDraggingCharKey = true
-                        hoverCharKey = key
-                        hoverCharKeyDragStartX = screenX
-                        hoverCharKeyDragStartY = screenY
-                        hoverActiveGesture = GestureType.Tap
-                        
-                        val charToAnnounce = keyInfo.tap?.toAccessibilityName()
+                currentHoverKey = key
+                hoverCurrentKey = key
+                hoverCurrentKeyEntryTime = System.currentTimeMillis()
+                hoverCurrentKeyEntryX = screenX
+                hoverCurrentKeyEntryY = screenY
+                isHoverDragActive = false
 
-                        if (charToAnnounce != null) {
-                            hoverLastAnnouncedChar = charToAnnounce
-                            announceForAccessibility(charToAnnounce)
-                            android.widget.Toast.makeText(context, charToAnnounce, android.widget.Toast.LENGTH_SHORT).show()
-                            performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
-                        } else {
-                            hoverLastAnnouncedChar = null
-                        }
-
-                        isHoverDraggingRightCursor = false
-                        isHoverDraggingLeftCursor = false
-                        isHoverDraggingDeleteKey = false
-                        isHoverDraggingSpaceKey = false
-                        isSpaceDownAnnounced = false
-                        isHoverDraggingReadAloudKey = false
-                        isReadAloudLeftAnnounced = false
-                        isReadAloudUpAnnounced = false
-                        isReadAloudRightAnnounced = false
-                    } else {
-                        isHoverDraggingRightCursor = false
-                        isLineStartAnnounced = false
-                        isLineEndAnnounced = false
-                        isLineUpAnnounced = false
-                        isLineDownAnnounced = false
-                        isHoverDraggingLeftCursor = false
-                        isLeftLineStartAnnounced = false
-                        isLeftLineEndAnnounced = false
-                        isLeftLineUpAnnounced = false
-                        isLeftLineDownAnnounced = false
-                        isHoverDraggingDeleteKey = false
-                        isDeleteLeftAnnounced = false
-                        isDeleteRightAnnounced = false
-                        isDeleteUpAnnounced = false
-                        isHoverDraggingSpaceKey = false
-                        isSpaceDownAnnounced = false
-                        isHoverDraggingReadAloudKey = false
-                        isReadAloudLeftAnnounced = false
-                        isReadAloudUpAnnounced = false
-                        isReadAloudRightAnnounced = false
-                        isHoverDraggingCharKey = false
-                        hoverCharKey = Key.NotSelected
-                    }
+                val targetView = getButtonFromKey(key) as? View
+                if (targetView is View) {
+                    targetView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
                 }
             }
             MotionEvent.ACTION_HOVER_MOVE -> {
+                if (!isHoverDragActive) {
+                    if (key != hoverCurrentKey) {
+                        hoverCurrentKey = key
+                        hoverCurrentKeyEntryTime = System.currentTimeMillis()
+                        hoverCurrentKeyEntryX = screenX
+                        hoverCurrentKeyEntryY = screenY
+                        isHoverDragActive = false
+                        resetHoverDragStates()
+
+                        val targetView = getButtonFromKey(key) as? View
+                        if (targetView is View) {
+                            if (accessibilityManager.isTouchExplorationEnabled) {
+                                accessibilityManager.interrupt()
+                            }
+                            targetView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+                        }
+                    } else {
+                        val dx = screenX - hoverCurrentKeyEntryX
+                        val dy = screenY - hoverCurrentKeyEntryY
+                        val density = context.resources.displayMetrics.density
+                        val dist = kotlin.math.sqrt(dx * dx + dy * dy)
+                        if (dist > 10f * density) {
+                            hoverCurrentKeyEntryTime = System.currentTimeMillis()
+                            hoverCurrentKeyEntryX = screenX
+                            hoverCurrentKeyEntryY = screenY
+                        } else {
+                            val elapsed = System.currentTimeMillis() - hoverCurrentKeyEntryTime
+                            if (elapsed >= 500L) {
+                                isHoverDragActive = true
+                                initHoverDragState(key, screenX, screenY)
+                            }
+                        }
+                    }
+                }
+
                 val density = context.resources.displayMetrics.density
                 val swipeThreshold = 500f * density
                 hoverVelocityTracker?.computeCurrentVelocity(1000)
@@ -6032,6 +5950,94 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     Log.e("TenKey", "Failed to send accessibility announcement", e)
                 }
             }, 10)
+        }
+    }
+
+    private fun resetHoverDragStates() {
+        isHoverDraggingRightCursor = false
+        isLineStartAnnounced = false
+        isLineEndAnnounced = false
+        isLineUpAnnounced = false
+        isLineDownAnnounced = false
+
+        isHoverDraggingLeftCursor = false
+        isLeftLineStartAnnounced = false
+        isLeftLineEndAnnounced = false
+        isLeftLineUpAnnounced = false
+        isLeftLineDownAnnounced = false
+
+        isHoverDraggingDeleteKey = false
+        isDeleteLeftAnnounced = false
+        isDeleteRightAnnounced = false
+        isDeleteUpAnnounced = false
+
+        isHoverDraggingSpaceKey = false
+        isSpaceDownAnnounced = false
+        isSpaceUpAnnounced = false
+        isSpaceRightAnnounced = false
+
+        isHoverDraggingReadAloudKey = false
+        isReadAloudLeftAnnounced = false
+        isReadAloudUpAnnounced = false
+        isReadAloudRightAnnounced = false
+
+        isHoverDraggingCharKey = false
+        hoverCharKey = Key.NotSelected
+    }
+
+    private fun initHoverDragState(key: Key, screenX: Float, screenY: Float) {
+        resetHoverDragStates()
+        if (key == Key.SideKeyCursorRight) {
+            isHoverDraggingRightCursor = true
+            hoverRightCursorDragStartX = screenX
+            hoverRightCursorDragEndX = screenX
+            hoverRightCursorDragStartY = screenY
+            hoverRightCursorDragEndY = screenY
+            hoverRightCursorDragTopY = screenY
+        } else if (key == Key.SideKeyCursorLeft) {
+            isHoverDraggingLeftCursor = true
+            hoverLeftCursorDragStartX = screenX
+            hoverLeftCursorDragEndX = screenX
+            hoverLeftCursorDragStartY = screenY
+            hoverLeftCursorDragEndY = screenY
+            hoverLeftCursorDragTopY = screenY
+        } else if (key == Key.SideKeyDelete) {
+            isHoverDraggingDeleteKey = true
+            hoverDeleteKeyDragStartX = screenX
+            hoverDeleteKeyDragEndX = screenX
+            hoverDeleteKeyDragStartY = screenY
+            hoverDeleteKeyDragEndY = screenY
+            hoverDeleteKeyDragTopY = screenY
+        } else if (key == Key.SideKeyReadAloud) {
+            isHoverDraggingReadAloudKey = true
+            hoverReadAloudKeyDragStartX = screenX
+            hoverReadAloudKeyDragEndX = screenX
+            hoverReadAloudKeyDragStartY = screenY
+            hoverReadAloudKeyDragEndY = screenY
+            hoverReadAloudKeyDragTopY = screenY
+        } else if (key == Key.SideKeySpace) {
+            isHoverDraggingSpaceKey = true
+            hoverSpaceKeyDragStartX = screenX
+            hoverSpaceKeyDragEndX = screenX
+            hoverSpaceKeyDragStartY = screenY
+            hoverSpaceKeyDragEndY = screenY
+        } else {
+            val keyInfo = currentInputMode.value.next(keyMap = keyMap, key = key, isTablet = false)
+            if (keyInfo is KeyInfo.KeyTapFlickInfo) {
+                isHoverDraggingCharKey = true
+                hoverCharKey = key
+                hoverCharKeyDragStartX = screenX
+                hoverCharKeyDragStartY = screenY
+                hoverActiveGesture = GestureType.Tap
+                
+                val charToAnnounce = keyInfo.tap?.toAccessibilityName()
+                if (charToAnnounce != null) {
+                    hoverLastAnnouncedChar = charToAnnounce
+                    announceForAccessibility(charToAnnounce)
+                    android.widget.Toast.makeText(context, charToAnnounce, android.widget.Toast.LENGTH_SHORT).show()
+                    performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                }
+            }
         }
     }
 }

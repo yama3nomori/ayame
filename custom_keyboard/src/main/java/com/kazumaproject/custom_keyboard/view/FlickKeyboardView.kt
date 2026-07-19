@@ -131,6 +131,13 @@ class FlickKeyboardView @JvmOverloads constructor(
     private var isCalledFromHoverEvent = false
     private var hoverVelocityTracker: android.view.VelocityTracker? = null
 
+    // DTalker IME-style Hover Hold activation variables for special keys
+    private var hoverCurrentLabel: String? = null
+    private var hoverCurrentKeyEntryTime: Long = 0L
+    private var hoverCurrentKeyEntryX: Float = 0f
+    private var hoverCurrentKeyEntryY: Float = 0f
+    private var isHoverDragActive: Boolean = false
+
     // 入力中フラグ（IMEServiceからセットされる）
     var isInputComposing = false
         set(value) {
@@ -1797,65 +1804,58 @@ class FlickKeyboardView @JvmOverloads constructor(
                             view.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
                         }
                     }
-
-                    // ドラッグ状態の初期化
-                    if (keyLabel == "CursorMoveRight") {
-                        isHoverDraggingRightCursor = true
-                        hoverRightCursorDragStartX = screenX
-                        hoverRightCursorDragEndX = screenX
-                        hoverRightCursorDragStartY = screenY
-                        hoverRightCursorDragEndY = screenY
-                        hoverRightCursorDragTopY = screenY
-                        isLineStartAnnounced = false
-                        isLineEndAnnounced = false
-                        isLineUpAnnounced = false
-                        isLineDownAnnounced = false
-                        isHoverDraggingLeftCursor = false
-                        isHoverDraggingDeleteKey = false
-                    } else if (keyLabel == "CursorMoveLeft") {
-                        isHoverDraggingLeftCursor = true
-                        hoverLeftCursorDragStartX = screenX
-                        hoverLeftCursorDragEndX = screenX
-                        hoverLeftCursorDragStartY = screenY
-                        hoverLeftCursorDragEndY = screenY
-                        hoverLeftCursorDragTopY = screenY
-                        isLeftLineStartAnnounced = false
-                        isLeftLineEndAnnounced = false
-                        isLeftLineUpAnnounced = false
-                        isLeftLineDownAnnounced = false
-                        isHoverDraggingRightCursor = false
-                        isHoverDraggingDeleteKey = false
-                    } else if (keyLabel == "Del") {
-                        isHoverDraggingDeleteKey = true
-                        hoverDeleteKeyDragStartX = screenX
-                        hoverDeleteKeyDragEndX = screenX
-                        hoverDeleteKeyDragStartY = screenY
-                        hoverDeleteKeyDragEndY = screenY
-                        hoverDeleteKeyDragTopY = screenY
-                        isDeleteLeftAnnounced = false
-                        isDeleteRightAnnounced = false
-                        isDeleteUpAnnounced = false
-                        isHoverDraggingRightCursor = false
-                        isHoverDraggingLeftCursor = false
-                    } else {
-                        isHoverDraggingRightCursor = false
-                        isLineStartAnnounced = false
-                        isLineEndAnnounced = false
-                        isLineUpAnnounced = false
-                        isLineDownAnnounced = false
-                        isHoverDraggingLeftCursor = false
-                        isLeftLineStartAnnounced = false
-                        isLeftLineEndAnnounced = false
-                        isLeftLineUpAnnounced = false
-                        isLeftLineDownAnnounced = false
-                        isHoverDraggingDeleteKey = false
-                        isDeleteLeftAnnounced = false
-                        isDeleteRightAnnounced = false
-                        isDeleteUpAnnounced = false
-                    }
+                    hoverCurrentLabel = keyLabel
+                    hoverCurrentKeyEntryTime = System.currentTimeMillis()
+                    hoverCurrentKeyEntryX = screenX
+                    hoverCurrentKeyEntryY = screenY
+                    isHoverDragActive = false
                 }
 
                 MotionEvent.ACTION_HOVER_MOVE -> {
+                    if (!isHoverDragActive) {
+                        if (keyLabel != hoverCurrentLabel) {
+                            hoverCurrentLabel = keyLabel
+                            hoverCurrentKeyEntryTime = System.currentTimeMillis()
+                            hoverCurrentKeyEntryX = screenX
+                            hoverCurrentKeyEntryY = screenY
+                            isHoverDragActive = false
+                            resetHoverDragStates()
+
+                            if (targetView != lastHoverTarget) {
+                                lastHoverTarget = targetView
+                                targetView?.let { view ->
+                                    if (accessibilityManager.isTouchExplorationEnabled) {
+                                        accessibilityManager.interrupt()
+                                    }
+                                    view.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+                                }
+                            }
+                        } else {
+                            val dx = screenX - hoverCurrentKeyEntryX
+                            val dy = screenY - hoverCurrentKeyEntryY
+                            val density = context.resources.displayMetrics.density
+                            val dist = kotlin.math.sqrt(dx * dx + dy * dy)
+                            if (dist > 10f * density) {
+                                hoverCurrentKeyEntryTime = System.currentTimeMillis()
+                                hoverCurrentKeyEntryX = screenX
+                                hoverCurrentKeyEntryY = screenY
+                            } else {
+                                val elapsed = System.currentTimeMillis() - hoverCurrentKeyEntryTime
+                                if (elapsed >= 500L) {
+                                    isHoverDragActive = true
+                                    initHoverDragState(keyLabel, screenX, screenY)
+                                }
+                            }
+                        }
+                    }
+
+                    val density = context.resources.displayMetrics.density
+                    val swipeThreshold = 500f * density
+                    hoverVelocityTracker?.computeCurrentVelocity(1000)
+                    val xVel = hoverVelocityTracker?.getXVelocity(0) ?: 0f
+                    val yVel = hoverVelocityTracker?.getYVelocity(0) ?: 0f
+                    val speed = kotlin.math.sqrt(xVel * xVel + yVel * yVel)
+                    val isFlicking = speed > swipeThreshold
                     // スライドイン / 静止状態からのドラッグ開始処理 (TenKey.kt準拠)
                     if (keyLabel == "CursorMoveRight") {
                         if (!isHoverDraggingRightCursor) {
@@ -2990,6 +2990,51 @@ class FlickKeyboardView @JvmOverloads constructor(
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.ICE_CREAM_SANDWICH && 
             accessibilityManager.isEnabled) {
             setOnHoverListener { _, _ -> false }
+        }
+    }
+
+    private fun resetHoverDragStates() {
+        isHoverDraggingRightCursor = false
+        isLineStartAnnounced = false
+        isLineEndAnnounced = false
+        isLineUpAnnounced = false
+        isLineDownAnnounced = false
+
+        isHoverDraggingLeftCursor = false
+        isLeftLineStartAnnounced = false
+        isLeftLineEndAnnounced = false
+        isLeftLineUpAnnounced = false
+        isLeftLineDownAnnounced = false
+
+        isHoverDraggingDeleteKey = false
+        isDeleteLeftAnnounced = false
+        isDeleteRightAnnounced = false
+        isDeleteUpAnnounced = false
+    }
+
+    private fun initHoverDragState(label: String?, screenX: Float, screenY: Float) {
+        resetHoverDragStates()
+        if (label == "CursorMoveRight") {
+            isHoverDraggingRightCursor = true
+            hoverRightCursorDragStartX = screenX
+            hoverRightCursorDragEndX = screenX
+            hoverRightCursorDragStartY = screenY
+            hoverRightCursorDragEndY = screenY
+            hoverRightCursorDragTopY = screenY
+        } else if (label == "CursorMoveLeft") {
+            isHoverDraggingLeftCursor = true
+            hoverLeftCursorDragStartX = screenX
+            hoverLeftCursorDragEndX = screenX
+            hoverLeftCursorDragStartY = screenY
+            hoverLeftCursorDragEndY = screenY
+            hoverLeftCursorDragTopY = screenY
+        } else if (label == "Del") {
+            isHoverDraggingDeleteKey = true
+            hoverDeleteKeyDragStartX = screenX
+            hoverDeleteKeyDragEndX = screenX
+            hoverDeleteKeyDragStartY = screenY
+            hoverDeleteKeyDragEndY = screenY
+            hoverDeleteKeyDragTopY = screenY
         }
     }
 
