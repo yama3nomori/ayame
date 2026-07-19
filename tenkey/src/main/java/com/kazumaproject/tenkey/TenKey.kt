@@ -5784,7 +5784,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                 val charToAnnounce = keyInfo.tap?.toAccessibilityName()
                 if (charToAnnounce != null) {
                     hoverLastAnnouncedChar = charToAnnounce
-                    announceForAccessibility(charToAnnounce)
+                    // Do not call announceForAccessibility to prevent redundant reading of the base key name at 500ms mark.
                     android.widget.Toast.makeText(context, charToAnnounce, android.widget.Toast.LENGTH_SHORT).show()
                     performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                 }
