@@ -2042,10 +2042,10 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             if (keyWidth > 0f && keyHeight > 0f) {
                                 kotlin.math.min(keyWidth / 6f, keyHeight / 6f)
                             } else {
-                                35f
+                                flickSensitivity.toFloat()
                             }
                         } else {
-                            35f
+                            flickSensitivity.toFloat()
                         }
                         
                         val nextGesture = when {
