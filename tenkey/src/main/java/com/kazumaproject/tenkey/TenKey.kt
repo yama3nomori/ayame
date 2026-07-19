@@ -2035,15 +2035,25 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         val dx = screenX - hoverCharKeyDragStartX
                         val dy = screenY - hoverCharKeyDragStartY
                         
-                        val threshold = 35f // sensitve drag threshold
-                        val cancelThreshold = 150f // max distance to cancel
+                        val button = getButtonFromKey(hoverCharKey) as? View
+                        val threshold = if (button != null) {
+                            val keyWidth = button.width.toFloat()
+                            val keyHeight = button.height.toFloat()
+                            if (keyWidth > 0f && keyHeight > 0f) {
+                                kotlin.math.min(keyWidth / 6f, keyHeight / 6f)
+                            } else {
+                                35f
+                            }
+                        } else {
+                            35f
+                        }
                         
                         val nextGesture = when {
                             abs(dx) < threshold && abs(dy) < threshold -> GestureType.Tap
-                            abs(dx) > abs(dy) && dx < -threshold && abs(dx) <= cancelThreshold -> GestureType.FlickLeft
-                            abs(dx) <= abs(dy) && dy < -threshold && abs(dy) <= cancelThreshold -> GestureType.FlickTop
-                            abs(dx) > abs(dy) && dx > threshold && abs(dx) <= cancelThreshold -> GestureType.FlickRight
-                            abs(dx) <= abs(dy) && dy > threshold && abs(dy) <= cancelThreshold -> GestureType.FlickBottom
+                            abs(dx) > abs(dy) && dx < -threshold -> GestureType.FlickLeft
+                            abs(dx) <= abs(dy) && dy < -threshold -> GestureType.FlickTop
+                            abs(dx) > abs(dy) && dx > threshold -> GestureType.FlickRight
+                            abs(dx) <= abs(dy) && dy > threshold -> GestureType.FlickBottom
                             else -> GestureType.Null
                         }
                         
