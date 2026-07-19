@@ -1453,7 +1453,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     if (!isHoverDragActive) {
                         if (isFlicking) {
                             isHoverDragActive = true
-                            initHoverDragState(key, hoverCurrentKeyEntryX, hoverCurrentKeyEntryY)
+                            initHoverDragState(hoverCurrentKey, hoverCurrentKeyEntryX, hoverCurrentKeyEntryY)
                         } else {
                             val dx = screenX - hoverCurrentKeyEntryX
                             val dy = screenY - hoverCurrentKeyEntryY
@@ -5795,8 +5795,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                 val charToAnnounce = keyInfo.tap?.toAccessibilityName()
                 if (charToAnnounce != null) {
                     hoverLastAnnouncedChar = charToAnnounce
-                    // Do not call announceForAccessibility to prevent redundant reading of the base key name at 500ms mark.
-                    android.widget.Toast.makeText(context, charToAnnounce, android.widget.Toast.LENGTH_SHORT).show()
+                    // Do not call announceForAccessibility or Toast to prevent redundant reading of the base key name at 500ms mark.
                     performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                 }
             }

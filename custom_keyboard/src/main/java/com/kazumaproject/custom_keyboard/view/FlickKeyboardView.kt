@@ -1843,7 +1843,7 @@ class FlickKeyboardView @JvmOverloads constructor(
                         if (!isHoverDragActive) {
                             if (isFlicking) {
                                 isHoverDragActive = true
-                                initHoverDragState(keyLabel, hoverCurrentKeyEntryX, hoverCurrentKeyEntryY)
+                                initHoverDragState(hoverCurrentLabel, hoverCurrentKeyEntryX, hoverCurrentKeyEntryY)
                             } else {
                                 val dx = screenX - hoverCurrentKeyEntryX
                                 val dy = screenY - hoverCurrentKeyEntryY
