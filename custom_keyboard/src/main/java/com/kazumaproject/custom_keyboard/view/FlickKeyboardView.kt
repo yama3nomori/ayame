@@ -1228,9 +1228,9 @@ class FlickKeyboardView @JvmOverloads constructor(
                         )
                     }
                     keyView.setOnLongClickListener {
-                        // TalkBack有効時は長押しを無効化
+                        // TalkBack有効時は長押しを無効化し、イベントを消費してTalkBackのシステム通知を防止する
                         if (isTouchExplorationEnabled()) {
-                            false
+                            true
                         } else {
                             val currentAction = dynamicKeyMap[keyData.keyId]?.keyData?.action ?: action
                             isLongPressTriggered =
@@ -1592,7 +1592,7 @@ class FlickKeyboardView @JvmOverloads constructor(
                 info.className = ""
                 info.roleDescription = "\u200B"
 
-                if (isTouchExplorationEnabled()) {
+                if (isTouchExplorationEnabled() && isAyameMode) {
                     // クラス名をButtonにし、Clickable, LongClickableを有効化（TenKey.ktと同様）
                     info.className = "android.widget.Button"
                     info.isClickable = true
