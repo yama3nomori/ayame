@@ -129,6 +129,7 @@ class FlickKeyboardView @JvmOverloads constructor(
     
     // TalkBack対応: onHoverEventから呼ばれたかどうかを示すフラグ
     private var isCalledFromHoverEvent = false
+    private var hoverVelocityTracker: android.view.VelocityTracker? = null
 
     // 入力中フラグ（IMEServiceからセットされる）
     var isInputComposing = false
@@ -1235,6 +1236,7 @@ class FlickKeyboardView @JvmOverloads constructor(
                         var isDraggingSpace = false
                         var isUpAnnounced = false
                         var isRightAnnounced = false
+                        var spaceVelocityTracker: android.view.VelocityTracker? = null
 
                         keyView.setOnTouchListener { _, event ->
                             val density = context.resources.displayMetrics.density
@@ -1250,9 +1252,23 @@ class FlickKeyboardView @JvmOverloads constructor(
                                     isUpAnnounced = false
                                     isRightAnnounced = false
                                     isLongPressTriggered = false
+                                    if (spaceVelocityTracker == null) {
+                                        spaceVelocityTracker = android.view.VelocityTracker.obtain()
+                                    }
+                                    spaceVelocityTracker?.clear()
+                                    spaceVelocityTracker?.addMovement(event)
                                     false
                                 }
                                 MotionEvent.ACTION_MOVE -> {
+                                    spaceVelocityTracker?.addMovement(event)
+                                    val swipeThreshold = 500f * density
+                                    spaceVelocityTracker?.computeCurrentVelocity(1000)
+                                    val xVel = spaceVelocityTracker?.getXVelocity(0) ?: 0f
+                                    val yVel = spaceVelocityTracker?.getYVelocity(0) ?: 0f
+                                    val speed = kotlin.math.sqrt(xVel * xVel + yVel * yVel)
+                                    val elapsed = event.eventTime - event.downTime
+                                    val isFlicking = speed > swipeThreshold || elapsed < 250L
+
                                     if (isDraggingSpace) {
                                         val dx = event.x - dragStartX
                                         val dy = event.y - dragStartY
@@ -1276,7 +1292,7 @@ class FlickKeyboardView @JvmOverloads constructor(
                                         } else {
                                             val shouldCancel = (dy < -cancelThreshold) || (dy > cancelThreshold) || (dx > cancelThreshold) || (dx < -cancelThreshold) ||
                                                 (isUpAnnounced && abs(dx) > cancelXThreshold) || (isRightAnnounced && abs(dy) > cancelXThreshold)
-                                            if (shouldCancel) {
+                                            if (shouldCancel && !isFlicking) {
                                                 isUpAnnounced = false
                                                 isRightAnnounced = false
                                                 isDraggingSpace = false
@@ -1286,6 +1302,8 @@ class FlickKeyboardView @JvmOverloads constructor(
                                     false
                                 }
                                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                                    spaceVelocityTracker?.recycle()
+                                    spaceVelocityTracker = null
                                     if (isDraggingSpace) {
                                         isDraggingSpace = false
                                         if (isUpAnnounced || isRightAnnounced) {
@@ -1743,6 +1761,29 @@ class FlickKeyboardView @JvmOverloads constructor(
             val screenX = x + location[0]
             val screenY = y + location[1]
 
+            if (hoverVelocityTracker == null) {
+                hoverVelocityTracker = android.view.VelocityTracker.obtain()
+            }
+            if (action == MotionEvent.ACTION_HOVER_ENTER) {
+                hoverVelocityTracker?.clear()
+            }
+            val fakeEvent = MotionEvent.obtain(
+                event.downTime, event.eventTime,
+                if (action == MotionEvent.ACTION_HOVER_ENTER) MotionEvent.ACTION_DOWN else MotionEvent.ACTION_MOVE,
+                event.x, event.y, event.metaState
+            )
+            hoverVelocityTracker?.addMovement(fakeEvent)
+            fakeEvent.recycle()
+
+            val density = context.resources.displayMetrics.density
+            val swipeThreshold = 500f * density
+            hoverVelocityTracker?.computeCurrentVelocity(1000)
+            val xVel = hoverVelocityTracker?.getXVelocity(0) ?: 0f
+            val yVel = hoverVelocityTracker?.getYVelocity(0) ?: 0f
+            val speed = kotlin.math.sqrt(xVel * xVel + yVel * yVel)
+            val elapsed = event.eventTime - event.downTime
+            val isFlicking = speed > swipeThreshold || elapsed < 250L
+
             when (action) {
                 MotionEvent.ACTION_HOVER_ENTER -> {
                     if (targetView != lastHoverTarget) {
@@ -2007,7 +2048,7 @@ class FlickKeyboardView @JvmOverloads constructor(
                                 (dyDown <= threshold / 2f) || (dyDown > cancelDownThreshold) || (abs(screenX - hoverRightCursorDragStartX) > cancelXThreshold)
                             } else false
 
-                            if (shouldCancel) {
+                            if (shouldCancel && !isFlicking) {
                                 isLineStartAnnounced = false
                                 isLineEndAnnounced = false
                                 isLineUpAnnounced = false
@@ -2077,7 +2118,7 @@ class FlickKeyboardView @JvmOverloads constructor(
                                 (dyDown <= threshold / 2f) || (dyDown > cancelDownThreshold) || (abs(screenX - hoverLeftCursorDragStartX) > cancelXThreshold)
                             } else false
 
-                            if (shouldCancel) {
+                            if (shouldCancel && !isFlicking) {
                                 isLeftLineStartAnnounced = false
                                 isLeftLineEndAnnounced = false
                                 isLeftLineUpAnnounced = false
@@ -2121,7 +2162,7 @@ class FlickKeyboardView @JvmOverloads constructor(
                                 (dxStart <= threshold / 2f) || (dxStart > cancelRightThreshold) || (abs(screenY - hoverDeleteKeyDragStartY) > cancelYThreshold)
                             } else false
 
-                            if (shouldCancel) {
+                            if (shouldCancel && !isFlicking) {
                                 isDeleteLeftAnnounced = false
                                 isDeleteRightAnnounced = false
                                 isDeleteUpAnnounced = false
@@ -2143,6 +2184,8 @@ class FlickKeyboardView @JvmOverloads constructor(
                 }
 
                 MotionEvent.ACTION_HOVER_EXIT -> {
+                    hoverVelocityTracker?.recycle()
+                    hoverVelocityTracker = null
                     // 指を離した際の処理
                     val buffer = 2f
                     val isSlideOff = x <= buffer || 
