@@ -1693,6 +1693,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Slid off Char Key (Hover) from $hoverCharKey to $key. Drag cancelled.")
                     isHoverDraggingCharKey = false
                     hoverCharKey = Key.NotSelected
+                    isHoverDragActive = false
                 }
 
                 // Handle slide-in / slide-out state transition for Character Keys
@@ -2307,10 +2308,11 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             else -> GestureType.Null
                         }
                         
-                        if (nextGesture == GestureType.Null) {
+                        if (nextGesture == GestureType.Null && !isFlicking) {
                             Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Drag out of bounds on Char Key $hoverCharKey. Drag cancelled.")
                             isHoverDraggingCharKey = false
                             hoverCharKey = Key.NotSelected
+                            isHoverDragActive = false
                             
                             // Immediately announce the currently hovered key
                             val targetView = getButtonFromKey(key)
