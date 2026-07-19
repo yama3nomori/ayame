@@ -1424,26 +1424,39 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                 }
             }
             MotionEvent.ACTION_HOVER_MOVE -> {
-                if (!isHoverDragActive) {
-                    if (key != hoverCurrentKey) {
-                        hoverCurrentKey = key
-                        hoverCurrentKeyEntryTime = System.currentTimeMillis()
-                        hoverCurrentKeyEntryX = screenX
-                        hoverCurrentKeyEntryY = screenY
-                        isHoverDragActive = false
-                        resetHoverDragStates()
+                val density = context.resources.displayMetrics.density
+                val swipeThreshold = 500f * density
+                hoverVelocityTracker?.computeCurrentVelocity(1000)
+                val xVel = hoverVelocityTracker?.getXVelocity(0) ?: 0f
+                val yVel = hoverVelocityTracker?.getYVelocity(0) ?: 0f
+                val speed = kotlin.math.sqrt(xVel * xVel + yVel * yVel)
+                val isFlicking = speed > swipeThreshold
 
-                        val targetView = getButtonFromKey(key) as? View
-                        if (targetView is View) {
-                            if (accessibilityManager.isTouchExplorationEnabled) {
-                                accessibilityManager.interrupt()
-                            }
-                            targetView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+                val shouldSwitchKey = if (isHoverDragActive) {
+                    key != hoverCurrentKey && !isFlicking
+                } else {
+                    key != hoverCurrentKey
+                }
+
+                if (shouldSwitchKey) {
+                    hoverCurrentKey = key
+                    hoverCurrentKeyEntryTime = System.currentTimeMillis()
+                    hoverCurrentKeyEntryX = screenX
+                    hoverCurrentKeyEntryY = screenY
+                    isHoverDragActive = false
+                    resetHoverDragStates()
+
+                    val targetView = getButtonFromKey(key) as? View
+                    if (targetView is View) {
+                        if (accessibilityManager.isTouchExplorationEnabled) {
+                            accessibilityManager.interrupt()
                         }
-                    } else {
+                        targetView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+                    }
+                } else {
+                    if (!isHoverDragActive) {
                         val dx = screenX - hoverCurrentKeyEntryX
                         val dy = screenY - hoverCurrentKeyEntryY
-                        val density = context.resources.displayMetrics.density
                         val dist = kotlin.math.sqrt(dx * dx + dy * dy)
                         if (dist > 10f * density) {
                             hoverCurrentKeyEntryTime = System.currentTimeMillis()
@@ -1458,14 +1471,6 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         }
                     }
                 }
-
-                val density = context.resources.displayMetrics.density
-                val swipeThreshold = 500f * density
-                hoverVelocityTracker?.computeCurrentVelocity(1000)
-                val xVel = hoverVelocityTracker?.getXVelocity(0) ?: 0f
-                val yVel = hoverVelocityTracker?.getYVelocity(0) ?: 0f
-                val speed = kotlin.math.sqrt(xVel * xVel + yVel * yVel)
-                val isFlicking = speed > swipeThreshold
 
                 // Handle slide-in / slide-out state transition for SideKeyCursorRight
                 if (key == Key.SideKeyCursorRight) {
@@ -1870,12 +1875,13 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 (dxStart < cancelLeftThreshold) || (dxEnd > cancelRightThreshold) || (dyUp < cancelUpThreshold) || (dyDown > cancelDownThreshold) ||
                                 (abs(screenY - hoverRightCursorDragStartY) > cancelYThreshold && abs(screenX - hoverRightCursorDragStartX) > cancelXThreshold)
                             }
-                            if (shouldCancel) {
+                            if (shouldCancel && !isFlicking) {
                                 isLineStartAnnounced = false
                                 isLineEndAnnounced = false
                                 isLineUpAnnounced = false
                                 isLineDownAnnounced = false
                                 isHoverDraggingRightCursor = false
+                                isHoverDragActive = false
                             }
                         }
                     }
@@ -1993,12 +1999,13 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 (dxStart < cancelLeftThreshold) || (dxEnd > cancelRightThreshold) || (dyUp < cancelUpThreshold) || (dyDown > cancelDownThreshold) ||
                                 (abs(screenY - hoverLeftCursorDragStartY) > cancelYThreshold && abs(screenX - hoverLeftCursorDragStartX) > cancelXThreshold)
                             }
-                            if (shouldCancel) {
+                            if (shouldCancel && !isFlicking) {
                                 isLeftLineStartAnnounced = false
                                 isLeftLineEndAnnounced = false
                                 isLeftLineUpAnnounced = false
                                 isLeftLineDownAnnounced = false
                                 isHoverDraggingLeftCursor = false
+                                isHoverDragActive = false
                             }
                         }
                     }
@@ -2076,10 +2083,11 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             } else {
                                 (dxStart < cancelLeftThreshold) || (dxStart > cancelRightThreshold) || (abs(screenY - hoverDeleteKeyDragStartY) > cancelYThreshold)
                             }
-                            if (shouldCancel) {
+                            if (shouldCancel && !isFlicking) {
                                 isDeleteLeftAnnounced = false
                                 isDeleteRightAnnounced = false
                                 isHoverDraggingDeleteKey = false
+                                isHoverDragActive = false
                             }
                         }
                     }
@@ -2159,11 +2167,12 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 isSpaceRightAnnounced -> (dxStart > cancelDownThreshold) || (abs(dyStart) > cancelXThreshold)
                                 else -> (dyStart > cancelDownThreshold) || (abs(dxStart) > cancelXThreshold)
                             }
-                            if (shouldCancel) {
+                            if (shouldCancel && !isFlicking) {
                                 isSpaceDownAnnounced = false
                                 isSpaceUpAnnounced = false
                                 isSpaceRightAnnounced = false
                                 isHoverDraggingSpaceKey = false
+                                isHoverDragActive = false
                             }
                         }
                     }
@@ -2269,11 +2278,12 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 (dxStart < cancelLeftThreshold) || (dxEnd > cancelRightThreshold) || (dyUp < cancelUpThreshold) || 
                                 (abs(screenY - hoverReadAloudKeyDragStartY) > cancelYThreshold && abs(screenX - hoverReadAloudKeyDragStartX) > cancelXThreshold)
                             }
-                            if (shouldCancel) {
+                            if (shouldCancel && !isFlicking) {
                                 isReadAloudLeftAnnounced = false
                                 isReadAloudUpAnnounced = false
                                 isReadAloudRightAnnounced = false
                                 isHoverDraggingReadAloudKey = false
+                                isHoverDragActive = false
                             }
                         }
                     }

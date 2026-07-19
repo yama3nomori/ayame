@@ -1812,28 +1812,41 @@ class FlickKeyboardView @JvmOverloads constructor(
                 }
 
                 MotionEvent.ACTION_HOVER_MOVE -> {
-                    if (!isHoverDragActive) {
-                        if (keyLabel != hoverCurrentLabel) {
-                            hoverCurrentLabel = keyLabel
-                            hoverCurrentKeyEntryTime = System.currentTimeMillis()
-                            hoverCurrentKeyEntryX = screenX
-                            hoverCurrentKeyEntryY = screenY
-                            isHoverDragActive = false
-                            resetHoverDragStates()
+                    val density = context.resources.displayMetrics.density
+                    val swipeThreshold = 500f * density
+                    hoverVelocityTracker?.computeCurrentVelocity(1000)
+                    val xVel = hoverVelocityTracker?.getXVelocity(0) ?: 0f
+                    val yVel = hoverVelocityTracker?.getYVelocity(0) ?: 0f
+                    val speed = kotlin.math.sqrt(xVel * xVel + yVel * yVel)
+                    val isFlicking = speed > swipeThreshold
 
-                            if (targetView != lastHoverTarget) {
-                                lastHoverTarget = targetView
-                                targetView?.let { view ->
-                                    if (accessibilityManager.isTouchExplorationEnabled) {
-                                        accessibilityManager.interrupt()
-                                    }
-                                    view.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+                    val shouldSwitchKey = if (isHoverDragActive) {
+                        keyLabel != hoverCurrentLabel && !isFlicking
+                    } else {
+                        keyLabel != hoverCurrentLabel
+                    }
+
+                    if (shouldSwitchKey) {
+                        hoverCurrentLabel = keyLabel
+                        hoverCurrentKeyEntryTime = System.currentTimeMillis()
+                        hoverCurrentKeyEntryX = screenX
+                        hoverCurrentKeyEntryY = screenY
+                        isHoverDragActive = false
+                        resetHoverDragStates()
+
+                        if (targetView != lastHoverTarget) {
+                            lastHoverTarget = targetView
+                            targetView?.let { view ->
+                                if (accessibilityManager.isTouchExplorationEnabled) {
+                                    accessibilityManager.interrupt()
                                 }
+                                view.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
                             }
-                        } else {
+                        }
+                    } else {
+                        if (!isHoverDragActive) {
                             val dx = screenX - hoverCurrentKeyEntryX
                             val dy = screenY - hoverCurrentKeyEntryY
-                            val density = context.resources.displayMetrics.density
                             val dist = kotlin.math.sqrt(dx * dx + dy * dy)
                             if (dist > 10f * density) {
                                 hoverCurrentKeyEntryTime = System.currentTimeMillis()
@@ -1848,14 +1861,6 @@ class FlickKeyboardView @JvmOverloads constructor(
                             }
                         }
                     }
-
-                    val density = context.resources.displayMetrics.density
-                    val swipeThreshold = 500f * density
-                    hoverVelocityTracker?.computeCurrentVelocity(1000)
-                    val xVel = hoverVelocityTracker?.getXVelocity(0) ?: 0f
-                    val yVel = hoverVelocityTracker?.getYVelocity(0) ?: 0f
-                    val speed = kotlin.math.sqrt(xVel * xVel + yVel * yVel)
-                    val isFlicking = speed > swipeThreshold
                     // スライドイン / 静止状態からのドラッグ開始処理 (TenKey.kt準拠)
                     if (keyLabel == "CursorMoveRight") {
                         if (!isHoverDraggingRightCursor) {
@@ -2054,6 +2059,7 @@ class FlickKeyboardView @JvmOverloads constructor(
                                 isLineUpAnnounced = false
                                 isLineDownAnnounced = false
                                 isHoverDraggingRightCursor = false
+                                isHoverDragActive = false
                             }
                         }
                     }
@@ -2124,6 +2130,7 @@ class FlickKeyboardView @JvmOverloads constructor(
                                 isLeftLineUpAnnounced = false
                                 isLeftLineDownAnnounced = false
                                 isHoverDraggingLeftCursor = false
+                                isHoverDragActive = false
                             }
                         }
                     }
@@ -2167,6 +2174,7 @@ class FlickKeyboardView @JvmOverloads constructor(
                                 isDeleteRightAnnounced = false
                                 isDeleteUpAnnounced = false
                                 isHoverDraggingDeleteKey = false
+                                isHoverDragActive = false
                             }
                         }
                     }
