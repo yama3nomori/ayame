@@ -1432,11 +1432,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                 val speed = kotlin.math.sqrt(xVel * xVel + yVel * yVel)
                 val isFlicking = speed > swipeThreshold
 
-                val shouldSwitchKey = if (isHoverDragActive) {
-                    key != hoverCurrentKey && !isFlicking
-                } else {
-                    key != hoverCurrentKey
-                }
+                val shouldSwitchKey = key != hoverCurrentKey && !isFlicking
 
                 if (shouldSwitchKey) {
                     hoverCurrentKey = key
@@ -1455,18 +1451,23 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     }
                 } else {
                     if (!isHoverDragActive) {
-                        val dx = screenX - hoverCurrentKeyEntryX
-                        val dy = screenY - hoverCurrentKeyEntryY
-                        val dist = kotlin.math.sqrt(dx * dx + dy * dy)
-                        if (dist > 10f * density) {
-                            hoverCurrentKeyEntryTime = System.currentTimeMillis()
-                            hoverCurrentKeyEntryX = screenX
-                            hoverCurrentKeyEntryY = screenY
+                        if (isFlicking) {
+                            isHoverDragActive = true
+                            initHoverDragState(key, hoverCurrentKeyEntryX, hoverCurrentKeyEntryY)
                         } else {
-                            val elapsed = System.currentTimeMillis() - hoverCurrentKeyEntryTime
-                            if (elapsed >= 500L) {
-                                isHoverDragActive = true
-                                initHoverDragState(key, screenX, screenY)
+                            val dx = screenX - hoverCurrentKeyEntryX
+                            val dy = screenY - hoverCurrentKeyEntryY
+                            val dist = kotlin.math.sqrt(dx * dx + dy * dy)
+                            if (dist > 10f * density) {
+                                hoverCurrentKeyEntryTime = System.currentTimeMillis()
+                                hoverCurrentKeyEntryX = screenX
+                                hoverCurrentKeyEntryY = screenY
+                            } else {
+                                val elapsed = System.currentTimeMillis() - hoverCurrentKeyEntryTime
+                                if (elapsed >= 500L) {
+                                    isHoverDragActive = true
+                                    initHoverDragState(key, screenX, screenY)
+                                }
                             }
                         }
                     }

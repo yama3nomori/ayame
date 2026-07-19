@@ -1820,11 +1820,7 @@ class FlickKeyboardView @JvmOverloads constructor(
                     val speed = kotlin.math.sqrt(xVel * xVel + yVel * yVel)
                     val isFlicking = speed > swipeThreshold
 
-                    val shouldSwitchKey = if (isHoverDragActive) {
-                        keyLabel != hoverCurrentLabel && !isFlicking
-                    } else {
-                        keyLabel != hoverCurrentLabel
-                    }
+                    val shouldSwitchKey = keyLabel != hoverCurrentLabel && !isFlicking
 
                     if (shouldSwitchKey) {
                         hoverCurrentLabel = keyLabel
@@ -1845,18 +1841,23 @@ class FlickKeyboardView @JvmOverloads constructor(
                         }
                     } else {
                         if (!isHoverDragActive) {
-                            val dx = screenX - hoverCurrentKeyEntryX
-                            val dy = screenY - hoverCurrentKeyEntryY
-                            val dist = kotlin.math.sqrt(dx * dx + dy * dy)
-                            if (dist > 10f * density) {
-                                hoverCurrentKeyEntryTime = System.currentTimeMillis()
-                                hoverCurrentKeyEntryX = screenX
-                                hoverCurrentKeyEntryY = screenY
+                            if (isFlicking) {
+                                isHoverDragActive = true
+                                initHoverDragState(keyLabel, hoverCurrentKeyEntryX, hoverCurrentKeyEntryY)
                             } else {
-                                val elapsed = System.currentTimeMillis() - hoverCurrentKeyEntryTime
-                                if (elapsed >= 500L) {
-                                    isHoverDragActive = true
-                                    initHoverDragState(keyLabel, screenX, screenY)
+                                val dx = screenX - hoverCurrentKeyEntryX
+                                val dy = screenY - hoverCurrentKeyEntryY
+                                val dist = kotlin.math.sqrt(dx * dx + dy * dy)
+                                if (dist > 10f * density) {
+                                    hoverCurrentKeyEntryTime = System.currentTimeMillis()
+                                    hoverCurrentKeyEntryX = screenX
+                                    hoverCurrentKeyEntryY = screenY
+                                } else {
+                                    val elapsed = System.currentTimeMillis() - hoverCurrentKeyEntryTime
+                                    if (elapsed >= 500L) {
+                                        isHoverDragActive = true
+                                        initHoverDragState(keyLabel, screenX, screenY)
+                                    }
                                 }
                             }
                         }
