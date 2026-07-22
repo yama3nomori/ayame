@@ -2,9 +2,13 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <Preference
-        android:key="preference_tamachi_reading"
-        android:title="@string/tamachi_reading_title"
-        android:summary="@string/tamachi_reading_summary" />
+        android:key="preference_manual"
+        android:title="@string/manual_title"
+        android:summary="https://yama3nomori.jp/download/ayame/manual.html">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="https://yama3nomori.jp/download/ayame/manual.html" />
+    </Preference>
     <Preference
         android:key="preference_author"
         android:title="@string/author_title"
@@ -29,6 +33,18 @@
         <intent
             android:action="android.intent.action.VIEW"
             android:data="https://github.com/yama3nomori/ayame" />
+    </Preference>
+    <Preference
+        android:key="preference_tamachi_reading"
+        android:title="@string/tamachi_reading_title"
+        android:summary="@string/tamachi_reading_summary" />
+    <Preference
+        android:key="preference_base_project"
+        android:title="@string/base_project_title"
+        android:summary="@string/base_project_summary">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="https://github.com/KazumaProject/JapaneseKeyboard" />
     </Preference>
     <Preference
         android:key="preference_open_source"

@@ -155,6 +155,9 @@
 
     <string name="open_source_libraries_title">Open Source libraries used</string>
     <string name="app_version_title">App version</string>
+    <string name="manual_title">Quick Manual</string>
+    <string name="base_project_title">Base Project</string>
+    <string name="base_project_summary">Sumire - Completely Offline Japanese Keyboard App\nhttps://github.com/KazumaProject/JapaneseKeyboard</string>
 
     <string name="learn_dictionary_prefix_match_summary">Shows words registered in the learn dictionary as conversion candidates with a prefix match of %1$d characters</string>
 

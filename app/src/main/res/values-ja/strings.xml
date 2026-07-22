@@ -157,6 +157,9 @@
 
     <string name="open_source_libraries_title">使用した Open Source のライブラリ</string>
     <string name="app_version_title">アプリのバージョン</string>
+    <string name="manual_title">簡易マニュアル</string>
+    <string name="base_project_title">ベースプロジェクト</string>
+    <string name="base_project_summary">スミレ - 完全オフラインの日本語キーボードアプリ\nhttps://github.com/KazumaProject/JapaneseKeyboard</string>
 
     <string name="learn_dictionary_prefix_match_summary">学習辞書に登録された単語を、前方 %1$d 文字一致で変換候補として表示します</string>
 
