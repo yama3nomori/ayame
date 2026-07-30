@@ -9162,7 +9162,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                             -> {
                             currentInputMode.set(InputMode.ModeNumber)
                             setInputModeSwitchState()
-                            setSideKeyPreviousState(false)
+                            setSideKeyPreviousState(true)
                             this.setSideKeyEnterDrawable(
                                 cachedArrowRightDrawable
                             )
@@ -11419,7 +11419,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                         setSideKeySpaceDrawable(
                             cachedSpaceDrawable
                         )
-                        setSideKeyPreviousState(false)
+                        setSideKeyPreviousState(true)
                     }
 
                     is InputMode.ModeNumber -> {
@@ -11475,7 +11475,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                         setBackgroundSmallLetterKey(
                             cachedNumberDrawable
                         )
-                        setSideKeyPreviousState(false)
+                        setSideKeyPreviousState(true)
                     }
 
                     is InputMode.ModeNumber -> {
@@ -11546,7 +11546,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     setBackgroundSmallLetterKey(
                         cachedNumberDrawable
                     )
-                    setSideKeyPreviousState(false)
+                    setSideKeyPreviousState(true)
                 }
 
                 is InputMode.ModeNumber -> {
@@ -14017,9 +14017,23 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     fun switchNextKeyboard() {
         if (keyboardOrder.isEmpty()) return
 
-        // モジュール演算で自動的に 0 に戻る
-        val nextIndex = (currentKeyboardOrder + 1) % keyboardOrder.size
-        val nextType = keyboardOrder[nextIndex]
+        var nextIndex = currentKeyboardOrder
+        var nextType: KeyboardType? = null
+
+        for (i in 1..keyboardOrder.size) {
+            val idx = (currentKeyboardOrder + i) % keyboardOrder.size
+            val type = keyboardOrder[idx]
+            if (type != KeyboardType.NUMERIC && type != KeyboardType.AYAME_NUMERIC) {
+                nextIndex = idx
+                nextType = type
+                break
+            }
+        }
+
+        if (nextType == null) {
+            nextIndex = (currentKeyboardOrder + 1) % keyboardOrder.size
+            nextType = keyboardOrder[nextIndex]
+        }
 
         when (nextType) {
             KeyboardType.TENKEY, KeyboardType.AYAME_TENKEY -> {
