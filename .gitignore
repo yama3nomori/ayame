@@ -33,3 +33,8 @@ DTalkerIME/
 **/build_old/
 .gradle/
 captures/
+
+# Keystores and release keys
+*.jks
+*.keystore
+ayame-release-key.jks

@@ -128,12 +128,9 @@ object AppPreference {
 
     private val defaultKeyboardOrderJson = gson.toJson(
         listOf(
-            KeyboardType.TENKEY,
-            KeyboardType.QWERTY,
-            KeyboardType.ROMAJI,
             KeyboardType.AYAME_TENKEY,
-            KeyboardType.AYAME_QWERTY,
-            KeyboardType.AYAME_ROMAJI
+            KeyboardType.QWERTY,
+            KeyboardType.ROMAJI
         )
     )
     private val KEYBOARD_ORDER = Pair("keyboard_order_preference", defaultKeyboardOrderJson)
@@ -483,7 +480,7 @@ object AppPreference {
             val json = preferences.getString(KEYBOARD_ORDER.first, KEYBOARD_ORDER.second)
             val type = object : TypeToken<List<KeyboardType>>() {}.type
             val list: List<KeyboardType> = gson.fromJson(json, type) ?: emptyList()
-            return list.filter { it != KeyboardType.SUMIRE }
+            return list.filter { it != KeyboardType.SUMIRE && it != KeyboardType.NUMERIC && it != KeyboardType.AYAME_NUMERIC && it != KeyboardType.CUSTOM }
         }
         set(value) = preferences.edit {
             val json = gson.toJson(value)

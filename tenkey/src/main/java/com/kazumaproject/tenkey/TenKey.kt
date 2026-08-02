@@ -430,6 +430,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
     private var hoverCurrentKeyEntryX: Float = 0f
     private var hoverCurrentKeyEntryY: Float = 0f
     private var isHoverDragActive: Boolean = false
+    private var wasFlickingGesture: Boolean = false
     private var hoverLastAnnouncedChar: String? = null
     private var charHoverSlideInEntryTime = 0L
     private var charHoverSlideInEntryX = 0f
@@ -1431,6 +1432,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                 val yVel = hoverVelocityTracker?.getYVelocity(0) ?: 0f
                 val speed = kotlin.math.sqrt(xVel * xVel + yVel * yVel)
                 val isFlicking = speed > swipeThreshold
+                wasFlickingGesture = isFlicking
 
                 val shouldSwitchKey = key != hoverCurrentKey && !isFlicking
 
@@ -2140,7 +2142,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
                     if (triggerLineStart) {
                         isLineStartAnnounced = false
-                        if (!isSlideOff) {
+                        if (!isSlideOff || wasFlickingGesture) {
                             flickListener?.onFlick(
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyCursorRight,
@@ -2151,7 +2153,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         return true
                     } else if (triggerLineEnd) {
                         isLineEndAnnounced = false
-                        if (!isSlideOff) {
+                        if (!isSlideOff || wasFlickingGesture) {
                             flickListener?.onFlick(
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyCursorRight,
@@ -2162,7 +2164,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         return true
                     } else if (triggerLineUp) {
                         isLineUpAnnounced = false
-                        if (!isSlideOff) {
+                        if (!isSlideOff || wasFlickingGesture) {
                             flickListener?.onFlick(
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyCursorRight,
@@ -2173,7 +2175,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         return true
                     } else if (triggerLineDown) {
                         isLineDownAnnounced = false
-                        if (!isSlideOff) {
+                        if (!isSlideOff || wasFlickingGesture) {
                             flickListener?.onFlick(
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyCursorRight,
@@ -2215,7 +2217,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
                     if (triggerLineStart) {
                         isLeftLineStartAnnounced = false
-                        if (!isSlideOff) {
+                        if (!isSlideOff || wasFlickingGesture) {
                             flickListener?.onFlick(
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyCursorLeft,
@@ -2226,7 +2228,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         return true
                     } else if (triggerLineEnd) {
                         isLeftLineEndAnnounced = false
-                        if (!isSlideOff) {
+                        if (!isSlideOff || wasFlickingGesture) {
                             flickListener?.onFlick(
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyCursorLeft,
@@ -2237,7 +2239,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         return true
                     } else if (triggerLineUp) {
                         isLeftLineUpAnnounced = false
-                        if (!isSlideOff) {
+                        if (!isSlideOff || wasFlickingGesture) {
                             flickListener?.onFlick(
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyCursorLeft,
@@ -2248,7 +2250,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         return true
                     } else if (triggerLineDown) {
                         isLeftLineDownAnnounced = false
-                        if (!isSlideOff) {
+                        if (!isSlideOff || wasFlickingGesture) {
                             flickListener?.onFlick(
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyCursorLeft,
@@ -2285,7 +2287,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
                     if (triggerDeleteLeft) {
                         isDeleteLeftAnnounced = false
-                        if (!isSlideOff) {
+                        if (!isSlideOff || wasFlickingGesture) {
                             flickListener?.onFlick(
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyDelete,
@@ -2296,7 +2298,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         return true
                     } else if (triggerDeleteRight) {
                         isDeleteRightAnnounced = false
-                        if (!isSlideOff) {
+                        if (!isSlideOff || wasFlickingGesture) {
                             flickListener?.onFlick(
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyDelete,
@@ -2335,7 +2337,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
                     if (triggerLeft) {
                         isReadAloudLeftAnnounced = false
-                        if (!isSlideOff) {
+                        if (!isSlideOff || wasFlickingGesture) {
                             flickListener?.onFlick(
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyReadAloud,
@@ -2346,7 +2348,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         return true
                     } else if (triggerUp) {
                         isReadAloudUpAnnounced = false
-                        if (!isSlideOff) {
+                        if (!isSlideOff || wasFlickingGesture) {
                             flickListener?.onFlick(
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyReadAloud,
@@ -2357,7 +2359,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         return true
                     } else if (triggerRight) {
                         isReadAloudRightAnnounced = false
-                        if (!isSlideOff) {
+                        if (!isSlideOff || wasFlickingGesture) {
                             flickListener?.onFlick(
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyReadAloud,
@@ -2403,7 +2405,12 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     isSpaceUpAnnounced = false
                     isSpaceRightAnnounced = false
 
-                    if (gestureType != GestureType.Null && !isSlideOff) {
+                    val isSpaceFlickGesture = gestureType == GestureType.FlickLeft ||
+                                         gestureType == GestureType.FlickTop ||
+                                         gestureType == GestureType.FlickRight ||
+                                         gestureType == GestureType.FlickBottom
+
+                    if (gestureType != GestureType.Null && (!isSlideOff || (isSpaceFlickGesture && wasFlickingGesture))) {
                         flickListener?.onFlick(
                             gestureType = gestureType,
                             key = Key.SideKeySpace,
@@ -2431,7 +2438,12 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             else -> null
                         }
                         
-                        if (finalChar != null && !isSlideOff) {
+                        val isCharFlickGesture = hoverActiveGesture == GestureType.FlickLeft ||
+                                             hoverActiveGesture == GestureType.FlickTop ||
+                                             hoverActiveGesture == GestureType.FlickRight ||
+                                             hoverActiveGesture == GestureType.FlickBottom
+
+                        if (finalChar != null && (!isSlideOff || (isCharFlickGesture && wasFlickingGesture))) {
                             Log.d("TenKeyDrag", "ACTION_HOVER_EXIT: Dispatching flick event for $activeKey: $hoverActiveGesture -> $finalChar")
                             flickListener?.onFlick(
                                 gestureType = hoverActiveGesture,

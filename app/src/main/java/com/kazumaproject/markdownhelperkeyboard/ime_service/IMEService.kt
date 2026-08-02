@@ -14023,7 +14023,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         for (i in 1..keyboardOrder.size) {
             val idx = (currentKeyboardOrder + i) % keyboardOrder.size
             val type = keyboardOrder[idx]
-            if (type != KeyboardType.NUMERIC && type != KeyboardType.AYAME_NUMERIC) {
+            if (type != KeyboardType.NUMERIC && type != KeyboardType.AYAME_NUMERIC && type != KeyboardType.CUSTOM) {
                 nextIndex = idx
                 nextType = type
                 break

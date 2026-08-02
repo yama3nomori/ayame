@@ -253,7 +253,7 @@ class KeyboardSelectionFragment : Fragment() {
     }
 
     private fun showAddKeyboardDialog() {
-        val allKeyboardTypes = KeyboardType.entries.filter { it != KeyboardType.SUMIRE && it != KeyboardType.NUMERIC && it != KeyboardType.AYAME_NUMERIC }.toTypedArray()
+        val allKeyboardTypes = KeyboardType.entries.filter { it != KeyboardType.SUMIRE && it != KeyboardType.NUMERIC && it != KeyboardType.AYAME_NUMERIC && it != KeyboardType.CUSTOM }.toTypedArray()
         val currentKeyboards = viewModel.uiState.value.keyboards
         val availableKeyboards = allKeyboardTypes.filter { it !in currentKeyboards }
 

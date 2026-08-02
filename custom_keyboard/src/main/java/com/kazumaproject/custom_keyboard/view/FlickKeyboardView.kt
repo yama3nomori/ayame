@@ -137,6 +137,7 @@ class FlickKeyboardView @JvmOverloads constructor(
     private var hoverCurrentKeyEntryX: Float = 0f
     private var hoverCurrentKeyEntryY: Float = 0f
     private var isHoverDragActive: Boolean = false
+    private var wasFlickingGesture: Boolean = false
 
     // 入力中フラグ（IMEServiceからセットされる）
     var isInputComposing = false
@@ -1819,6 +1820,7 @@ class FlickKeyboardView @JvmOverloads constructor(
                     val yVel = hoverVelocityTracker?.getYVelocity(0) ?: 0f
                     val speed = kotlin.math.sqrt(xVel * xVel + yVel * yVel)
                     val isFlicking = speed > swipeThreshold
+                    wasFlickingGesture = isFlicking
 
                     val shouldSwitchKey = keyLabel != hoverCurrentLabel && !isFlicking
 
@@ -2079,7 +2081,7 @@ class FlickKeyboardView @JvmOverloads constructor(
                         var triggerLineEnd = isLineEndAnnounced
                         var triggerLineUp = isLineUpAnnounced
                         var triggerLineDown = isLineDownAnnounced
-
+ 
                         // 素早いフリックのフォールバック
                         if (!triggerLineStart && !triggerLineEnd && !triggerLineUp && !triggerLineDown) {
                             val dx = screenX - hoverRightCursorDragStartX
@@ -2087,7 +2089,7 @@ class FlickKeyboardView @JvmOverloads constructor(
                             val threshold = 35f
                             val cancelXThreshold = 60f
                             val cancelYThreshold = 60f
-
+ 
                             if (abs(dy) <= cancelYThreshold && dx < -threshold) {
                                 triggerLineStart = true
                             } else if (abs(dy) <= cancelYThreshold && dx > threshold) {
@@ -2098,8 +2100,8 @@ class FlickKeyboardView @JvmOverloads constructor(
                                 triggerLineDown = true
                             }
                         }
-
-                        if (!isSlideOff) {
+ 
+                        if (!isSlideOff || wasFlickingGesture) {
                             if (triggerLineStart) {
                                 listener?.onAction(KeyAction.MoveCursorToStartOfLine, this, true)
                             } else if (triggerLineEnd) {
@@ -2120,14 +2122,14 @@ class FlickKeyboardView @JvmOverloads constructor(
                             return true
                         }
                     }
-
+ 
                     if (isHoverDraggingLeftCursor) {
                         isHoverDraggingLeftCursor = false
                         var triggerLineStart = isLeftLineStartAnnounced
                         var triggerLineEnd = isLeftLineEndAnnounced
                         var triggerLineUp = isLeftLineUpAnnounced
                         var triggerLineDown = isLeftLineDownAnnounced
-
+ 
                         // 素早いフリックのフォールバック
                         if (!triggerLineStart && !triggerLineEnd && !triggerLineUp && !triggerLineDown) {
                             val dx = screenX - hoverLeftCursorDragStartX
@@ -2135,7 +2137,7 @@ class FlickKeyboardView @JvmOverloads constructor(
                             val threshold = 35f
                             val cancelXThreshold = 60f
                             val cancelYThreshold = 60f
-
+ 
                             if (abs(dy) <= cancelYThreshold && dx < -threshold) {
                                 triggerLineStart = true
                             } else if (abs(dy) <= cancelYThreshold && dx > threshold) {
@@ -2146,8 +2148,8 @@ class FlickKeyboardView @JvmOverloads constructor(
                                 triggerLineDown = true
                             }
                         }
-
-                        if (!isSlideOff) {
+ 
+                        if (!isSlideOff || wasFlickingGesture) {
                             if (triggerLineStart) {
                                 listener?.onAction(KeyAction.MoveCursorToStartOfLine, this, true)
                             } else if (triggerLineEnd) {
@@ -2168,19 +2170,19 @@ class FlickKeyboardView @JvmOverloads constructor(
                             return true
                         }
                     }
-
+ 
                     if (isHoverDraggingDeleteKey) {
                         isHoverDraggingDeleteKey = false
                         var triggerDeleteLeft = isDeleteLeftAnnounced
                         var triggerDeleteRight = isDeleteRightAnnounced
-
+ 
                         // 素早いフリックのフォールバック
                         if (!triggerDeleteLeft && !triggerDeleteRight) {
                             val dx = screenX - hoverDeleteKeyDragStartX
                             val dy = screenY - hoverDeleteKeyDragStartY
                             val threshold = 35f
                             val cancelYThreshold = 60f
-
+ 
                             if (abs(dy) <= cancelYThreshold) {
                                 if (dx < -threshold) {
                                     triggerDeleteLeft = true
@@ -2189,8 +2191,8 @@ class FlickKeyboardView @JvmOverloads constructor(
                                 }
                             }
                         }
-
-                        if (!isSlideOff) {
+ 
+                        if (!isSlideOff || wasFlickingGesture) {
                             if (triggerDeleteLeft) {
                                 listener?.onAction(KeyAction.DeleteLeftWordOrSymbols, this, true)
                             } else if (triggerDeleteRight) {
