@@ -2753,6 +2753,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
 
     private fun moveCursorLeft() {
+        if (!hasTextBeforeCursor()) return
         interruptTalkBack()
         lastVolumeKeyCursorMoveTime = android.os.SystemClock.uptimeMillis()
         isVolumeKeyCursorMoving.set(true)
@@ -2760,6 +2761,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     }
 
     private fun moveCursorRight() {
+        if (!hasTextAfterCursor()) return
         interruptTalkBack()
         lastVolumeKeyCursorMoveTime = android.os.SystemClock.uptimeMillis()
         isVolumeKeyCursorMoving.set(true)
@@ -13279,16 +13281,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
     private fun handleLeftCursorMoveAction() {
         Timber.d("handleLeftCursorMoveAction: called")
-        lastVolumeKeyCursorMoveTime = android.os.SystemClock.uptimeMillis()
-        isVolumeKeyCursorMoving.set(true)
-        sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_LEFT)
+        moveCursorLeft()
     }
 
     private fun handleRightCursorMoveAction() {
-        if (!hasTextAfterCursor()) return
-        lastVolumeKeyCursorMoveTime = android.os.SystemClock.uptimeMillis()
-        isVolumeKeyCursorMoving.set(true)
-        sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_RIGHT)
+        Timber.d("handleRightCursorMoveAction: called")
+        moveCursorRight()
     }
 
     private fun handleDeleteKeyInHenkan(suggestions: List<Candidate>, insertString: String) {
@@ -13659,6 +13657,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private fun isCursorAtBeginning(): Boolean {
         val extractedText = currentInputConnection.getExtractedText(ExtractedTextRequest(), 0)
         return extractedText?.selectionStart == 0
+    }
+
+    private fun hasTextBeforeCursor(chars: Int = 1): Boolean {
+        val ic = currentInputConnection ?: return false
+        val before = ic.getTextBeforeCursor(chars, 0)
+        return !before.isNullOrEmpty()
     }
 
     private fun hasTextAfterCursor(chars: Int = 1): Boolean {
