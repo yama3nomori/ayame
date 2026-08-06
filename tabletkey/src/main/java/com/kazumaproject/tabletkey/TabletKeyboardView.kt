@@ -37,6 +37,7 @@ import com.kazumaproject.core.domain.extensions.hide
 import com.kazumaproject.core.domain.extensions.layoutXPosition
 import com.kazumaproject.core.domain.extensions.layoutYPosition
 import com.kazumaproject.core.domain.extensions.setBorder
+import com.kazumaproject.core.domain.extensions.toAccessibilityName
 import com.kazumaproject.core.domain.extensions.setBottomToTopOf
 import com.kazumaproject.core.domain.extensions.setDrawableAlpha
 import com.kazumaproject.core.domain.extensions.setDrawableSolidColor
@@ -123,6 +124,22 @@ class TabletKeyboardView @JvmOverloads constructor(
 
     private var flickSensitivity: Int = 100
     private var velocityTracker: android.view.VelocityTracker? = null
+    var isAyameMode: Boolean = false
+    private var lastClickedKey: Key? = null
+    private var lastClickedTime: Long = 0L
+
+    private val buttonToKeyMap: Map<View, Key> by lazy {
+        listKeys.entries.mapNotNull { entry ->
+            val view = entry.value as? View
+            if (view != null) {
+                view to entry.key
+            } else {
+                null
+            }
+        }.toMap()
+    }
+
+    var isInputComposing: Boolean = false
 
     // All AppCompatButton keys (all the character keys)
     private val allButtonKeys = listOf(
@@ -180,13 +197,13 @@ class TabletKeyboardView @JvmOverloads constructor(
         binding.key52,
         binding.key53,
         binding.key54,
-        binding.key55
+        binding.key55,
+        binding.sideKeyReadAloud,
+        binding.keyKigou
     )
 
     // All AppCompatImageButton keys (side and utility keys)
     private val allImageButtonKeys = listOf(
-        binding.keyKigou,
-        binding.keyPrevious,
         binding.keySwitchKeyMode,
         binding.keyLeftCursor,
         binding.keyRightCursor,
@@ -275,7 +292,7 @@ class TabletKeyboardView @JvmOverloads constructor(
 
         // side keys
         Key.SideKeySymbol to binding.keyKigou,
-        Key.SideKeyPreviousChar to binding.keyPrevious,
+        Key.SideKeyReadAloud to binding.sideKeyReadAloud,
         Key.SideKeyInputMode to binding.keySwitchKeyMode,
         Key.SideKeyCursorLeft to binding.keyLeftCursor,
         Key.SideKeyCursorRight to binding.keyRightCursor,
@@ -377,14 +394,222 @@ class TabletKeyboardView @JvmOverloads constructor(
         setupAccessibility()
     }
 
+    private fun performKeyInput(view: View, key: Key) {
+        val keyInfo = currentInputMode.get().next(keyMap = keyMap, key = key, isTablet = true)
+        if (keyInfo == KeyInfo.Null) {
+            flickListener?.onFlick(
+                gestureType = GestureType.Tap, key = key, char = null
+            )
+            if (key == Key.SideKeyInputMode) {
+                handleClickInputModeSwitch()
+            }
+        } else if (keyInfo is KeyInfo.KeyTapFlickInfo) {
+            val capState = tabletCapsLockState.value
+            val outputChar = keyInfo.getOutputChar(capState)
+            flickListener?.onFlick(
+                gestureType = GestureType.Tap,
+                key = key,
+                char = outputChar,
+            )
+        }
+    }
+
+    private fun triggerAyameFlickAction(key: Key, gesture: GestureType) {
+        when (key) {
+            Key.SideKeyCursorRight, Key.SideKeyCursorLeft -> {
+                val charCode = when (gesture) {
+                    GestureType.FlickLeft -> '\u0001'
+                    GestureType.FlickRight -> '\u0002'
+                    GestureType.FlickTop -> '\u0003'
+                    GestureType.FlickBottom -> '\u0004'
+                    else -> null
+                }
+                if (charCode != null) {
+                    flickListener?.onFlick(GestureType.Tap, key, charCode)
+                }
+            }
+            Key.SideKeyDelete -> {
+                val charCode = when (gesture) {
+                    GestureType.FlickLeft -> '\u0005'
+                    GestureType.FlickRight -> '\u0007'
+                    else -> null
+                }
+                if (charCode != null) {
+                    flickListener?.onFlick(GestureType.Tap, key, charCode)
+                }
+            }
+            Key.SideKeySpace -> {
+                if (gesture == GestureType.FlickBottom || gesture == GestureType.FlickTop || gesture == GestureType.FlickRight || gesture == GestureType.FlickLeft) {
+                    flickListener?.onFlick(gesture, key, null)
+                }
+            }
+            Key.SideKeyReadAloud -> {
+                val charCode = when (gesture) {
+                    GestureType.FlickLeft -> '\u0011'
+                    GestureType.FlickTop -> '\u0012'
+                    GestureType.FlickRight -> '\u0013'
+                    else -> null
+                }
+                if (charCode != null) {
+                    flickListener?.onFlick(GestureType.Tap, key, charCode)
+                }
+            }
+            else -> {
+                val keyInfo = currentInputMode.get().next(keyMap = keyMap, key = key, isTablet = true)
+                if (keyInfo is KeyInfo.KeyTapFlickInfo) {
+                    val char = when (gesture) {
+                        GestureType.FlickLeft -> keyInfo.flickLeft
+                        GestureType.FlickTop -> keyInfo.flickTop
+                        GestureType.FlickRight -> keyInfo.flickRight
+                        GestureType.FlickBottom -> keyInfo.flickBottom
+                        else -> null
+                    }
+                    if (char != null) {
+                        flickListener?.onFlick(gesture, key, char)
+                    }
+                }
+            }
+        }
+    }
+
     private fun setupAccessibility() {
         (allButtonKeys + allImageButtonKeys).forEach { view ->
+            view.isClickable = true
+            view.isFocusable = true
+            view.setOnClickListener {
+                val key = buttonToKeyMap[view]
+                if (key != null) {
+                    if (isAyameMode) {
+                        if (accessibilityManager.isTouchExplorationEnabled) {
+                            performKeyInput(view, key)
+                        } else {
+                            val currentTime = android.os.SystemClock.uptimeMillis()
+                            if (key == lastClickedKey && currentTime - lastClickedTime < 500) {
+                                performKeyInput(view, key)
+                                lastClickedKey = null
+                                lastClickedTime = 0L
+                            } else {
+                                lastClickedKey = key
+                                lastClickedTime = currentTime
+                            }
+                        }
+                    } else if (accessibilityManager.isTouchExplorationEnabled) {
+                        performKeyInput(view, key)
+                    }
+                }
+            }
+
             ViewCompat.setAccessibilityDelegate(view, object : AccessibilityDelegateCompat() {
                 override fun onInitializeAccessibilityNodeInfo(host: View, info: AccessibilityNodeInfoCompat) {
                     super.onInitializeAccessibilityNodeInfo(host, info)
-                    info.className = ""
-                    info.roleDescription = "\u200B"
-                    info.isClickable = false
+                    val key = buttonToKeyMap[host]
+
+                    var description = host.contentDescription ?: (host as? TextView)?.text
+                    if (!description.isNullOrEmpty() && key != null) {
+                        val mappedDescription = if ((currentInputMode.get() == InputMode.ModeEnglish || currentInputMode.get() == InputMode.ModeNumber)
+                            && key in listOf(
+                                Key.KeyA, Key.KeyKA, Key.KeySA,
+                                Key.KeyTA, Key.KeyNA, Key.KeyHA,
+                                Key.KeyMA, Key.KeyYA, Key.KeyRA,
+                                Key.KeyWA, Key.KeyKutouten
+                            )
+                        ) {
+                            description.filter { !it.isWhitespace() }
+                                .map { it.toAccessibilityName() }
+                                .joinToString(" ")
+                        } else {
+                            description.toString()
+                        }
+                        info.text = mappedDescription
+                        info.contentDescription = mappedDescription
+                    }
+
+                    if (isAyameMode) {
+                        info.className = "android.widget.Button"
+                        info.isClickable = true
+                        info.isLongClickable = true
+
+                        if (key != null) {
+                            when (key) {
+                                Key.SideKeyCursorRight, Key.SideKeyCursorLeft -> {
+                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_left, "行頭移動 (左フリック)"))
+                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_right, "行末移動 (右フリック)"))
+                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_top, "上カーソル (上フリック)"))
+                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_bottom, "下カーソル (下フリック)"))
+                                }
+                                Key.SideKeyDelete -> {
+                                    val leftLabel = if (isInputComposing) "一括削除 (左フリック)" else "行頭まで削除 (左フリック)"
+                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_left, leftLabel))
+                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_right, "行末まで削除 (右フリック)"))
+                                }
+                                Key.SideKeySpace -> {
+                                    if (isInputComposing) {
+                                        info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_bottom, "予測変換 (下フリック)"))
+                                        if (currentInputMode.get() != InputMode.ModeNumber) {
+                                            val label = if (currentInputMode.get() == InputMode.ModeEnglish) "全角英語変換 (上フリック)" else "全角カタカナ変換 (上フリック)"
+                                            info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_top, label))
+                                        }
+                                        if (currentInputMode.get() == InputMode.ModeJapanese) {
+                                            info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_right, "半角カタカナ変換 (右フリック)"))
+                                        }
+                                    } else {
+                                        info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_left, "全半スペース切替 (左フリック)"))
+                                    }
+                                }
+                                Key.SideKeyReadAloud -> {
+                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_left, "詳細読み上げ (左フリック)"))
+                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_top, "文頭から読み上げ (上フリック)"))
+                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_right, "文末まで読み上げ (右フリック)"))
+                                }
+                                else -> {
+                                    val keyInfo = currentInputMode.get().next(keyMap = keyMap, key = key, isTablet = true)
+                                    if (keyInfo is KeyInfo.KeyTapFlickInfo) {
+                                        keyInfo.flickLeft?.let {
+                                            info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_left, "${it.toAccessibilityName()} (左フリック)"))
+                                        }
+                                        keyInfo.flickTop?.let {
+                                            info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_top, "${it.toAccessibilityName()} (上フリック)"))
+                                        }
+                                        keyInfo.flickRight?.let {
+                                            info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_right, "${it.toAccessibilityName()} (右フリック)"))
+                                        }
+                                        keyInfo.flickBottom?.let {
+                                            info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_bottom, "${it.toAccessibilityName()} (下フリック)"))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        info.className = ""
+                        info.roleDescription = "\u200B"
+                        info.isClickable = false
+                        info.isLongClickable = false
+                        info.removeAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_CLICK)
+                        info.removeAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_LONG_CLICK)
+                    }
+                }
+
+                override fun performAccessibilityAction(
+                    host: View,
+                    action: Int,
+                    args: android.os.Bundle?
+                ): Boolean {
+                    val key = buttonToKeyMap[host]
+                    if (isAyameMode && key != null) {
+                        val gesture = when (action) {
+                            com.kazumaproject.core.R.id.action_flick_left -> GestureType.FlickLeft
+                            com.kazumaproject.core.R.id.action_flick_top -> GestureType.FlickTop
+                            com.kazumaproject.core.R.id.action_flick_right -> GestureType.FlickRight
+                            com.kazumaproject.core.R.id.action_flick_bottom -> GestureType.FlickBottom
+                            else -> null
+                        }
+                        if (gesture != null) {
+                            triggerAyameFlickAction(key, gesture)
+                            return true
+                        }
+                    }
+                    return super.performAccessibilityAction(host, action, args)
                 }
             })
         }
@@ -517,11 +742,11 @@ class TabletKeyboardView @JvmOverloads constructor(
                 key21, key22, key23, key24, key25, key26, key27, key28, key29, key30,
                 key31, key32, key33, key34, key35, key36, key37, key38, key39, key40,
                 key41, key42, key43, key44, key45, key46, key47, key48, key49, key50,
-                key51, key52, key53, key54, key55
+                key51, key52, key53, key54, key55, sideKeyReadAloud, keyKigou
             )
 
             val specialKeys = listOf(
-                keyKigou, keyPrevious, keySwitchKeyMode, keyLeftCursor,
+                keySwitchKeyMode, keyLeftCursor,
                 keyRightCursor, keyDelete, keySpace, keyEnter
             )
 
@@ -839,6 +1064,12 @@ class TabletKeyboardView @JvmOverloads constructor(
     }
 
     override fun onTouch(v: View?, event: MotionEvent?): Boolean {
+        if (isAyameMode) {
+            return false
+        }
+        if (accessibilityManager.isTouchExplorationEnabled && !isCalledFromHoverEvent) {
+            return true
+        }
         if (v != null && event != null) {
             if (this.visibility != View.VISIBLE) {
                 return false
@@ -1451,7 +1682,20 @@ class TabletKeyboardView @JvmOverloads constructor(
         return false
     }
 
+    override fun onInterceptHoverEvent(event: MotionEvent): Boolean {
+        if (isAyameMode) {
+            return false
+        }
+        if (accessibilityManager.isTouchExplorationEnabled) {
+            return true
+        }
+        return super.onInterceptHoverEvent(event)
+    }
+
     override fun onHoverEvent(event: MotionEvent): Boolean {
+        if (isAyameMode) {
+            return super.onHoverEvent(event)
+        }
         if (accessibilityManager.isTouchExplorationEnabled && event.pointerCount == 1) {
             val action = when (event.action) {
                 MotionEvent.ACTION_HOVER_ENTER -> MotionEvent.ACTION_DOWN
@@ -1837,9 +2081,9 @@ class TabletKeyboardView @JvmOverloads constructor(
                 binding.keyKigou.isPressed = true
             }
 
-            Key.SideKeyPreviousChar -> {
+            Key.SideKeyReadAloud -> {
                 resetAllKeys()
-                binding.keyPrevious.isPressed = true
+                binding.sideKeyReadAloud.isPressed = true
             }
 
             Key.SideKeyInputMode -> {
@@ -1962,7 +2206,7 @@ class TabletKeyboardView @JvmOverloads constructor(
 
         // Side-row keys
         binding.keyKigou.isPressed = false
-        binding.keyPrevious.isPressed = false
+        binding.sideKeyReadAloud.isPressed = false
         binding.keySwitchKeyMode.isPressed = false
         binding.keyLeftCursor.isPressed = false
         binding.keyRightCursor.isPressed = false
@@ -1982,11 +2226,11 @@ class TabletKeyboardView @JvmOverloads constructor(
             binding.keyKigou.layoutYPosition() + binding.keyKigou.height
         ),
         KeyRect(
-            Key.SideKeyPreviousChar,
-            binding.keyPrevious.layoutXPosition(),
-            binding.keyPrevious.layoutYPosition(),
-            binding.keyPrevious.layoutXPosition() + binding.keyPrevious.width,
-            binding.keyPrevious.layoutYPosition() + binding.keyPrevious.height
+            Key.SideKeyReadAloud,
+            binding.sideKeyReadAloud.layoutXPosition(),
+            binding.sideKeyReadAloud.layoutYPosition(),
+            binding.sideKeyReadAloud.layoutXPosition() + binding.sideKeyReadAloud.width,
+            binding.sideKeyReadAloud.layoutYPosition() + binding.sideKeyReadAloud.height
         ),
         KeyRect(
             Key.SideKeyInputMode,
@@ -2451,11 +2695,11 @@ class TabletKeyboardView @JvmOverloads constructor(
             binding.keyKigou.layoutYPosition() + binding.keyKigou.height
         ),
         KeyRect(
-            Key.SideKeyPreviousChar,
-            binding.keyPrevious.layoutXPosition(),
-            binding.keyPrevious.layoutYPosition(),
-            binding.keyPrevious.layoutXPosition() + binding.keyPrevious.width,
-            binding.keyPrevious.layoutYPosition() + binding.keyPrevious.height
+            Key.SideKeyReadAloud,
+            binding.sideKeyReadAloud.layoutXPosition(),
+            binding.sideKeyReadAloud.layoutYPosition(),
+            binding.sideKeyReadAloud.layoutXPosition() + binding.sideKeyReadAloud.width,
+            binding.sideKeyReadAloud.layoutYPosition() + binding.sideKeyReadAloud.height
         ),
         KeyRect(
             Key.SideKeyInputMode,
@@ -2920,11 +3164,11 @@ class TabletKeyboardView @JvmOverloads constructor(
             binding.keyKigou.layoutYPosition() + binding.keyKigou.height
         ),
         KeyRect(
-            Key.SideKeyPreviousChar,
-            binding.keyPrevious.layoutXPosition(),
-            binding.keyPrevious.layoutYPosition(),
-            binding.keyPrevious.layoutXPosition() + binding.keyPrevious.width,
-            binding.keyPrevious.layoutYPosition() + binding.keyPrevious.height
+            Key.SideKeyReadAloud,
+            binding.sideKeyReadAloud.layoutXPosition(),
+            binding.sideKeyReadAloud.layoutYPosition(),
+            binding.sideKeyReadAloud.layoutXPosition() + binding.sideKeyReadAloud.width,
+            binding.sideKeyReadAloud.layoutYPosition() + binding.sideKeyReadAloud.height
         ),
         KeyRect(
             Key.SideKeyInputMode,
@@ -3649,7 +3893,7 @@ class TabletKeyboardView @JvmOverloads constructor(
     }
 
     fun setSideKeyPreviousState(state: Boolean) {
-        binding.keyPrevious.isEnabled = state
+        binding.sideKeyReadAloud.isEnabled = state
     }
 
     fun setInputModeSwitchState() {

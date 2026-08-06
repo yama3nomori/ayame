@@ -377,7 +377,7 @@
     <string name="zenz_preference_category_title">Settings for zenz</string>
     <string name="category_common">Common</string>
     <string name="category_dictionary">Dictionary</string>
-    <string name="category_kana">Kana</string>
+    <string name="category_kana">Ten-key</string>
     <string name="tenkey_keymap_guide_title">Show key guides</string>
     <string name="tenkey_keymap_guide_summary">Displays guide characters on the keys to indicate how to input each character.</string>
     <string name="qwerty_margins_settings">QWERTY Margins Settings</string>
@@ -463,7 +463,7 @@
     <string name="setting_category_theme_summary">Keyboard theme, colors, and glass effects</string>
     <string name="setting_category_zenz_summary">Settings for the AI neural conversion engine zenz</string>
     <string name="setting_category_dictionary_summary">Dictionary, NG words, and Mozc UT settings</string>
-    <string name="setting_category_kana_summary">Kana input layout settings</string>
+    <string name="setting_category_kana_summary">Ten-key input layout settings</string>
     <string name="setting_category_qwerty_summary">QWERTY keyboard display and layout settings</string>
     <string name="setting_category_sumire_summary">Ayame keyboard input settings</string>
     <string name="setting_category_custom_summary">Custom keyboard behavior settings</string>

@@ -1,0 +1,211 @@
+body{
+background:black;
+margin: 20px 20px 20px 20px;
+padding: 20px 20px 20px 20px;
+line-height: 175%;
+font-size:27px;
+color:white;
+-webkit-text-size-adjust: 100%;
+}
+
+h1{
+background:#004F00;
+text-align:center;
+font-size:2em;
+color:#FFAA00;
+}
+
+h2{
+background:#004F00;
+text-align:center;
+font-size:1.88em;
+color:#FFAA00;
+}
+
+h3{
+background:#004F00;
+text-align:center;
+font-size:1.78em;
+color:#FFAA00;
+}
+
+strong{
+color:#FFBB44;
+}
+
+big{
+font-size:1.48em;
+}
+
+table{
+background:black;
+/* border-align:center; */
+color:white;
+}
+
+a{
+font-size:1.1em;
+color:#8CFF00;
+}
+
+a:hover {
+font-size:1.1em;
+color:#FFAA00;
+}
+
+a:visited {
+font-size:1.1em;
+color:#FEB9FB;
+}
+
+a.ad_item{
+background:#004F00;
+line-height: 175%;
+text-align:center;
+color:white;
+}
+
+a.ad_item_large{
+background:#004F00;
+line-height: 175%;
+text-align:center;
+color:white;
+font-size: 2em;
+}
+
+li {
+line-height:1.75;
+}
+
+dt {
+line-height:1.75;
+}
+
+dd {
+line-height:1.75;
+}
+
+.button{
+background:black;
+border: 4px white solid;
+width:330px;
+font-size:1.1em;
+color:#8CFF00;
+}
+
+.button1{
+background:black;
+border: 4px white solid;
+width:335px;
+font-size:1.1em;
+color:#8CFF00;
+}
+
+input.data {
+background: black;
+border: 1px white solid;
+width:660px;
+font-size:27px;
+color:white;
+}
+
+input.dd {
+position:static;
+background:black;
+border: 1px white solid;
+width:604;
+/* maxlength:100; */
+font-size:27px;
+color:white;
+}
+
+textarea.data {
+position:relative;
+top:0%; left:0%;
+background:black;
+border: 1px white solid;
+font-size:27px;
+color:white;
+}
+
+select {
+width:200;
+font-size:27px;
+}
+
+
+div.main{
+position:static;
+}
+
+div.header{
+position:fixed;
+top:27px;
+height:135px; width:100%;
+overflow: auto;
+}
+
+div.body{
+position:absolute;
+top:170px; left:7%;
+overflow: auto;
+}
+
+div.form {
+position:static;
+}
+
+div.form[name] {
+width: 455px;
+}
+
+div.ad_block {
+background:#004F00;
+width: 80%;
+line-height: 1.75em;
+vertical-align: middle;
+text-align: center;
+}
+
+div.quote {
+	background:#004F00;width: 80%;
+	line-height: 1.75em;
+	vertical-align: middle;
+	text-align: center;
+	}
+
+.form_label {
+display: inline-block;
+	width: 190px;
+height: 100px;
+overflow-wrap: break-word;
+}
+
+.form_text{
+display: inline-block;
+width: 660px;
+height: 100px;
+overflow-wrap: break-word;
+}
+
+.visually-hidden {
+	position: fixed !important;
+	/* keep it on viewport */
+	top: 0px !important;
+	left: 0px !important;
+	/* give it non-zero size, VoiceOver on Safari requires at least 2 pixels
+     before allowing buttons to be activated. */
+	width: 4px !important;
+	height: 4px !important;
+	/* visually hide it with overflow and opacity */
+	opacity: 0 !important;
+	overflow: hidden !important;
+	/* remove any margin or padding */
+	border: none !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	/* ensure no other style sets display to none */
+	display: block !important;
+	visibility: visible !important;
+}
+

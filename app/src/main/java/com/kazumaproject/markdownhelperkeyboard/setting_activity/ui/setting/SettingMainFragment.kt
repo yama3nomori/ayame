@@ -125,12 +125,6 @@ class SettingMainFragment : Fragment() {
                 actionId = R.id.action_navigation_setting_to_sumirePreferenceFragment,
             ),
             SettingCategory(
-                iconRes = com.kazumaproject.core.R.drawable.baseline_settings_24,
-                titleRes = R.string.tablet_preference_category_title,
-                summaryRes = R.string.setting_category_tablet_summary,
-                actionId = R.id.action_navigation_setting_to_tabletPreferenceFragment,
-            ),
-            SettingCategory(
                 iconRes = com.kazumaproject.core.R.drawable.question_mark_24dp,
                 titleRes = R.string.category_about_app_title,
                 summaryRes = R.string.category_about_app_title,

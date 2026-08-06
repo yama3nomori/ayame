@@ -404,3 +404,21 @@
   ```
 * **備考**:
   フリック時の速度判定を有効にするトグルスイッチ項目。設定項目は削除されましたが、コード上で常に `true` (判定を有効にする) として動作するように標準化（固定化）されました。
+
+---
+
+## 24. 設定カテゴリの「タブレット」
+
+* **削除日**: 2026-08-06
+* **削除対象ファイル**: [SettingMainFragment.kt](file:///c:/Users/nyama/OneDrive/APPS/JapaneseKeyboard/app/src/main/java/com/kazumaproject/markdownhelperkeyboard/setting_activity/ui/setting/SettingMainFragment.kt)
+* **削除された定義**:
+  ```kotlin
+  SettingCategory(
+      iconRes = com.kazumaproject.core.R.drawable.baseline_settings_24,
+      titleRes = R.string.tablet_preference_category_title,
+      summaryRes = R.string.setting_category_tablet_summary,
+      actionId = R.id.action_navigation_setting_to_tabletPreferenceFragment,
+  )
+  ```
+* **備考**:
+  タブレット向けの五十音かなレイアウト等に関する設定カテゴリ「タブレット」。設定メイン画面の一覧から非表示にされました。実際のタブレットデバイス判定などはシステム側の挙動が適用されます。

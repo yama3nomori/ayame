@@ -538,7 +538,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private var candidateTabVisibility: Boolean? = false
     private var symbolKeyboardFirstItem: SymbolMode? = SymbolMode.EMOJI
     private var userDictionaryPrefixMatchNumber: Int? = 2
-    private var isTablet: Boolean? = false
+    private var isTabletDevice: Boolean? = false
+    private var isTablet: Boolean?
+        get() = isTabletDevice == true || keyboardOrder.getOrNull(currentKeyboardOrder).let { it == KeyboardType.TABLET_KANA || it == KeyboardType.AYAME_TABLET_KANA }
+        set(value) {
+            isTabletDevice = value
+        }
     private var isNgWordEnable: Boolean? = false
     private var deleteKeyHighLight: Boolean? = true
     private var customKeyboardSuggestionPreference: Boolean? = true
@@ -2560,7 +2565,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     setShortCutAdapter(mainView)
                     setSymbolKeyboard(mainView)
                     setQWERTYKeyboard(mainView)
-                    if (isTablet == true) {
+                    if (isTablet == true || keyboardOrder.contains(KeyboardType.TABLET_KANA) || keyboardOrder.contains(KeyboardType.AYAME_TABLET_KANA)) {
                         setTabletKeyListeners(mainView)
                     }
                     setTenKeyListeners(mainView)
@@ -4801,7 +4806,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             val internalOrder = appPreference.keyboard_order
             val internalRows: List<RowItem.Internal> = internalOrder.map { type ->
                 val title = when (type) {
-                    KeyboardType.TENKEY -> "日本語 - かな"
+                    KeyboardType.TENKEY -> "テンキー"
                     KeyboardType.SUMIRE -> "スミレ入力"
                     KeyboardType.QWERTY -> "英語"
                     KeyboardType.ROMAJI -> "ローマ字入力"
@@ -4811,6 +4816,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     KeyboardType.AYAME_ROMAJI -> "アヤメローマ字入力"
                     KeyboardType.NUMERIC -> "数字専用キーボード"
                     KeyboardType.AYAME_NUMERIC -> "アヤメ数字専用キーボード"
+                    KeyboardType.TABLET_KANA -> "タブレット用かなレイアウト"
+                    KeyboardType.AYAME_TABLET_KANA -> "アヤメタブレット用かなレイアウト"
                 }
                 RowItem.Internal(type = type, title = title)
             }
@@ -4902,7 +4909,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                         val nextType = row.type
                         when (nextType) {
-                            KeyboardType.TENKEY, KeyboardType.AYAME_TENKEY -> {
+                            KeyboardType.TENKEY, KeyboardType.AYAME_TENKEY, KeyboardType.TABLET_KANA, KeyboardType.AYAME_TABLET_KANA -> {
                                 mainView.keyboardView.setCurrentMode(InputMode.ModeJapanese)
                             }
 
@@ -5370,18 +5377,28 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         hideAllKeyboards()
         Timber.d("showKeyboard called: $type")
         mainLayoutBinding?.apply {
-            val isAyame = type == KeyboardType.AYAME_TENKEY || type == KeyboardType.AYAME_QWERTY || type == KeyboardType.AYAME_ROMAJI || type == KeyboardType.AYAME_NUMERIC
+            val isAyame = type == KeyboardType.AYAME_TENKEY || type == KeyboardType.AYAME_QWERTY || type == KeyboardType.AYAME_ROMAJI || type == KeyboardType.AYAME_NUMERIC || type == KeyboardType.AYAME_TABLET_KANA
             Timber.d("showKeyboard: isAyame=$isAyame, type=$type")
             keyboardView.isAyameMode = type == KeyboardType.AYAME_TENKEY
             floatingKeyboardBinding?.keyboardViewFloating?.isAyameMode = type == KeyboardType.AYAME_TENKEY
             qwertyView.isAyameMode = type == KeyboardType.AYAME_QWERTY || type == KeyboardType.AYAME_ROMAJI
             customLayoutDefault.isAyameMode = type == KeyboardType.AYAME_NUMERIC
+            tabletView.isAyameMode = type == KeyboardType.AYAME_TABLET_KANA
             Timber.d("setting isAyameMode on suggestionAdapter: current=${suggestionAdapter?.isAyameMode}")
             suggestionAdapter?.isAyameMode = isAyame
             suggestionAdapterFull?.isAyameMode = isAyame
             shortcutAdapter?.isAyameMode = isAyame
 
             when (type) {
+                KeyboardType.TABLET_KANA, KeyboardType.AYAME_TABLET_KANA -> {
+                    tabletView.isVisible = true
+                    tabletView.resetLayout()
+                    keyboardView.isVisible = false
+                    qwertyView.isVisible = false
+                    customLayoutDefault.isVisible = false
+                    _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Default }
+                }
+
                 KeyboardType.TENKEY, KeyboardType.AYAME_TENKEY -> {
                     if (qwertyMode.value != TenKeyQWERTYMode.Number) {
                         if (isTablet == true && tabletGojuonLayoutPreference == true) {
@@ -5566,6 +5583,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 KeyboardType.AYAME_ROMAJI -> "アヤメローマ字入力"
                 KeyboardType.NUMERIC -> "数字専用キーボード"
                 KeyboardType.AYAME_NUMERIC -> "アヤメ数字専用キーボード"
+                KeyboardType.TABLET_KANA -> "タブレット用かなレイアウト"
+                KeyboardType.AYAME_TABLET_KANA -> "アヤメタブレット用かなレイアウト"
             }
             announceText(announcement, delayMs = 150)
         }
@@ -8086,6 +8105,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 mainView.keyboardView.isInputComposing = isComposing
                 mainView.qwertyView.isInputComposing = isComposing
                 mainView.customLayoutDefault.isInputComposing = isComposing
+                mainView.tabletView.isInputComposing = isComposing
                 floatingKeyboardBinding?.keyboardViewFloating?.isInputComposing = isComposing
                 processInputString(string, mainView)
             }
@@ -9412,6 +9432,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 KeyboardType.CUSTOM -> _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Custom }
                 KeyboardType.NUMERIC -> _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Number }
                 KeyboardType.AYAME_NUMERIC -> _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Number }
+                KeyboardType.TABLET_KANA -> _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Default }
+                KeyboardType.AYAME_TABLET_KANA -> _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Default }
             }
         }
     }
@@ -14040,7 +14062,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
 
         when (nextType) {
-            KeyboardType.TENKEY, KeyboardType.AYAME_TENKEY -> {
+            KeyboardType.TENKEY, KeyboardType.AYAME_TENKEY, KeyboardType.TABLET_KANA, KeyboardType.AYAME_TABLET_KANA -> {
                 mainLayoutBinding?.keyboardView?.setCurrentMode(InputMode.ModeJapanese)
             }
 
@@ -14083,6 +14105,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 KeyboardType.CUSTOM -> TenKeyQWERTYMode.Custom
                 KeyboardType.NUMERIC -> TenKeyQWERTYMode.Number
                 KeyboardType.AYAME_NUMERIC -> TenKeyQWERTYMode.Number
+                KeyboardType.TABLET_KANA -> TenKeyQWERTYMode.Default
+                KeyboardType.AYAME_TABLET_KANA -> TenKeyQWERTYMode.Default
             }
             _tenKeyQWERTYMode.update { type }
         }

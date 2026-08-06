@@ -375,7 +375,7 @@
     <string name="zenz_preference_category_title">zenz の設定</string>
     <string name="category_common">共通</string>
     <string name="category_dictionary">辞書</string>
-    <string name="category_kana">かな</string>
+    <string name="category_kana">テンキー</string>
     <string name="tenkey_keymap_guide_title">キーガイドの表示</string>
     <string name="tenkey_keymap_guide_summary">キーの上に入力の目安となるガイド文字を表示します</string>
     <string name="qwerty_margins_settings">QWERTYレイアウトの余白設定</string>
@@ -460,7 +460,7 @@
     <string name="setting_category_theme_summary">キーボードのテーマ・配色・ガラス効果の設定</string>
     <string name="setting_category_zenz_summary">AIニューラル変換エンジン zenz の設定</string>
     <string name="setting_category_dictionary_summary">辞書・NGワード・Mozc UTの設定</string>
-    <string name="setting_category_kana_summary">かな入力のレイアウト設定</string>
+    <string name="setting_category_kana_summary">テンキー入力のレイアウト設定</string>
     <string name="setting_category_qwerty_summary">QWERTYキーボードの表示・余白の設定</string>
     <string name="setting_category_sumire_summary">アヤメキーボード入力の設定</string>
     <string name="setting_category_custom_summary">カスタムキーボードの動作設定</string>

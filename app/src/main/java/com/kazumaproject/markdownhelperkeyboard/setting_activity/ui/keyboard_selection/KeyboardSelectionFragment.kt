@@ -316,7 +316,7 @@ class KeyboardSelectionFragment : Fragment() {
 
 fun getKeyboardDisplayName(keyboardType: KeyboardType): String {
     return when (keyboardType) {
-        KeyboardType.TENKEY -> "日本語 - かな"
+        KeyboardType.TENKEY -> "テンキー"
         KeyboardType.QWERTY -> "英語(QWERTY)"
         KeyboardType.ROMAJI -> "日本語 - ローマ字"
         KeyboardType.SUMIRE -> "日本語 - スミレ入力 β"
@@ -326,5 +326,7 @@ fun getKeyboardDisplayName(keyboardType: KeyboardType): String {
         KeyboardType.AYAME_ROMAJI -> "アヤメ日本語 - ローマ字"
         KeyboardType.NUMERIC -> "数字専用キーボード"
         KeyboardType.AYAME_NUMERIC -> "アヤメ数字専用キーボード"
+        KeyboardType.TABLET_KANA -> "タブレット用かなレイアウト"
+        KeyboardType.AYAME_TABLET_KANA -> "アヤメタブレット用かなレイアウト"
     }
 }
