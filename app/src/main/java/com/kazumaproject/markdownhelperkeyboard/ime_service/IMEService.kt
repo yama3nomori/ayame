@@ -333,7 +333,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     /**
      * クリップボードの内容が変更されたときに呼び出されるリスナー。
      */
-    private val clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
+    /**
+     * クリップボードの最新アイテムをチェックし、重複していなければ履歴に挿入する。
+     */
+    private fun checkAndInsertClipboardHistory() {
         ioScope.launch {
             // ▼▼▼ Mutexで処理ブロックをロックする ▼▼▼
             clipboardMutex.withLock {
@@ -370,6 +373,13 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 }
             }
         }
+    }
+
+    /**
+     * クリップボードの内容が変更されたときに呼び出されるリスナー。
+     */
+    private val clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
+        checkAndInsertClipboardHistory()
     }
 
     private var suggestionAdapter: SuggestionAdapter? = null
@@ -1301,6 +1311,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     )
                 }
             }
+            this@IMEService.isClipboardHistoryFeatureEnabled = clipboard_history_enable ?: false
         }
         suggestionAdapter?.updateCustomTabVisibility(customKeyboardSuggestionPreference ?: true)
     }
@@ -1308,6 +1319,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     override fun onStartInputView(editorInfo: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(editorInfo, restarting)
         Timber.d("onStartInputView")
+        checkAndInsertClipboardHistory()
         hijackWindowCallback()
         startSilentAudio()
         val isTalkBackEnabled = isTalkBackActive()
