@@ -289,6 +289,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
     private var zenzEngine: ZenzEngine? = null
 
+    private var announceRunnable: Runnable? = null
+
     private var shortcutAdapter: ShortcutAdapter? = null
 
     private var romajiConverter: RomajiKanaConverter? = null
@@ -2728,22 +2730,28 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     previousInputStringForAnnounce.isNotEmpty()
 
             android.util.Log.d("IMEServiceAccessibility", "announceChar: currentInput='$currentInput', prev='$previousInputStringForAnnounce', isReplacement=$isReplacement")
-
-            // TYPE_ANNOUNCEMENTを直接送信
-            val event = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT)
-            event.text.add(announcement)
-            event.packageName = packageName
-            event.className = javaClass.name
-            event.isEnabled = true
             
             val isSpecialChar = char == '#' || char == 'ー' || char == '\'' || char == '_' || char == ':' || char == '?' || char == '"' || char == '!' || char == '%' || char == '~' || char == '&' || char == '/' || char == '=' || char == '+' || char == '*' || char == '？' || char == '！' || char == '～' || char == '（' || char == '）' || char == '、' || char == '。'
             val delay = delayOverride ?: if (isReplacement || isSpecialChar) 150L else 10L
             val handler = targetView?.handler ?: android.os.Handler(android.os.Looper.getMainLooper())
             
-            handler.postDelayed({
+            // 以前にスケジュールされていた未実行の読み上げをキャンセル（デバウンス）
+            announceRunnable?.let {
+                handler.removeCallbacks(it)
+            }
+            
+            val runnable = Runnable {
                 try {
                     android.util.Log.d("IMEServiceAccessibility", "announceChar posting announcement: '$announcement' (delay=$delay)")
-                    am.interrupt() // ターゲットアプリ側の「〜に変更しました」などの読み上げを強制停止
+                    am.interrupt() // 前の発話を安全に中断
+                    
+                    // イベント送信の直前で安全に obtain する
+                    val event = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT)
+                    event.text.add(announcement)
+                    event.packageName = packageName
+                    event.className = javaClass.name
+                    event.isEnabled = true
+                    
                     if (targetView != null) {
                         targetView.sendAccessibilityEventUnchecked(event)
                     } else {
@@ -2752,7 +2760,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 } catch (e: Exception) {
                     android.util.Log.e("IMEServiceAccessibility", "Failed to send accessibility announcement", e)
                 }
-            }, delay)
+            }
+            
+            announceRunnable = runnable
+            handler.postDelayed(runnable, delay)
         }
     }
 
