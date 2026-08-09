@@ -370,6 +370,8 @@
     <string name="shortcutsettingfragment">ショートカットツールバー</string>
     <string name="shortcut_toolbar_preference_title">ショートカットツールバーのカスタマイズ</string>
     <string name="shortcut_toolbar_preference_summary">ツールバーに表示するアイコンを編集する画面を開きます</string>
+    <string name="pref_clipboard_history_enable_title">クリップボード履歴を有効にする</string>
+    <string name="pref_clipboard_history_enable_summary">コピーしたテキストや画像の履歴を自動で保存します</string>
     <string name="qwerty_romaji_zenkaku_space_preference_title">ローマ字キーボードの全角スペース</string>
     <string name="qwerty_romaji_zenkaku_space_preference_summary">オンにすると、ローマ字キーボードの空白キーで全角スペースを入力します。</string>
     <string name="zenz_preference_category_title">zenz の設定</string>
@@ -465,6 +467,7 @@
     <string name="setting_category_sumire_summary">アヤメキーボード入力の設定</string>
     <string name="setting_category_custom_summary">カスタムキーボードの動作設定</string>
     <string name="setting_category_tablet_summary">タブレット向けのレイアウト設定</string>
+    <string name="setting_category_about_app_summary">マニュアル・問い合わせ先・バージョン情報など</string>
 
     <string name="tamachi_reading_title">田町読みについて</string>
     <string name="tamachi_reading_summary">新潟大学の「視覚障害者と漢字のページ」の研究成果に基づく田町読みについて</string>

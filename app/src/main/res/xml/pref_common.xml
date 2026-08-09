@@ -230,7 +230,13 @@
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/clipboard_history_title">
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            android:key="clipboard_history_preference"
+            android:title="@string/pref_clipboard_history_enable_title"
+            android:summary="@string/pref_clipboard_history_enable_summary" />
         <Preference
+            android:dependency="clipboard_history_preference"
             android:icon="@drawable/outline_border_color_24"
             android:key="clipboard_history_preference_fragment"
             android:title="@string/clipboard_history_fragment_title"

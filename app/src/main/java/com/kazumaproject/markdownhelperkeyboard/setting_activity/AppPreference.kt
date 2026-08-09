@@ -17,7 +17,7 @@ object AppPreference {
     private lateinit var preferences: SharedPreferences
     private val gson = Gson()
 
-    private val CLIPBOARD_HISTORY_ENABLE = Pair("clipboard_history_preference", false)
+    private val CLIPBOARD_HISTORY_ENABLE = Pair("clipboard_history_preference", true)
     private val TIME_SAME_PRONOUNCE_TYPING = Pair("time_same_pronounce_typing_preference", 1000)
     private val FLICK_SENSITIVITY = Pair("flick_sensitivity_preference", 100)
     private val FLICK_VELOCITY_FILTER = Pair("flick_velocity_filter_preference", true)

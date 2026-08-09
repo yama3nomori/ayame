@@ -337,6 +337,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
      * クリップボードの最新アイテムをチェックし、重複していなければ履歴に挿入する。
      */
     private fun checkAndInsertClipboardHistory() {
+        if (appPreference.clipboard_history_enable != true) return
         ioScope.launch {
             // ▼▼▼ Mutexで処理ブロックをロックする ▼▼▼
             clipboardMutex.withLock {

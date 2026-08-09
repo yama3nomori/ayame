@@ -372,6 +372,8 @@
     <string name="shortcutsettingfragment">Toolbar Setting</string>
     <string name="shortcut_toolbar_preference_title">Customize shortcut toolbar</string>
     <string name="shortcut_toolbar_preference_summary">Open the screen to edit the icons shown on the toolbar.</string>
+    <string name="pref_clipboard_history_enable_title">Enable Clipboard History</string>
+    <string name="pref_clipboard_history_enable_summary">Automatically saves history of copied text and images</string>
     <string name="qwerty_romaji_zenkaku_space_preference_title">Full-width space on QWERTY keyboard</string>
     <string name="qwerty_romaji_zenkaku_space_preference_summary">When enabled, the space key on the romaji (QWERTY) keyboard inserts a full-width space.</string>
     <string name="zenz_preference_category_title">Settings for zenz</string>
@@ -468,6 +470,7 @@
     <string name="setting_category_sumire_summary">Ayame keyboard input settings</string>
     <string name="setting_category_custom_summary">Custom keyboard behavior settings</string>
     <string name="setting_category_tablet_summary">Tablet layout settings</string>
+    <string name="setting_category_about_app_summary">Manual, contact info, version info, etc.</string>
 
     <string name="tamachi_reading_title">About Tamachi Reading</string>
     <string name="tamachi_reading_summary">About Tamachi reading based on the research results from Niigata University\'s \"Kanji and Visually Impaired\" page.</string>

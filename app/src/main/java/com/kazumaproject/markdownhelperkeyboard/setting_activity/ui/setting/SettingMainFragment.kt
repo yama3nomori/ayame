@@ -127,7 +127,7 @@ class SettingMainFragment : Fragment() {
             SettingCategory(
                 iconRes = com.kazumaproject.core.R.drawable.question_mark_24dp,
                 titleRes = R.string.category_about_app_title,
-                summaryRes = R.string.category_about_app_title,
+                summaryRes = R.string.setting_category_about_app_summary,
                 actionId = R.id.action_navigation_setting_to_aboutPreferenceFragment,
             ),
         )
