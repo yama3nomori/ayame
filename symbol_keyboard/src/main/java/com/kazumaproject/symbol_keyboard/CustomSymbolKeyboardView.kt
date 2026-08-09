@@ -605,13 +605,15 @@ class CustomSymbolKeyboardView @JvmOverloads constructor(
     private fun buildModeTabs() {
         modeTab.removeAllTabs()
         val tabData = listOf(
-            com.kazumaproject.core.R.drawable.mood_24px to "絵文字",
-            com.kazumaproject.core.R.drawable.emoticon_24px to "顔文字",
-            com.kazumaproject.core.R.drawable.star_24px to "記号",
-            com.kazumaproject.core.R.drawable.clip_board to "履歴",
+            Triple(com.kazumaproject.core.R.drawable.mood_24px, "絵文字", "絵文字"),
+            Triple(com.kazumaproject.core.R.drawable.emoticon_24px, "顔文字", "顔文字"),
+            Triple(com.kazumaproject.core.R.drawable.star_24px, "記号", "記号"),
+            Triple(com.kazumaproject.core.R.drawable.clip_board, "履歴", "クリップボード履歴"),
         )
-        tabData.forEach { (iconRes, text) ->
-            modeTab.addTab(modeTab.newTab().setIcon(iconRes).setText(text))
+        tabData.forEach { (iconRes, text, contentDesc) ->
+            val tab = modeTab.newTab().setIcon(iconRes).setText(text)
+            tab.contentDescription = contentDesc
+            modeTab.addTab(tab)
         }
 
         // ★ テーマ適用フラグが立っている場合、タブ再構築後にテーマを適用
