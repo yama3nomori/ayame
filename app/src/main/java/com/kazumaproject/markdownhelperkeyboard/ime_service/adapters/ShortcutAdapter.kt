@@ -32,6 +32,11 @@ class ShortcutAdapter : ListAdapter<ShortcutType, ShortcutAdapter.ViewHolder>(Di
      */
     var onItemClicked: ((ShortcutType) -> Unit)? = null
 
+    /**
+     * A listener that gets called when an item is long-clicked.
+     */
+    var onItemLongClicked: ((ShortcutType) -> Unit)? = null
+
     // ★追加: アイコンの色を保持する変数 (nullの場合はデフォルトの色)
     private var iconColor: Int? = null
 
@@ -71,6 +76,16 @@ class ShortcutAdapter : ListAdapter<ShortcutType, ShortcutAdapter.ViewHolder>(Di
                     }
                 }
             }
+
+            itemView.setOnLongClickListener {
+                val position = bindingAdapterPosition
+                if (position != RecyclerView.NO_POSITION) {
+                    onItemLongClicked?.invoke(getItem(position))
+                    true
+                } else {
+                    false
+                }
+            }
         }
     }
 
@@ -86,6 +101,16 @@ class ShortcutAdapter : ListAdapter<ShortcutType, ShortcutAdapter.ViewHolder>(Di
         holder.imageView.contentDescription = item.description
         holder.imageView.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
         Timber.d("ShortcutAdapter: Binding item ${item.name}, description: ${item.description}, contentDescription set to: ${holder.imageView.contentDescription}")
+
+        // 以前のアクセシビリティアクションをクリアして、リサイクル時の影響を防ぐ
+        androidx.core.view.ViewCompat.setAccessibilityDelegate(holder.itemView, null)
+
+        if (item == ShortcutType.PASTE) {
+            androidx.core.view.ViewCompat.addAccessibilityAction(holder.itemView, "クリップボード履歴") { _, _ ->
+                onItemLongClicked?.invoke(item)
+                true
+            }
+        }
 
         // ★追加: 色が設定されていれば適用し、なければ解除する
         iconColor?.let { color ->

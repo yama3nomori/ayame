@@ -302,6 +302,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
     private var isClipboardHistoryFeatureEnabled: Boolean = false
     private val clipboardMutex = Mutex()
+    private var symbolKeyboardInitialMode: SymbolMode? = null
     private var isCustomKeyboardTwoWordsOutputEnable: Boolean? = false
     private var tenkeyQWERTYSwitchNumber: Boolean? = false
     private var tenkeyQKeymapGuide: Boolean? = false
@@ -7741,7 +7742,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 setKeyboardSizeSwitchKeyboard(mainView)
                 if (isKeyboardFloatingMode == true) {
                     floatingKeyboardBinding?.let { floatingKeyboardLayoutBinding ->
-                        setSymbolsFloating(floatingKeyboardLayoutBinding)
+                        setSymbolsFloating(floatingKeyboardLayoutBinding, symbolKeyboardInitialMode)
+                        symbolKeyboardInitialMode = null
                         if (isSymbolKeyboardShow) {
                             floatingKeyboardLayoutBinding.keyboardViewFloating.isVisible = false
                             floatingKeyboardLayoutBinding.floatingSymbolKeyboard.isVisible = true
@@ -7781,7 +7783,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                         }
                         animateViewVisibility(keyboardSymbolView, true)
                         suggestionRecyclerView.isVisible = false
-                        setSymbols(mainView)
+                        setSymbols(mainView, symbolKeyboardInitialMode)
+                        symbolKeyboardInitialMode = null
                     } else {
                         if (isTablet == true) {
                             when {
@@ -9808,6 +9811,13 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             else -> {
             }
         }
+        shortcutAdapter?.onItemLongClicked = { type ->
+            if (type == ShortcutType.PASTE) {
+                vibrate()
+                symbolKeyboardInitialMode = SymbolMode.CLIPBOARD
+                _keyboardSymbolViewState.value = true
+            }
+        }
         shortcutAdapter?.onItemClicked = { type ->
             when (type) {
                 ShortcutType.SETTINGS -> {
@@ -10702,7 +10712,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
     }
 
-    private suspend fun setSymbols(mainView: MainLayoutBinding) {
+    private suspend fun setSymbols(mainView: MainLayoutBinding, initialMode: SymbolMode? = null) {
         coroutineScope {
             if (cachedEmoji == null || cachedEmoticons == null || cachedSymbols == null) {
                 val emojiDeferred =
@@ -10726,12 +10736,15 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             symbols = cachedSymbols ?: emptyList(),
             clipBoardItems = currentClipboardItems,
             symbolsHistory = cachedClickedSymbolHistory ?: emptyList(),
-            symbolMode = symbolKeyboardFirstItem ?: SymbolMode.EMOJI
+            symbolMode = initialMode ?: symbolKeyboardFirstItem ?: SymbolMode.EMOJI
 
         )
     }
 
-    private suspend fun setSymbolsFloating(floatingKeyboardLayoutBinding: FloatingKeyboardLayoutBinding) {
+    private suspend fun setSymbolsFloating(
+        floatingKeyboardLayoutBinding: FloatingKeyboardLayoutBinding,
+        initialMode: SymbolMode? = null
+    ) {
         coroutineScope {
             if (cachedEmoji == null || cachedEmoticons == null || cachedSymbols == null) {
                 val emojiDeferred =
@@ -10754,7 +10767,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             symbols = cachedSymbols ?: emptyList(),
             clipBoardItems = currentClipboardItems,
             symbolsHistory = cachedClickedSymbolHistory ?: emptyList(),
-            symbolMode = symbolKeyboardFirstItem ?: SymbolMode.EMOJI
+            symbolMode = initialMode ?: symbolKeyboardFirstItem ?: SymbolMode.EMOJI
 
         )
     }
