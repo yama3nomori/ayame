@@ -1345,6 +1345,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
         longPressJob?.cancel()
         longPressJob = null
         isCursorMode = false
+        announceTextRunnable?.let { removeCallbacks(it) }
         // ← CANCEL the observing coroutine when the view is detached
         //scope.coroutineContext.cancelChildren()
     }
@@ -5704,26 +5705,32 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
         }
     }
 
+    private var announceTextRunnable: Runnable? = null
+
     override fun announceForAccessibility(text: CharSequence?) {
         if (text == null) return
         if (accessibilityManager.isEnabled) {
-            try {
-                accessibilityManager.interrupt()
-            } catch (e: Exception) {
-                Log.e("TenKey", "Failed to interrupt TalkBack", e)
-            }
-            val event = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT)
-            event.text.add(text)
-            event.packageName = context.packageName
-            event.className = javaClass.name
-            event.isEnabled = true
-            postDelayed({
+            announceTextRunnable?.let { removeCallbacks(it) }
+            val runnable = Runnable {
                 try {
+                    if (!isAttachedToWindow) return@Runnable
+                    try {
+                        accessibilityManager.interrupt()
+                    } catch (e: Exception) {
+                        Log.e("TenKey", "Failed to interrupt TalkBack", e)
+                    }
+                    val event = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT)
+                    event.text.add(text)
+                    event.packageName = context.packageName
+                    event.className = javaClass.name
+                    event.isEnabled = true
                     sendAccessibilityEventUnchecked(event)
                 } catch (e: Exception) {
                     Log.e("TenKey", "Failed to send accessibility announcement", e)
                 }
-            }, 10)
+            }
+            announceTextRunnable = runnable
+            postDelayed(runnable, 10)
         }
     }
 

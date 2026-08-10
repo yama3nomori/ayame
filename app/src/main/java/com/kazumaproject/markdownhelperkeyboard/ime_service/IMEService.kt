@@ -815,30 +815,42 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         val qwertyMarginEnd: Int,
     )
 
+    private var candidateHighlightRunnable: Runnable? = null
+
     private fun announceCandidateHighlight(text: String, index: Int, total: Int) {
         val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager ?: return
         if (am.isEnabled) {
             val recyclerView = if (isKeyboardFloatingMode == true) floatingKeyboardBinding?.suggestionRecyclerView else mainLayoutBinding?.suggestionRecyclerView
-            recyclerView?.postDelayed(object : Runnable {
-                var retryCount = 0
-                override fun run() {
-                    am.interrupt()
-                    val viewHolder = recyclerView?.findViewHolderForAdapterPosition(index)
-                    Timber.d("announceCandidateHighlight: index=$index, total=$total, viewHolder=$viewHolder, retryCount=$retryCount")
-                    if (viewHolder != null) {
-                        val success = viewHolder.itemView.performAccessibilityAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
-                        val successEvent = viewHolder.itemView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED)
-                        Timber.d("announceCandidateHighlight: performAccessibilityAction success=$success, sendAccessibilityEvent=$successEvent")
-                    } else if (retryCount < 5) {
-                        retryCount++
-                        recyclerView?.postDelayed(this, 100)
-                    } else {
-                        val announcementText = "$text、${index + 1}番目の候補、全${total}個"
-                        recyclerView?.announceForAccessibility(announcementText)
-                        Timber.d("announceCandidateHighlight: fallback announce=$announcementText")
+            recyclerView?.let { rv ->
+                candidateHighlightRunnable?.let { rv.removeCallbacks(it) }
+                val runnable = object : Runnable {
+                    var retryCount = 0
+                    override fun run() {
+                        try {
+                            if (!rv.isAttachedToWindow) return
+                            am.interrupt()
+                            val viewHolder = rv.findViewHolderForAdapterPosition(index)
+                            Timber.d("announceCandidateHighlight: index=$index, total=$total, viewHolder=$viewHolder, retryCount=$retryCount")
+                            if (viewHolder != null) {
+                                val success = viewHolder.itemView.performAccessibilityAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
+                                val successEvent = viewHolder.itemView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED)
+                                Timber.d("announceCandidateHighlight: performAccessibilityAction success=$success, sendAccessibilityEvent=$successEvent")
+                            } else if (retryCount < 5) {
+                                retryCount++
+                                rv.postDelayed(this, 100)
+                            } else {
+                                val announcementText = "$text、${index + 1}番目の候補、全${total}個"
+                                rv.announceForAccessibility(announcementText)
+                                Timber.d("announceCandidateHighlight: fallback announce=$announcementText")
+                            }
+                        } catch (e: Exception) {
+                            Timber.e(e, "Error in announceCandidateHighlight runnable")
+                        }
                     }
                 }
-            }, 300)
+                candidateHighlightRunnable = runnable
+                rv.postDelayed(runnable, 300)
+            }
         }
     }
 
@@ -917,30 +929,42 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
     }
 
+    private var candidateItemHighlightRunnable: Runnable? = null
+
     private fun announceCandidateItemHighlight(item: CandidateItem, index: Int, total: Int) {
         val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager ?: return
         if (am.isEnabled) {
             val recyclerView = if (isKeyboardFloatingMode == true) floatingKeyboardBinding?.suggestionRecyclerView else mainLayoutBinding?.suggestionRecyclerView
-            recyclerView?.postDelayed(object : Runnable {
-                var retryCount = 0
-                override fun run() {
-                    am.interrupt()
-                    val viewHolder = recyclerView?.findViewHolderForAdapterPosition(index)
-                    Timber.d("announceCandidateItemHighlight: index=$index, total=$total, viewHolder=$viewHolder, retryCount=$retryCount")
-                    if (viewHolder != null) {
-                        val success = viewHolder.itemView.performAccessibilityAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
-                        val successEvent = viewHolder.itemView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED)
-                        Timber.d("announceCandidateItemHighlight: performAccessibilityAction success=$success, sendAccessibilityEvent=$successEvent")
-                    } else if (retryCount < 5) {
-                        retryCount++
-                        recyclerView?.postDelayed(this, 100)
-                    } else {
-                        val announcementText = "${item.word}、${index + 1}番目の候補、全${total}個"
-                        recyclerView?.announceForAccessibility(announcementText)
-                        Timber.d("announceCandidateItemHighlight: fallback announce=$announcementText")
+            recyclerView?.let { rv ->
+                candidateItemHighlightRunnable?.let { rv.removeCallbacks(it) }
+                val runnable = object : Runnable {
+                    var retryCount = 0
+                    override fun run() {
+                        try {
+                            if (!rv.isAttachedToWindow) return
+                            am.interrupt()
+                            val viewHolder = rv.findViewHolderForAdapterPosition(index)
+                            Timber.d("announceCandidateItemHighlight: index=$index, total=$total, viewHolder=$viewHolder, retryCount=$retryCount")
+                            if (viewHolder != null) {
+                                val success = viewHolder.itemView.performAccessibilityAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
+                                val successEvent = viewHolder.itemView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED)
+                                Timber.d("announceCandidateItemHighlight: performAccessibilityAction success=$success, sendAccessibilityEvent=$successEvent")
+                            } else if (retryCount < 5) {
+                                retryCount++
+                                rv.postDelayed(this, 100)
+                            } else {
+                                val announcementText = "${item.word}、${index + 1}番目の候補、全${total}個"
+                                rv.announceForAccessibility(announcementText)
+                                Timber.d("announceCandidateItemHighlight: fallback announce=$announcementText")
+                            }
+                        } catch (e: Exception) {
+                            Timber.e(e, "Error in announceCandidateItemHighlight runnable")
+                        }
                     }
                 }
-            }, 300)
+                candidateItemHighlightRunnable = runnable
+                rv.postDelayed(runnable, 300)
+            }
         }
     }
 
@@ -1852,6 +1876,18 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         super.onFinishInputView(finishingInput)
         Timber.d("onFinishInputView: finishingInput=$finishingInput")
         mediaSession?.isActive = false
+
+        val targetView = if (isKeyboardFloatingMode == true) floatingKeyboardBinding?.root else mainLayoutBinding?.root
+        targetView?.let { view ->
+            announceTextRunnable?.let { view.removeCallbacks(it) }
+            announceRunnable?.let { view.removeCallbacks(it) }
+        }
+
+        val recyclerView = if (isKeyboardFloatingMode == true) floatingKeyboardBinding?.suggestionRecyclerView else mainLayoutBinding?.suggestionRecyclerView
+        recyclerView?.let { rv ->
+            candidateHighlightRunnable?.let { rv.removeCallbacks(it) }
+            candidateItemHighlightRunnable?.let { rv.removeCallbacks(it) }
+        }
     }
 
     override fun onFinishInput() {
@@ -1882,6 +1918,19 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         accessibilityScope.cancel()
         isIMEWindowShown = false
         Timber.d("onUpdate onDestroy")
+
+        val targetView = if (isKeyboardFloatingMode == true) floatingKeyboardBinding?.root else mainLayoutBinding?.root
+        targetView?.let { view ->
+            announceTextRunnable?.let { view.removeCallbacks(it) }
+            announceRunnable?.let { view.removeCallbacks(it) }
+        }
+
+        val recyclerView = if (isKeyboardFloatingMode == true) floatingKeyboardBinding?.suggestionRecyclerView else mainLayoutBinding?.suggestionRecyclerView
+        recyclerView?.let { rv ->
+            candidateHighlightRunnable?.let { rv.removeCallbacks(it) }
+            candidateItemHighlightRunnable?.let { rv.removeCallbacks(it) }
+        }
+
         releaseMediaSession()
         mainLayoutBinding?.apply {
             keyboardView.cancelTenKeyScope()
@@ -14728,6 +14777,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         vibrate()
     }
 
+    private var announceTextRunnable: Runnable? = null
+
     private fun announceText(text: String, delayMs: Long = 10) {
         if (text.isEmpty()) return
         val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager ?: return
@@ -14738,23 +14789,27 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 mainLayoutBinding?.root
             }
             targetView?.let { view ->
-                try {
-                    am.interrupt()
-                } catch (e: Exception) {
-                    Timber.e(e, "Failed to interrupt TalkBack")
-                }
-                val event = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT)
-                event.text.add(text)
-                event.packageName = packageName
-                event.className = javaClass.name
-                event.isEnabled = true
-                view.postDelayed({
+                announceTextRunnable?.let { view.removeCallbacks(it) }
+                val runnable = Runnable {
                     try {
+                        if (!view.isAttachedToWindow) return@Runnable
+                        try {
+                            am.interrupt()
+                        } catch (e: Exception) {
+                            Timber.e(e, "Failed to interrupt TalkBack")
+                        }
+                        val event = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT)
+                        event.text.add(text)
+                        event.packageName = packageName
+                        event.className = javaClass.name
+                        event.isEnabled = true
                         view.sendAccessibilityEventUnchecked(event)
                     } catch (e: Exception) {
                         Timber.e(e, "Failed to send accessibility announcement")
                     }
-                }, delayMs)
+                }
+                announceTextRunnable = runnable
+                view.postDelayed(runnable, delayMs)
             }
         }
     }
