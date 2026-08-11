@@ -837,23 +837,47 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             val recyclerView = if (isKeyboardFloatingMode == true) floatingKeyboardBinding?.suggestionRecyclerView else mainLayoutBinding?.suggestionRecyclerView
             recyclerView?.let { rv ->
                 candidateHighlightRunnable?.let { rv.removeCallbacks(it) }
+                rv.scrollToPosition(index)
+                
+                val baseReading = if (::tamachiRepository.isInitialized) {
+                    tamachiRepository.getDetailedReading(text) ?: text
+                } else {
+                    text
+                }
+                val positionText = " ${index + 1}の$total"
+                var announcementText = "$baseReading$positionText"
+
                 val runnable = object : Runnable {
                     var retryCount = 0
                     override fun run() {
                         try {
                             if (!rv.isAttachedToWindow) return
-                            am.interrupt()
+                            try {
+                                am.interrupt()
+                            } catch (e: Exception) {
+                                Timber.e(e, "Failed to interrupt TalkBack")
+                            }
+                            
                             val viewHolder = rv.findViewHolderForAdapterPosition(index)
                             Timber.d("announceCandidateHighlight: index=$index, total=$total, viewHolder=$viewHolder, retryCount=$retryCount")
+                            
+                            viewHolder?.itemView?.contentDescription?.toString()?.let { desc ->
+                                announcementText = desc
+                            }
+                            
+                            var success = false
                             if (viewHolder != null) {
-                                val success = viewHolder.itemView.performAccessibilityAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
-                                val successEvent = viewHolder.itemView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED)
-                                Timber.d("announceCandidateHighlight: performAccessibilityAction success=$success, sendAccessibilityEvent=$successEvent")
-                            } else if (retryCount < 5) {
+                                success = viewHolder.itemView.performAccessibilityAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
+                                if (success) {
+                                    viewHolder.itemView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED)
+                                }
+                                Timber.d("announceCandidateHighlight: performAccessibilityAction success=$success")
+                            }
+                            
+                            if (!success && retryCount < 5) {
                                 retryCount++
                                 rv.postDelayed(this, 100)
-                            } else {
-                                val announcementText = "$text、${index + 1}番目の候補、全${total}個"
+                            } else if (!success) {
                                 rv.announceForAccessibility(announcementText)
                                 Timber.d("announceCandidateHighlight: fallback announce=$announcementText")
                             }
@@ -863,7 +887,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     }
                 }
                 candidateHighlightRunnable = runnable
-                rv.postDelayed(runnable, 300)
+                rv.postDelayed(runnable, 100)
             }
         }
     }
@@ -951,23 +975,47 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             val recyclerView = if (isKeyboardFloatingMode == true) floatingKeyboardBinding?.suggestionRecyclerView else mainLayoutBinding?.suggestionRecyclerView
             recyclerView?.let { rv ->
                 candidateItemHighlightRunnable?.let { rv.removeCallbacks(it) }
+                rv.scrollToPosition(index)
+                
+                val baseReading = if (::tamachiRepository.isInitialized) {
+                    tamachiRepository.getDetailedReading(item.word) ?: item.word
+                } else {
+                    item.word
+                }
+                val positionText = " ${index + 1}の$total"
+                var announcementText = "$baseReading$positionText"
+
                 val runnable = object : Runnable {
                     var retryCount = 0
                     override fun run() {
                         try {
                             if (!rv.isAttachedToWindow) return
-                            am.interrupt()
+                            try {
+                                am.interrupt()
+                            } catch (e: Exception) {
+                                Timber.e(e, "Failed to interrupt TalkBack")
+                            }
+                            
                             val viewHolder = rv.findViewHolderForAdapterPosition(index)
                             Timber.d("announceCandidateItemHighlight: index=$index, total=$total, viewHolder=$viewHolder, retryCount=$retryCount")
+                            
+                            viewHolder?.itemView?.contentDescription?.toString()?.let { desc ->
+                                announcementText = desc
+                            }
+                            
+                            var success = false
                             if (viewHolder != null) {
-                                val success = viewHolder.itemView.performAccessibilityAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
-                                val successEvent = viewHolder.itemView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED)
-                                Timber.d("announceCandidateItemHighlight: performAccessibilityAction success=$success, sendAccessibilityEvent=$successEvent")
-                            } else if (retryCount < 5) {
+                                success = viewHolder.itemView.performAccessibilityAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
+                                if (success) {
+                                    viewHolder.itemView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED)
+                                }
+                                Timber.d("announceCandidateItemHighlight: performAccessibilityAction success=$success")
+                            }
+                            
+                            if (!success && retryCount < 5) {
                                 retryCount++
                                 rv.postDelayed(this, 100)
-                            } else {
-                                val announcementText = "${item.word}、${index + 1}番目の候補、全${total}個"
+                            } else if (!success) {
                                 rv.announceForAccessibility(announcementText)
                                 Timber.d("announceCandidateItemHighlight: fallback announce=$announcementText")
                             }
@@ -977,7 +1025,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     }
                 }
                 candidateItemHighlightRunnable = runnable
-                rv.postDelayed(runnable, 300)
+                rv.postDelayed(runnable, 100)
             }
         }
     }
@@ -2787,14 +2835,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     }
 
     private fun interruptTalkBack() {
-        try {
-            val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager
-            if (am != null && am.isEnabled) {
-                am.interrupt()
-            }
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to interrupt TalkBack")
-        }
+        // Obsolete: 明示的な割り込みはTalkBackの音切れやハングアップをフリーズを避けるため廃止
     }
 
     private fun announceChar(char: Char?, delayOverride: Long? = null) {
@@ -2829,7 +2870,6 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             val runnable = Runnable {
                 try {
                     android.util.Log.d("IMEServiceAccessibility", "announceChar posting announcement: '$announcement' (delay=$delay)")
-                    am.interrupt() // 前の発話を安全に中断
                     
                     // イベント送信の直前で安全に obtain する
                     val event = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT)
@@ -14815,11 +14855,6 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 val runnable = Runnable {
                     try {
                         if (!view.isAttachedToWindow) return@Runnable
-                        try {
-                            am.interrupt()
-                        } catch (e: Exception) {
-                            Timber.e(e, "Failed to interrupt TalkBack")
-                        }
                         val event = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT)
                         event.text.add(text)
                         event.packageName = packageName

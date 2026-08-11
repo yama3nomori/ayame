@@ -28,6 +28,7 @@ import androidx.core.graphics.ColorUtils
 import androidx.core.view.AccessibilityDelegateCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
+import com.kazumaproject.core.SafeAccessibilityManager
 import com.google.android.material.R
 import com.kazumaproject.core.domain.extensions.isDarkThemeOn
 import com.kazumaproject.core.domain.extensions.setBorder
@@ -124,8 +125,9 @@ class FlickKeyboardView @JvmOverloads constructor(
     private var circularViewScale: Float = 1.0f
     private var borderWidth: Int = 1
 
-    private val accessibilityManager: AccessibilityManager =
+    private val accessibilityManager = SafeAccessibilityManager(
         context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+    )
     
     // TalkBack対応: onHoverEventから呼ばれたかどうかを示すフラグ
     private var isCalledFromHoverEvent = false

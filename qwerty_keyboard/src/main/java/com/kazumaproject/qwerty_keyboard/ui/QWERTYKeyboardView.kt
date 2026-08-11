@@ -28,6 +28,7 @@ import android.view.ViewGroup
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityManager
 import android.view.accessibility.AccessibilityNodeInfo
+import com.kazumaproject.core.SafeAccessibilityManager
 import android.widget.ImageView
 import android.widget.PopupWindow
 import android.widget.TextView
@@ -225,8 +226,9 @@ class QWERTYKeyboardView @JvmOverloads constructor(
             }
         }
 
-    private val accessibilityManager: AccessibilityManager =
+    private val accessibilityManager = SafeAccessibilityManager(
         context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+    )
 
     private var isCalledFromHoverEvent = false
     private var currentTargetView: View? = null

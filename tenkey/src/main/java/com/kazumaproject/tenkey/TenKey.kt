@@ -28,6 +28,7 @@ import android.widget.TextView
 import androidx.core.widget.ImageViewCompat
 import androidx.core.widget.TextViewCompat
 import com.google.android.material.textview.MaterialTextView
+import com.kazumaproject.core.SafeAccessibilityManager
 import com.kazumaproject.core.domain.extensions.hide
 import com.kazumaproject.core.domain.extensions.toAccessibilityName
 import com.kazumaproject.core.domain.extensions.layoutXPosition
@@ -164,8 +165,9 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
     private var isFlickGuideEnabled: Boolean = false
 
-    private val accessibilityManager: AccessibilityManager =
+    private val accessibilityManager = SafeAccessibilityManager(
         context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+    )
 
     private var isCalledFromHoverEvent = false
     // TalkBack hover tracking: which Key is currently under the user's finger

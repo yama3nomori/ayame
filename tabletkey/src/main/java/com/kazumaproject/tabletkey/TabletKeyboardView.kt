@@ -28,6 +28,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.AccessibilityDelegateCompat
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import androidx.core.content.ContextCompat
+import com.kazumaproject.core.SafeAccessibilityManager
 import androidx.core.view.isVisible
 import androidx.core.view.isInvisible
 import com.google.android.material.color.DynamicColors
@@ -111,8 +112,9 @@ class TabletKeyboardView @JvmOverloads constructor(
     val currentInputMode = AtomicReference<InputMode>(InputMode.ModeJapanese)
     private lateinit var pressedKey: PressedKey
 
-    private val accessibilityManager: AccessibilityManager =
+    private val accessibilityManager = SafeAccessibilityManager(
         context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+    )
     private var currentHoverKey: Key = Key.NotSelected
     private var isCalledFromHoverEvent = false
     
