@@ -479,6 +479,20 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private var qwertyPositionPreferenceValue: Boolean? = true
     private var qwertyBottomMarginPreferenceValue: Int? = 0
 
+    private data class KeyboardRenderConfig(
+        val isTablet: Boolean,
+        val themeMode: String?,
+        val seedColor: Int,
+        val tenkeyHeight: Int,
+        val tenkeyWidth: Int,
+        val marginStart: Int,
+        val marginEnd: Int,
+        val marginBottom: Int,
+        val isNightMode: Int,
+        val isFloatingMode: Boolean
+    )
+    private var lastRenderConfig: KeyboardRenderConfig? = null
+
     private var tenkeyHeightLandScapePreferenceValue: Int? = 280
     private var tenkeyWidthLandScapePreferenceValue: Int? = 100
     private var qwertyHeightLandScapePreferenceValue: Int? = 280
@@ -1098,28 +1112,41 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             (it.parent as? ViewGroup)?.removeView(it)
         }
 
-        // もしコンテナがまだ一度も作成されていない場合（初回起動時）のみ、
-        // 作成とセットアップを行う。
-        if (keyboardContainer == null) {
-            isTablet = resources.getBoolean(com.kazumaproject.core.R.bool.isTablet)
-            keyboardContainer = FrameLayout(this)
+        isTablet = resources.getBoolean(com.kazumaproject.core.R.bool.isTablet)
+        val currentNightMode = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        val currentConfig = KeyboardRenderConfig(
+            isTablet = isTablet == true,
+            themeMode = keyboardThemeMode,
+            seedColor = appPreference.seedColor,
+            tenkeyHeight = tenkeyHeightPreferenceValue ?: 280,
+            tenkeyWidth = tenkeyWidthPreferenceValue ?: 100,
+            marginStart = appPreference.keyboard_margin_start_dp ?: 0,
+            marginEnd = appPreference.keyboard_margin_end_dp ?: 0,
+            marginBottom = appPreference.keyboard_vertical_margin_bottom ?: 0,
+            isNightMode = currentNightMode,
+            isFloatingMode = isKeyboardFloatingMode == true
+        )
 
-            // コンテナの内部にキーボードのUIをセットアップする
-            setupKeyboardView()
-            // 初回のみ実行したい他のセットアップ処理
+        val shouldReinflate = keyboardContainer == null ||
+                mainLayoutBinding == null ||
+                lastRenderConfig != currentConfig
 
-            mainLayoutBinding?.let { mainView ->
-                if (lifecycle.currentState == Lifecycle.State.CREATED) {
-                    startScope(mainView)
-                } else {
-                    scope.coroutineContext.cancelChildren()
-                    startScope(mainView)
-                }
+        if (shouldReinflate) {
+            Timber.d("onCreateInputView: Config changed or initial load. Inflating keyboard view. oldConfig=$lastRenderConfig, newConfig=$currentConfig")
+            if (keyboardContainer == null) {
+                keyboardContainer = FrameLayout(this)
             }
-        } else {
             setupKeyboardView()
-            scope.coroutineContext.cancelChildren()
-            mainLayoutBinding?.let { mainView ->
+            lastRenderConfig = currentConfig
+        } else {
+            Timber.d("onCreateInputView: Reusing existing keyboard view.")
+        }
+
+        mainLayoutBinding?.let { mainView ->
+            if (lifecycle.currentState == Lifecycle.State.CREATED) {
+                startScope(mainView)
+            } else {
+                scope.coroutineContext.cancelChildren()
                 startScope(mainView)
             }
         }
