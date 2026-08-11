@@ -1347,15 +1347,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         Timber.d("onStartInputView")
         checkAndInsertClipboardHistory()
         hijackWindowCallback()
-        startSilentAudio()
-        val isTalkBackEnabled = isTalkBackActive()
-        mediaSession?.isActive = (volumeKeyCursorMovePreference == true || isTalkBackEnabled) && (isIMEWindowShown || isInputViewShown())
-        if (volumeKeyCursorMovePreference == true || isTalkBackEnabled) {
-            if (volumeKeyCursorMovePreference == true) {
-                mediaSession?.setPlaybackToRemote(createVolumeProvider())
-            } else {
-                mediaSession?.setPlaybackToLocal(AudioManager.STREAM_MUSIC)
-            }
+        val shouldActivateVolumeHook = volumeKeyCursorMovePreference == true && (isIMEWindowShown || isInputViewShown())
+        mediaSession?.isActive = shouldActivateVolumeHook
+        if (shouldActivateVolumeHook) {
+            startSilentAudio()
+            mediaSession?.setPlaybackToRemote(createVolumeProvider())
 
             mediaSession?.setPlaybackState(
                 PlaybackStateCompat.Builder()
@@ -11229,8 +11225,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
     private fun startSilentAudio() {
         try {
-            val isTalkBackEnabled = isTalkBackActive()
-            if (volumeKeyCursorMovePreference != true && !isTalkBackEnabled) return
+            if (volumeKeyCursorMovePreference != true) return
             if (silentAudioTrack == null) {
                 val sampleRate = 44100
                 val minSize = AudioTrack.getMinBufferSize(
@@ -11242,7 +11237,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     .setAudioAttributes(
                         AudioAttributes.Builder()
                             .setUsage(AudioAttributes.USAGE_MEDIA)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                             .build()
                     )
                     .setAudioFormat(
