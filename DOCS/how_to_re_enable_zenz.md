@@ -14,6 +14,29 @@ Zenz は Llama.cpp を用いたオンデバイスのニューラル言語モデ�
 
 ## 2. 再有効化手順
 
+### ステップ 0: ビルド構成の復元（モジュール除外の解除）
+
+Zenz モジュールは、32ビット端末（`armeabi-v7a`）へのインストール互換性確保およびビルド高速化のため、Gradleのビルド構成から完全に除外されています。
+再有効化する前に、以下のビルド設定を復元し、ダミーのクラスを削除してください。
+
+#### ① `settings.gradle` の復元
+`settings.gradle` 内の `// include ':zenz'` のコメントアウトを解除します。
+```groovy
+include ':zenz'
+```
+
+#### ② `app/build.gradle` の復元
+`app/build.gradle` 内の `// implementation project(':zenz')` のコメントアウトを解除します。
+```groovy
+implementation project(':zenz')
+```
+
+#### ③ ダミーの `ZenzEngine.kt` の削除
+`app` モジュール内に配置されているダミーの `ZenzEngine` クラスファイルを削除します。
+* 削除対象ファイル: [ZenzEngine.kt](file:///c:/Users/nyama/OneDrive/APPS/JapaneseKeyboard/app/src/main/java/com/kazumaproject/zenz/ZenzEngine.kt)
+
+---
+
 ### ステップ 1: モデル初期化処理の復元
 [IMEService.kt](file:///c:/Users/nyama/OneDrive/APPS/JapaneseKeyboard/app/src/main/java/com/kazumaproject/markdownhelperkeyboard/ime_service/IMEService.kt) 内の `providesZenzEngine` メソッドのコメントアウトを解除し、元の初期化処理を復元します。
 
