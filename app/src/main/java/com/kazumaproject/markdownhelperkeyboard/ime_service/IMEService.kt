@@ -2840,6 +2840,62 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
     private fun announceChar(char: Char?, delayOverride: Long? = null) {
         if (char == null) return
+        
+        val currentKeyboard = keyboardOrder.getOrNull(currentKeyboardOrder)
+        val isQwertyOrRomajiKeyboard = currentKeyboard == KeyboardType.QWERTY ||
+                currentKeyboard == KeyboardType.AYAME_QWERTY ||
+                currentKeyboard == KeyboardType.ROMAJI ||
+                currentKeyboard == KeyboardType.AYAME_ROMAJI
+        
+        val isQwertyOrRomajiMode = qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTY ||
+                qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTYRomaji
+
+        if (isQwertyOrRomajiKeyboard || isQwertyOrRomajiMode) {
+            val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager ?: return
+            if (am.isEnabled) {
+                val targetView = if (isKeyboardFloatingMode == true) {
+                    floatingKeyboardBinding?.root
+                } else {
+                    mainLayoutBinding?.root
+                }
+                val handler = targetView?.handler ?: android.os.Handler(android.os.Looper.getMainLooper())
+                
+                announceRunnable?.let {
+                    handler.removeCallbacks(it)
+                }
+                
+                val runnable = Runnable {
+                    try {
+                        try {
+                            am.interrupt()
+                        } catch (e: Exception) {
+                            Timber.e(e, "Failed to interrupt TalkBack")
+                        }
+                        
+                        val currentText = _inputString.value
+                        if (currentText.isEmpty()) return@Runnable
+                        
+                        val event = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT)
+                        event.text.add(currentText)
+                        event.packageName = packageName
+                        event.className = javaClass.name
+                        event.isEnabled = true
+                        
+                        if (targetView != null) {
+                            targetView.sendAccessibilityEventUnchecked(event)
+                        } else {
+                            am.sendAccessibilityEvent(event)
+                        }
+                    } catch (e: Exception) {
+                        Timber.e(e, "Error in QWERTY announceChar runnable")
+                    }
+                }
+                announceRunnable = runnable
+                handler.postDelayed(runnable, 150)
+            }
+            return
+        }
+
         val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager ?: return
         android.util.Log.d("IMEServiceAccessibility", "announceChar called: char=$char, am.isEnabled=${am.isEnabled}")
         if (am.isEnabled) {
@@ -14935,7 +14991,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
     }
 
-    private fun providesZenzEngine(context: Context): ZenzEngine {
+    private fun providesZenzEngine(context: Context): ZenzEngine? {
+        /*
         val defaultAssetFileName = "ggml-model-Q5_K_M.gguf"
         val defaultDestFile = File(context.filesDir, defaultAssetFileName)
 
@@ -14990,6 +15047,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
 
         return ZenzEngine
+        */
+        return null
     }
 
     override val lifecycle: Lifecycle
