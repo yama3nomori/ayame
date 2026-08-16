@@ -3050,6 +3050,17 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        val keyName = event?.let { KeyEvent.keyCodeToString(keyCode) } ?: "UNKNOWN"
+        val debugText = "Key Pressed: $keyCode ($keyName)"
+        android.widget.Toast.makeText(this, debugText, android.widget.Toast.LENGTH_SHORT).show()
+        announceText(debugText)
+        Timber.d("onKeyDown Debug: keyCode=$keyCode, name=$keyName")
+
+        if (keyCode == 132 || keyCode == 133 || keyCode == 134) {
+            event?.startTracking()
+            return true
+        }
+
         if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
             if (volumeKeyCursorMovePreference == true && (isIMEWindowShown || isInputViewShown())) {
                 val now = android.os.SystemClock.uptimeMillis()
@@ -3124,6 +3135,43 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             }
             if (e.isCtrlPressed) {
                 return handleJapaneseCtrlPressed(keyCode, e, mainView, insertString)
+            }
+        }
+
+        // 物理テンキーの判定とかな入力トグル処理
+        event?.device?.let { device ->
+            if (isDevicePhysicalTenkey(device)) {
+                val keyAndChar = when (keyCode) {
+                    KeyEvent.KEYCODE_1 -> Pair(Key.KeyA, 'あ')
+                    KeyEvent.KEYCODE_2 -> Pair(Key.KeyKA, 'か')
+                    KeyEvent.KEYCODE_3 -> Pair(Key.KeySA, 'さ')
+                    KeyEvent.KEYCODE_4 -> Pair(Key.KeyTA, 'た')
+                    KeyEvent.KEYCODE_5 -> Pair(Key.KeyNA, 'な')
+                    KeyEvent.KEYCODE_6 -> Pair(Key.KeyHA, 'は')
+                    KeyEvent.KEYCODE_7 -> Pair(Key.KeyMA, 'ま')
+                    KeyEvent.KEYCODE_8 -> Pair(Key.KeyYA, 'や')
+                    KeyEvent.KEYCODE_9 -> Pair(Key.KeyRA, 'ら')
+                    KeyEvent.KEYCODE_0 -> Pair(Key.KeyWA, 'わ')
+                    KeyEvent.KEYCODE_STAR -> Pair(Key.KeyDakutenSmall, null)
+                    KeyEvent.KEYCODE_POUND -> Pair(Key.KeyKutouten, '、')
+                    else -> null
+                }
+                if (keyAndChar != null) {
+                    val (key, char) = keyAndChar
+                    val sb = StringBuilder()
+                    val suggestionList = suggestionAdapter?.suggestions ?: emptyList()
+                    handleTapAndFlick(
+                        key = key,
+                        char = char,
+                        insertString = insertString,
+                        sb = sb,
+                        isFlick = false,
+                        gestureType = GestureType.Tap,
+                        suggestions = suggestionList,
+                        mainView = mainView
+                    )
+                    return true
+                }
             }
         }
 
@@ -3449,7 +3497,13 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     ): Boolean {
         if (insertString.isNotEmpty()) {
             if (isHenkan.get()) {
-                floatingCandidatePreviousItem(insertString)
+                val isPhysicalKeyboard = physicalKeyboardEnable.replayCache.firstOrNull() == true
+                if (isPhysicalKeyboard) {
+                    floatingCandidatePreviousItem(insertString)
+                } else {
+                    val candidateList = suggestionAdapter?.suggestions ?: emptyList()
+                    handleJapaneseModeSpaceKeyReverse(mainView, candidateList, insertString)
+                }
                 return true
             } else {
                 // 非変換時はSpaceキーと同一のロジック
@@ -3466,7 +3520,13 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     ): Boolean {
         if (insertString.isNotEmpty()) {
             if (isHenkan.get()) {
-                floatingCandidateNextItem(insertString)
+                val isPhysicalKeyboard = physicalKeyboardEnable.replayCache.firstOrNull() == true
+                if (isPhysicalKeyboard) {
+                    floatingCandidateNextItem(insertString)
+                } else {
+                    val candidateList = suggestionAdapter?.suggestions ?: emptyList()
+                    handleJapaneseModeSpaceKey(mainView, candidateList, insertString)
+                }
                 return true
             } else {
                 // 非変換時はSpaceキーと同一のロジック
@@ -3482,7 +3542,29 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     ): Boolean {
         if (insertString.isNotEmpty()) {
             if (isHenkan.get()) {
-                floatingCandidateEnterPressed()
+                val isPhysicalKeyboard = physicalKeyboardEnable.replayCache.firstOrNull() == true
+                if (isPhysicalKeyboard) {
+                    floatingCandidateEnterPressed()
+                } else {
+                    val candidateList = suggestionAdapter?.suggestions ?: emptyList()
+                    if (candidateList.isNotEmpty()) {
+                        setEnterKeyAction(
+                            candidateList,
+                            InputMode.ModeJapanese,
+                            insertString
+                        )
+                    } else {
+                        val rawSuggestions = suggestions.map {
+                            Candidate(
+                                string = it.word,
+                                type = (1).toByte(),
+                                length = insertString.length.toUByte(),
+                                score = 0
+                            )
+                        }
+                        handleNonEmptyInputEnterKey(rawSuggestions, mainView, insertString)
+                    }
+                }
                 romajiConverter?.clear()
                 return true
             } else {
@@ -3634,6 +3716,25 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     }
 
     override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == 132 || keyCode == 133 || keyCode == 134) {
+            val isCanceled = event?.isCanceled == true
+            if (!isCanceled) {
+                if (keyCode == 132) {
+                    mainLayoutBinding?.let { cycleInputMode(it) }
+                } else if (keyCode == 133) {
+                    _keyboardSymbolViewState.value = !_keyboardSymbolViewState.value
+                    stringInTail.set("")
+                    finishComposingText()
+                    setComposingText("", 0)
+                } else if (keyCode == 134) {
+                    readAloudCurrentText()
+                }
+            }
+            return true
+        }
+        if (keyCode == 5) {
+            return true
+        }
         if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
             if (volumeKeyCursorMovePreference == true) {
                 Timber.d("onKeyUp: Volume key released")
@@ -3656,6 +3757,24 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             }
         }
         return super.onKeyUp(keyCode, event)
+    }
+
+    override fun onKeyLongPress(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == 132) {
+            showUserTemplateListPopup()
+            return true
+        }
+        if (keyCode == 133 || keyCode == 134 || keyCode == 5) {
+            return true
+        }
+        return super.onKeyLongPress(keyCode, event)
+    }
+
+    override fun onKeyMultiple(keyCode: Int, count: Int, event: KeyEvent?): Boolean {
+        if (keyCode == 133 || keyCode == 132 || keyCode == 134 || keyCode == 5) {
+            return true
+        }
+        return super.onKeyMultiple(keyCode, count, event)
     }
 
     private fun showFloatingModeSwitchView(showInputModeText: String) {
@@ -13278,6 +13397,31 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         setConvertLetterInJapaneseFromButton(suggestions, true, mainView, insertString)
     }
 
+    private fun handleJapaneseModeSpaceKeyReverse(
+        mainView: MainLayoutBinding, suggestions: List<Candidate>, insertString: String
+    ) {
+        val wasHenkan = isHenkan.get()
+        isHenkan.set(true)
+        if (!wasHenkan) {
+            suggestionClickNum = suggestions.size
+        } else {
+            suggestionClickNum -= 1
+            if (suggestionClickNum < 1) {
+                suggestionClickNum = suggestions.size
+            }
+        }
+        mainView.suggestionRecyclerView.apply {
+            smoothScrollToPosition(
+                (suggestionClickNum - 1 + 2).coerceAtLeast(0).coerceAtMost(suggestions.size - 1)
+            )
+            suggestionAdapter?.updateHighlightPosition((suggestionClickNum - 1).coerceAtLeast(0))
+            suggestions.getOrNull((suggestionClickNum - 1).coerceAtLeast(0))?.let {
+                announceCandidateHighlight(it.string, (suggestionClickNum - 1).coerceAtLeast(0), suggestions.size)
+            }
+        }
+        setConvertLetterInJapaneseFromButton(suggestions, true, mainView, insertString)
+    }
+
     private fun handleJapaneseModeSpaceKeyWithBunsetsu(
         mainView: MainLayoutBinding, suggestions: List<Candidate>, insertString: String
     ) {
@@ -14941,6 +15085,14 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         val isAlphabetic = device.keyboardType == InputDevice.KEYBOARD_TYPE_ALPHABETIC
 
         return isNotVirtual && hasKeyboardSource && isAlphabetic
+    }
+
+    private fun isDevicePhysicalTenkey(device: InputDevice?): Boolean {
+        if (device == null) return false
+        val isNotVirtual = !device.isVirtual
+        val hasKeyboardSource = (device.sources and InputDevice.SOURCE_KEYBOARD) != 0
+        val isAlphabetic = device.keyboardType == InputDevice.KEYBOARD_TYPE_ALPHABETIC
+        return isNotVirtual && hasKeyboardSource && !isAlphabetic
     }
 
     /**
