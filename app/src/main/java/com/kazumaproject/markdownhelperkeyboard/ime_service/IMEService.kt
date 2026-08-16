@@ -3050,11 +3050,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        val keyName = event?.let { KeyEvent.keyCodeToString(keyCode) } ?: "UNKNOWN"
-        val debugText = "Key Pressed: $keyCode ($keyName)"
-        android.widget.Toast.makeText(this, debugText, android.widget.Toast.LENGTH_SHORT).show()
-        announceText(debugText)
-        Timber.d("onKeyDown Debug: keyCode=$keyCode, name=$keyName")
+
 
         if (keyCode == 132 || keyCode == 133 || keyCode == 134) {
             event?.startTracking()
