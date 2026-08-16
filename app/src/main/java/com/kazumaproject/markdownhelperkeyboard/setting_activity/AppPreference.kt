@@ -16,6 +16,8 @@ object AppPreference {
 
     private lateinit var preferences: SharedPreferences
     private val gson = Gson()
+    private var cachedKeyboardOrder: List<KeyboardType>? = null
+    private var cachedCandidateTabOrder: List<CandidateTab>? = null
 
     private val CLIPBOARD_HISTORY_ENABLE = Pair("clipboard_history_preference", true)
     private val TIME_SAME_PRONOUNCE_TYPING = Pair("time_same_pronounce_typing_preference", 1000)
@@ -477,28 +479,40 @@ object AppPreference {
 
     var keyboard_order: List<KeyboardType>
         get() {
+            cachedKeyboardOrder?.let { return it }
             val json = preferences.getString(KEYBOARD_ORDER.first, KEYBOARD_ORDER.second)
             val type = object : TypeToken<List<KeyboardType>>() {}.type
             val list: List<KeyboardType> = gson.fromJson(json, type) ?: emptyList()
-            return list.filter { it != KeyboardType.SUMIRE && it != KeyboardType.NUMERIC && it != KeyboardType.AYAME_NUMERIC && it != KeyboardType.CUSTOM }
+            val filtered = list.filter { it != KeyboardType.SUMIRE && it != KeyboardType.NUMERIC && it != KeyboardType.AYAME_NUMERIC && it != KeyboardType.CUSTOM }
+            cachedKeyboardOrder = filtered
+            return filtered
         }
-        set(value) = preferences.edit {
+        set(value) {
+            cachedKeyboardOrder = value
             val json = gson.toJson(value)
-            it.putString(KEYBOARD_ORDER.first, json)
+            preferences.edit {
+                it.putString(KEYBOARD_ORDER.first, json)
+            }
         }
 
     var candidate_tab_order: List<CandidateTab>
         get() {
+            cachedCandidateTabOrder?.let { return it }
             val json = preferences.getString(
                 CANDIDATE_TAB_ORDER_PREFERENCE.first,
                 CANDIDATE_TAB_ORDER_PREFERENCE.second
             )
             val type = object : TypeToken<List<CandidateTab>>() {}.type
-            return gson.fromJson(json, type)
+            val order: List<CandidateTab> = gson.fromJson(json, type) ?: emptyList()
+            cachedCandidateTabOrder = order
+            return order
         }
-        set(value) = preferences.edit {
+        set(value) {
+            cachedCandidateTabOrder = value
             val json = gson.toJson(value)
-            it.putString(CANDIDATE_TAB_ORDER_PREFERENCE.first, json)
+            preferences.edit {
+                it.putString(CANDIDATE_TAB_ORDER_PREFERENCE.first, json)
+            }
         }
 
     var symbol_mode_preference: SymbolMode

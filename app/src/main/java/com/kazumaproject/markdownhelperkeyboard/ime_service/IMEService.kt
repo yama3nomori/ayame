@@ -1436,14 +1436,19 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             )
         }
 
-        val ttsEngine = android.provider.Settings.Secure.getString(contentResolver, android.provider.Settings.Secure.TTS_DEFAULT_SYNTH)
-        isDTalkerTTS = ttsEngine?.contains("jp.co.createsystem") == true
-        Timber.d("onStartInputView: TTS Engine: $ttsEngine, isDTalkerTTS: $isDTalkerTTS")
-        suggestionAdapter?.isDTalkerTTSActive = isDTalkerTTS
+        ioScope.launch {
+            val ttsEngine = android.provider.Settings.Secure.getString(contentResolver, android.provider.Settings.Secure.TTS_DEFAULT_SYNTH)
+            val isDTalker = ttsEngine?.contains("jp.co.createsystem") == true
+            withContext(Dispatchers.Main) {
+                isDTalkerTTS = isDTalker
+                Timber.d("onStartInputView Async: TTS Engine: $ttsEngine, isDTalkerTTS: $isDTalkerTTS")
+                suggestionAdapter?.isDTalkerTTSActive = isDTalkerTTS
+                suggestionAdapterFull?.isDTalkerTTSActive = isDTalkerTTS
+                listAdapter.isDTalkerTTSActive = isDTalkerTTS
+            }
+        }
         suggestionAdapter?.tamachiRepository = tamachiRepository
-        suggestionAdapterFull?.isDTalkerTTSActive = isDTalkerTTS
         suggestionAdapterFull?.tamachiRepository = tamachiRepository
-        listAdapter.isDTalkerTTSActive = isDTalkerTTS
         listAdapter.tamachiRepository = tamachiRepository
 
         keyboardSelectionPopupWindow?.dismiss()
@@ -2915,7 +2920,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             android.util.Log.d("IMEServiceAccessibility", "announceChar: currentInput='$currentInput', prev='$previousInputStringForAnnounce', isReplacement=$isReplacement")
             
             val isSpecialChar = char == '#' || char == 'ー' || char == '\'' || char == '_' || char == ':' || char == '?' || char == '"' || char == '!' || char == '%' || char == '~' || char == '&' || char == '/' || char == '=' || char == '+' || char == '*' || char == '？' || char == '！' || char == '～' || char == '（' || char == '）' || char == '、' || char == '。'
-            val delay = delayOverride ?: if (isReplacement || isSpecialChar) 150L else 10L
+            val delay = delayOverride ?: if (isReplacement || isSpecialChar) 30L else 10L
             val handler = targetView?.handler ?: android.os.Handler(android.os.Looper.getMainLooper())
             
             // 以前にスケジュールされていた未実行の読み上げをキャンセル（デバウンス）
