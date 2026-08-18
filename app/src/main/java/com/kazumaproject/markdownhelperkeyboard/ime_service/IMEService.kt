@@ -2855,7 +2855,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         val isQwertyOrRomajiMode = qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTY ||
                 qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTYRomaji
 
-        if (isQwertyOrRomajiKeyboard || isQwertyOrRomajiMode) {
+        val isPhysicalTenkeyConnected = inputManager.inputDeviceIds.any { deviceId ->
+            isDevicePhysicalTenkey(inputManager.getInputDevice(deviceId))
+        }
+
+        if ((isQwertyOrRomajiKeyboard || isQwertyOrRomajiMode) && !isPhysicalTenkeyConnected) {
             val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager ?: return
             if (am.isEnabled) {
                 val targetView = if (isKeyboardFloatingMode == true) {
@@ -2920,7 +2924,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             android.util.Log.d("IMEServiceAccessibility", "announceChar: currentInput='$currentInput', prev='$previousInputStringForAnnounce', isReplacement=$isReplacement")
             
             val isSpecialChar = char == '#' || char == 'ー' || char == '\'' || char == '_' || char == ':' || char == '?' || char == '"' || char == '!' || char == '%' || char == '~' || char == '&' || char == '/' || char == '=' || char == '+' || char == '*' || char == '？' || char == '！' || char == '～' || char == '（' || char == '）' || char == '、' || char == '。'
-            val delay = delayOverride ?: if (isReplacement || isSpecialChar) 30L else 10L
+            val delay = delayOverride ?: 10L
             val handler = targetView?.handler ?: android.os.Handler(android.os.Looper.getMainLooper())
             
             // 以前にスケジュールされていた未実行の読み上げをキャンセル（デバウンス）

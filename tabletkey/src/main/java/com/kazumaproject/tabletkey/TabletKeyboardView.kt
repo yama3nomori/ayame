@@ -87,6 +87,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -1756,12 +1757,10 @@ class TabletKeyboardView @JvmOverloads constructor(
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         release()
-        uiScope.cancel()
+        uiScope.coroutineContext.cancelChildren()
     }
 
     private fun release() {
-        flickListener = null
-        longPressListener = null
         longPressJob?.cancel()
         longPressJob = null
     }

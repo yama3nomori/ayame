@@ -1342,8 +1342,6 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
     /** Clean up references when view is detached **/
     private fun release() {
-        flickListener = null
-        longPressListener = null
         longPressJob?.cancel()
         longPressJob = null
         isCursorMode = false
