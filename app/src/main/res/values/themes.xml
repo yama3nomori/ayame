@@ -9,8 +9,6 @@
         <item name="colorSecondary">@color/main_text_color</item>
         <item name="colorSecondaryVariant">@color/main_text_color</item>
         <item name="colorOnSecondary">@color/black</item>
-        <!-- Status bar color. -->
-        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
         <!-- Customize your theme here. -->
         <item name="android:splitMotionEvents">false</item>
     </style>
@@ -22,7 +20,6 @@
         <item name="colorSecondary">@color/main_text_color</item>
         <item name="colorSecondaryVariant">@color/main_text_color</item>
         <item name="colorOnSecondary">@color/black</item>
-        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
         <item name="android:splitMotionEvents">false</item>
     </style>
 
