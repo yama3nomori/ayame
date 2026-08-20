@@ -2536,6 +2536,15 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
         mainLayoutBinding = MainLayoutBinding.inflate(LayoutInflater.from(ctx))
 
+        mainLayoutBinding?.let { mainView ->
+            val currentKeyboard = keyboardOrder.getOrNull(currentKeyboardOrder)
+            val isTabletGojuonFallback = isTablet == true && tabletGojuonLayoutPreference == true
+            mainView.keyboardView.isAyameMode = currentKeyboard == KeyboardType.AYAME_TENKEY && !isTabletGojuonFallback
+            mainView.qwertyView.isAyameMode = currentKeyboard == KeyboardType.AYAME_QWERTY || currentKeyboard == KeyboardType.AYAME_ROMAJI
+            mainView.customLayoutDefault.isAyameMode = currentKeyboard == KeyboardType.AYAME_NUMERIC
+            mainView.tabletView.isAyameMode = currentKeyboard == KeyboardType.AYAME_TABLET_KANA || (currentKeyboard == KeyboardType.AYAME_TENKEY && isTabletGojuonFallback)
+        }
+
         floatingKeyboardBinding = FloatingKeyboardLayoutBinding.inflate(LayoutInflater.from(ctx))
 
         floatingKeyboardBinding?.let { floatingKeyboardLayoutBinding ->
@@ -2855,11 +2864,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         val isQwertyOrRomajiMode = qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTY ||
                 qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTYRomaji
 
-        val isPhysicalTenkeyConnected = inputManager.inputDeviceIds.any { deviceId ->
-            isDevicePhysicalTenkey(inputManager.getInputDevice(deviceId))
-        }
-
-        if ((isQwertyOrRomajiKeyboard || isQwertyOrRomajiMode) && !isPhysicalTenkeyConnected) {
+        if (isQwertyOrRomajiKeyboard || isQwertyOrRomajiMode) {
             val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager ?: return
             if (am.isEnabled) {
                 val targetView = if (isKeyboardFloatingMode == true) {
@@ -5694,13 +5699,14 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         hideAllKeyboards()
         Timber.d("showKeyboard called: $type")
         mainLayoutBinding?.apply {
+            val isTabletGojuonFallback = isTablet == true && tabletGojuonLayoutPreference == true
             val isAyame = type == KeyboardType.AYAME_TENKEY || type == KeyboardType.AYAME_QWERTY || type == KeyboardType.AYAME_ROMAJI || type == KeyboardType.AYAME_NUMERIC || type == KeyboardType.AYAME_TABLET_KANA
             Timber.d("showKeyboard: isAyame=$isAyame, type=$type")
-            keyboardView.isAyameMode = type == KeyboardType.AYAME_TENKEY
-            floatingKeyboardBinding?.keyboardViewFloating?.isAyameMode = type == KeyboardType.AYAME_TENKEY
+            keyboardView.isAyameMode = type == KeyboardType.AYAME_TENKEY && !isTabletGojuonFallback
+            floatingKeyboardBinding?.keyboardViewFloating?.isAyameMode = type == KeyboardType.AYAME_TENKEY && !isTabletGojuonFallback
             qwertyView.isAyameMode = type == KeyboardType.AYAME_QWERTY || type == KeyboardType.AYAME_ROMAJI
             customLayoutDefault.isAyameMode = type == KeyboardType.AYAME_NUMERIC
-            tabletView.isAyameMode = type == KeyboardType.AYAME_TABLET_KANA
+            tabletView.isAyameMode = type == KeyboardType.AYAME_TABLET_KANA || (type == KeyboardType.AYAME_TENKEY && isTabletGojuonFallback)
             Timber.d("setting isAyameMode on suggestionAdapter: current=${suggestionAdapter?.isAyameMode}")
             suggestionAdapter?.isAyameMode = isAyame
             suggestionAdapterFull?.isAyameMode = isAyame
