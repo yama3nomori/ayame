@@ -2841,9 +2841,34 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                         if (!text.isNullOrEmpty()) text[0] else null
                     }
                     if (charToAnnounce != null) {
-                        announceChar(charToAnnounce)
+                        announceTextForce(charToAnnounce.toAccessibilityName())
                     }
                 }
+            }
+        }
+    }
+
+    private fun announceTextForce(text: String) {
+        if (text.isEmpty()) return
+        val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager ?: return
+        if (am.isEnabled) {
+            try {
+                am.interrupt()
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to interrupt TalkBack")
+            }
+            val announcementView = if (isKeyboardFloatingMode == true) {
+                floatingKeyboardBinding?.accessibilityAnnouncementView
+            } else {
+                mainLayoutBinding?.accessibilityAnnouncementView
+            }
+            announcementView?.let { view ->
+                view.text = ""
+                view.post {
+                    view.text = text
+                }
+            } ?: run {
+                announceText(text)
             }
         }
     }
@@ -10167,7 +10192,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     appPreference.volume_key_cursor_move_announce = newSetting
                     
                     val text = if (newSetting) "カーソル移動時 読み上げオン" else "カーソル移動時 読み上げオフ"
-                    announceText(text)
+                    announceTextForce(text)
                     android.widget.Toast.makeText(this, text, android.widget.Toast.LENGTH_SHORT).show()
                 }
             }

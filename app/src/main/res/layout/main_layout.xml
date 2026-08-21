@@ -140,4 +140,16 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
         android:visibility="gone" />
+
+    <!-- Accessibility Live Region for forcing TalkBack announcements -->
+    <TextView
+        android:id="@+id/accessibility_announcement_view"
+        android:layout_width="1dp"
+        android:layout_height="1dp"
+        android:layout_gravity="top|start"
+        android:accessibilityLiveRegion="assertive"
+        android:focusable="false"
+        android:importantForAccessibility="yes"
+        android:text=""
+        android:visibility="visible" />
 </FrameLayout>
