@@ -2848,14 +2848,20 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
     }
 
+    private var lastInterruptTime = 0L
+
     private fun announceTextForce(text: String) {
         if (text.isEmpty()) return
         val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager ?: return
         if (am.isEnabled) {
-            try {
-                am.interrupt()
-            } catch (e: Exception) {
-                Timber.e(e, "Failed to interrupt TalkBack")
+            val now = android.os.SystemClock.uptimeMillis()
+            if (now - lastInterruptTime > 300L) {
+                try {
+                    am.interrupt()
+                    lastInterruptTime = now
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to interrupt TalkBack")
+                }
             }
             val announcementView = if (isKeyboardFloatingMode == true) {
                 floatingKeyboardBinding?.accessibilityAnnouncementView
@@ -2905,26 +2911,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 
                 val runnable = Runnable {
                     try {
-                        try {
-                            am.interrupt()
-                        } catch (e: Exception) {
-                            Timber.e(e, "Failed to interrupt TalkBack")
-                        }
-                        
                         val currentText = _inputString.value
                         if (currentText.isEmpty()) return@Runnable
-                        
-                        val event = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT)
-                        event.text.add(currentText)
-                        event.packageName = packageName
-                        event.className = javaClass.name
-                        event.isEnabled = true
-                        
-                        if (targetView != null) {
-                            targetView.sendAccessibilityEventUnchecked(event)
-                        } else {
-                            am.sendAccessibilityEvent(event)
-                        }
+                        announceTextForce(currentText)
                     } catch (e: Exception) {
                         Timber.e(e, "Error in QWERTY announceChar runnable")
                     }
@@ -2944,16 +2933,6 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             } else {
                 mainLayoutBinding?.root
             }
-            android.util.Log.d("IMEServiceAccessibility", "announceChar: targetView isNotNull=${targetView != null}")
-            
-            val currentInput = _inputString.value
-            val isReplacement = currentInput.length == previousInputStringForAnnounce.length &&
-                    currentInput != previousInputStringForAnnounce &&
-                    previousInputStringForAnnounce.isNotEmpty()
-
-            android.util.Log.d("IMEServiceAccessibility", "announceChar: currentInput='$currentInput', prev='$previousInputStringForAnnounce', isReplacement=$isReplacement")
-            
-            val isSpecialChar = char == '#' || char == 'ー' || char == '\'' || char == '_' || char == ':' || char == '?' || char == '"' || char == '!' || char == '%' || char == '~' || char == '&' || char == '/' || char == '=' || char == '+' || char == '*' || char == '？' || char == '！' || char == '～' || char == '（' || char == '）' || char == '、' || char == '。'
             val delay = delayOverride ?: 10L
             val handler = targetView?.handler ?: android.os.Handler(android.os.Looper.getMainLooper())
             
@@ -2964,22 +2943,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             
             val runnable = Runnable {
                 try {
-                    android.util.Log.d("IMEServiceAccessibility", "announceChar posting announcement: '$announcement' (delay=$delay)")
-                    
-                    // イベント送信の直前で安全に obtain する
-                    val event = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT)
-                    event.text.add(announcement)
-                    event.packageName = packageName
-                    event.className = javaClass.name
-                    event.isEnabled = true
-                    
-                    if (targetView != null) {
-                        targetView.sendAccessibilityEventUnchecked(event)
-                    } else {
-                        am.sendAccessibilityEvent(event)
-                    }
+                    android.util.Log.d("IMEServiceAccessibility", "announceChar posting announcement via force: '$announcement' (delay=$delay)")
+                    announceTextForce(announcement)
                 } catch (e: Exception) {
-                    android.util.Log.e("IMEServiceAccessibility", "Failed to send accessibility announcement", e)
+                    android.util.Log.e("IMEServiceAccessibility", "Failed to send accessibility announcement via force", e)
                 }
             }
             
