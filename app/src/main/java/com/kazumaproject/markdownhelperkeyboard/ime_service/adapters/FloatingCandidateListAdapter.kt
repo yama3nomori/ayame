@@ -58,6 +58,10 @@ class FloatingCandidateListAdapter(
         init {
             itemView.setOnClickListener {
                 if (absoluteAdapterPosition != RecyclerView.NO_POSITION) {
+                    val accessibilityManager = itemView.context.getSystemService(android.content.Context.ACCESSIBILITY_SERVICE) as android.view.accessibility.AccessibilityManager
+                    if (accessibilityManager.isEnabled) {
+                        itemView.contentDescription = ""
+                    }
                     onSuggestionClicked?.invoke(getItem(absoluteAdapterPosition))
                 }
             }

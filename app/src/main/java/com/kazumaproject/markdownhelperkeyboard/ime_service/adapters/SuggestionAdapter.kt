@@ -597,6 +597,9 @@ class SuggestionAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         holder.itemView.setOnClickListener {
             val accessibilityManager = holder.itemView.context.getSystemService(android.content.Context.ACCESSIBILITY_SERVICE) as android.view.accessibility.AccessibilityManager
             timber.log.Timber.d("SuggestionAdapter click: isAyameMode=$isAyameMode, position=$position, lastClickedId=$lastClickedId, isTouchExplorationEnabled=${accessibilityManager.isTouchExplorationEnabled}")
+            if (accessibilityManager.isEnabled) {
+                holder.itemView.contentDescription = ""
+            }
             if (isAyameMode) {
                 if (accessibilityManager.isEnabled && accessibilityManager.isTouchExplorationEnabled) {
                     timber.log.Timber.d("SuggestionAdapter click: TalkBack bypass immediate invoke")

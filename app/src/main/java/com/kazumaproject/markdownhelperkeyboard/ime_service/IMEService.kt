@@ -1086,15 +1086,35 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             pageSize = PAGE_SIZE,
         )
         listAdapter.onSuggestionClicked = { suggestion: CandidateItem ->
-            announceCandidateItemHighlight(suggestion, currentHighlightIndex, listAdapter.currentList.size)
-            commitText(suggestion.word, 1)
-            announceText(suggestion.word)
-            finishComposingText()
-            isHenkan.set(false)
-            henkanPressedWithBunsetsuDetect = false
-            suggestionClickNum = 0
-            _inputString.update { "" }
-            romajiConverter?.clear()
+            val now = android.os.SystemClock.uptimeMillis()
+            if (now - lastSuggestionClickTime >= 500L) {
+                lastSuggestionClickTime = now
+                isSuggestionConfirming = true
+
+                val targetView = if (isKeyboardFloatingMode == true) {
+                    floatingKeyboardBinding?.root
+                } else {
+                    mainLayoutBinding?.root
+                }
+                val handler = targetView?.handler ?: android.os.Handler(android.os.Looper.getMainLooper())
+                announceRunnable?.let { handler.removeCallbacks(it) }
+                announceTextRunnable?.let { targetView?.removeCallbacks(it) }
+
+                commitText(suggestion.word, 1)
+                finishComposingText()
+                isHenkan.set(false)
+                henkanPressedWithBunsetsuDetect = false
+                suggestionClickNum = 0
+                _inputString.update { "" }
+                romajiConverter?.clear()
+                isSuggestionConfirming = false
+
+                val runnable = Runnable {
+                    announceTextForce(suggestion.word)
+                }
+                announceRunnable = runnable
+                handler.postDelayed(runnable, 350)
+            }
         }
         listAdapter.onPagerClicked = {
             goToNextPageForFloatingCandidate()
@@ -2849,12 +2869,22 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     }
 
     private var lastInterruptTime = 0L
+    private var lastAnnouncedText = ""
+    private var lastAnnounceTime = 0L
+    private var lastSuggestionClickTime = 0L
+    private var isSuggestionConfirming = false
 
     private fun announceTextForce(text: String) {
-        if (text.isEmpty()) return
+        if (text.isEmpty() || isSuggestionConfirming) return
+        val now = android.os.SystemClock.uptimeMillis()
+        if (text == lastAnnouncedText && now - lastAnnounceTime < 150L) {
+            return
+        }
+        lastAnnouncedText = text
+        lastAnnounceTime = now
+
         val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager ?: return
         if (am.isEnabled) {
-            val now = android.os.SystemClock.uptimeMillis()
             if (now - lastInterruptTime > 300L) {
                 try {
                     am.interrupt()
@@ -9859,7 +9889,22 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     ) {
         suggestionAdapter?.let { adapter ->
             adapter.setOnItemClickListener { candidate, position ->
-                announceCandidateHighlight(candidate.string, position, adapter.itemCount)
+                val now = android.os.SystemClock.uptimeMillis()
+                if (now - lastSuggestionClickTime < 500L) {
+                    return@setOnItemClickListener
+                }
+                lastSuggestionClickTime = now
+                isSuggestionConfirming = true
+
+                val targetView = if (isKeyboardFloatingMode == true) {
+                    floatingKeyboardBinding?.root
+                } else {
+                    mainLayoutBinding?.root
+                }
+                val handler = targetView?.handler ?: android.os.Handler(android.os.Looper.getMainLooper())
+                announceRunnable?.let { handler.removeCallbacks(it) }
+                announceTextRunnable?.let { targetView?.removeCallbacks(it) }
+
                 val insertString = inputString.value
                 val currentInputMode: InputMode =
                     if (isTablet == true) mainView.tabletView.currentInputMode.get() else mainView.keyboardView.currentInputMode.value
@@ -9870,6 +9915,13 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     currentInputMode = currentInputMode,
                     position = position
                 )
+                isSuggestionConfirming = false
+
+                val runnable = Runnable {
+                    announceTextForce(candidate.string)
+                }
+                announceRunnable = runnable
+                handler.postDelayed(runnable, 350)
             }
             adapter.setOnItemLongClickListener { candidate, i ->
                 Timber.d("Candidate long tap: $candidate $i")
@@ -9967,7 +10019,22 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
         suggestionAdapterFull?.let { adapter ->
             adapter.setOnItemClickListener { candidate, position ->
-                announceCandidateHighlight(candidate.string, position, adapter.itemCount)
+                val now = android.os.SystemClock.uptimeMillis()
+                if (now - lastSuggestionClickTime < 500L) {
+                    return@setOnItemClickListener
+                }
+                lastSuggestionClickTime = now
+                isSuggestionConfirming = true
+
+                val targetView = if (isKeyboardFloatingMode == true) {
+                    floatingKeyboardBinding?.root
+                } else {
+                    mainLayoutBinding?.root
+                }
+                val handler = targetView?.handler ?: android.os.Handler(android.os.Looper.getMainLooper())
+                announceRunnable?.let { handler.removeCallbacks(it) }
+                announceTextRunnable?.let { targetView?.removeCallbacks(it) }
+
                 val insertString = inputString.value
                 val currentInputMode: InputMode =
                     if (isTablet == true) mainView.tabletView.currentInputMode.get() else mainView.keyboardView.currentInputMode.value
@@ -9978,6 +10045,13 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     currentInputMode = currentInputMode,
                     position = position
                 )
+                isSuggestionConfirming = false
+
+                val runnable = Runnable {
+                    announceTextForce(candidate.string)
+                }
+                announceRunnable = runnable
+                handler.postDelayed(runnable, 350)
             }
             adapter.setOnItemLongClickListener { candidate, i ->
                 Timber.d("Candidate long tap: $candidate $i")
@@ -15045,7 +15119,14 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private var announceTextRunnable: Runnable? = null
 
     private fun announceText(text: String, delayMs: Long = 10) {
-        if (text.isEmpty()) return
+        if (text.isEmpty() || isSuggestionConfirming) return
+        val now = android.os.SystemClock.uptimeMillis()
+        if (text == lastAnnouncedText && now - lastAnnounceTime < 150L) {
+            return
+        }
+        lastAnnouncedText = text
+        lastAnnounceTime = now
+
         val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager ?: return
         if (am.isEnabled) {
             val targetView = if (isKeyboardFloatingMode == true) {
