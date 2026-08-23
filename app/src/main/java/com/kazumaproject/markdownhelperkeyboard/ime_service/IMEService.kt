@@ -709,6 +709,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     companion object {
         private const val LONG_DELAY_TIME = 64L
         private const val DEFAULT_DELAY_MS = 1000L
+        private const val CONFIRMATION_ANNOUNCE_DELAY = 200L
         private const val PAGE_SIZE: Int = 5
 
         private val passwordTypes = setOf(
@@ -1100,6 +1101,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 announceRunnable?.let { handler.removeCallbacks(it) }
                 announceTextRunnable?.let { targetView?.removeCallbacks(it) }
 
+                isSuggestionConfirming = true
                 commitText(suggestion.word, 1)
                 finishComposingText()
                 isHenkan.set(false)
@@ -1110,10 +1112,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 isSuggestionConfirming = false
 
                 val runnable = Runnable {
-                    announceTextForce(suggestion.word)
+                    announceTextForce(getConfirmationAnnouncement(suggestion.word))
                 }
                 announceRunnable = runnable
-                handler.postDelayed(runnable, 350)
+                handler.postDelayed(runnable, CONFIRMATION_ANNOUNCE_DELAY)
             }
         }
         listAdapter.onPagerClicked = {
@@ -2873,6 +2875,18 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private var lastAnnounceTime = 0L
     private var lastSuggestionClickTime = 0L
     private var isSuggestionConfirming = false
+    private fun getConfirmationAnnouncement(text: String): String {
+        val detailedReading = if (::tamachiRepository.isInitialized) {
+            tamachiRepository.getDetailedReading(text)
+        } else {
+            null
+        }
+        return if (!detailedReading.isNullOrEmpty() && detailedReading != text) {
+            "$text $detailedReading"
+        } else {
+            text
+        }
+    }
 
     private fun announceTextForce(text: String) {
         if (text.isEmpty() || isSuggestionConfirming) return
@@ -9894,7 +9908,6 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     return@setOnItemClickListener
                 }
                 lastSuggestionClickTime = now
-                isSuggestionConfirming = true
 
                 val targetView = if (isKeyboardFloatingMode == true) {
                     floatingKeyboardBinding?.root
@@ -9905,6 +9918,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 announceRunnable?.let { handler.removeCallbacks(it) }
                 announceTextRunnable?.let { targetView?.removeCallbacks(it) }
 
+                isSuggestionConfirming = true
                 val insertString = inputString.value
                 val currentInputMode: InputMode =
                     if (isTablet == true) mainView.tabletView.currentInputMode.get() else mainView.keyboardView.currentInputMode.value
@@ -9918,10 +9932,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 isSuggestionConfirming = false
 
                 val runnable = Runnable {
-                    announceTextForce(candidate.string)
+                    announceTextForce(getConfirmationAnnouncement(candidate.string))
                 }
                 announceRunnable = runnable
-                handler.postDelayed(runnable, 350)
+                handler.postDelayed(runnable, CONFIRMATION_ANNOUNCE_DELAY)
             }
             adapter.setOnItemLongClickListener { candidate, i ->
                 Timber.d("Candidate long tap: $candidate $i")
@@ -10024,7 +10038,6 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     return@setOnItemClickListener
                 }
                 lastSuggestionClickTime = now
-                isSuggestionConfirming = true
 
                 val targetView = if (isKeyboardFloatingMode == true) {
                     floatingKeyboardBinding?.root
@@ -10035,6 +10048,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 announceRunnable?.let { handler.removeCallbacks(it) }
                 announceTextRunnable?.let { targetView?.removeCallbacks(it) }
 
+                isSuggestionConfirming = true
                 val insertString = inputString.value
                 val currentInputMode: InputMode =
                     if (isTablet == true) mainView.tabletView.currentInputMode.get() else mainView.keyboardView.currentInputMode.value
@@ -10048,10 +10062,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 isSuggestionConfirming = false
 
                 val runnable = Runnable {
-                    announceTextForce(candidate.string)
+                    announceTextForce(getConfirmationAnnouncement(candidate.string))
                 }
                 announceRunnable = runnable
-                handler.postDelayed(runnable, 350)
+                handler.postDelayed(runnable, CONFIRMATION_ANNOUNCE_DELAY)
             }
             adapter.setOnItemLongClickListener { candidate, i ->
                 Timber.d("Candidate long tap: $candidate $i")
