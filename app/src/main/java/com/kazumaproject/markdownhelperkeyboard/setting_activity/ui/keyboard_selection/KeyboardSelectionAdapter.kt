@@ -176,7 +176,7 @@ class KeyboardSelectionAdapter(
             KeyboardType.TENKEY -> "テンキー"
             KeyboardType.QWERTY -> "英語(QWERTY)"
             KeyboardType.ROMAJI -> "日本語 - ローマ字"
-            KeyboardType.SUMIRE -> "日本語 - スミレ入力 β"
+
             KeyboardType.CUSTOM -> "カスタム - ユーザー定義"
             KeyboardType.AYAME_TENKEY -> "アヤメテンキー"
             KeyboardType.AYAME_QWERTY -> "アヤメ英語(QWERTY)"

@@ -118,12 +118,7 @@ class SettingMainFragment : Fragment() {
                 summaryRes = R.string.setting_category_qwerty_summary,
                 actionId = R.id.action_navigation_setting_to_qwertyPreferenceFragment,
             ),
-            SettingCategory(
-                iconRes = com.kazumaproject.core.R.drawable.kana_small,
-                titleRes = R.string.category_sumire_input_keyboard_title,
-                summaryRes = R.string.setting_category_sumire_summary,
-                actionId = R.id.action_navigation_setting_to_sumirePreferenceFragment,
-            ),
+
             SettingCategory(
                 iconRes = com.kazumaproject.core.R.drawable.question_mark_24dp,
                 titleRes = R.string.category_about_app_title,

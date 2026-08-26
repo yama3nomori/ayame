@@ -61,9 +61,7 @@
         <action
             android:id="@+id/action_navigation_setting_to_tenKeyCandidateLetterSizeFragment"
             app:destination="@id/tenKeyCandidateLetterSizeFragment" />
-        <action
-            android:id="@+id/action_navigation_setting_to_circularFlickSettingsFragment"
-            app:destination="@id/circularFlickSettingsFragment" />
+
         <action
             android:id="@+id/action_navigation_setting_to_commonPreferenceFragment"
             app:destination="@id/commonPreferenceFragment" />
@@ -82,9 +80,7 @@
         <action
             android:id="@+id/action_navigation_setting_to_qwertyPreferenceFragment"
             app:destination="@id/qwertyPreferenceFragment" />
-        <action
-            android:id="@+id/action_navigation_setting_to_sumirePreferenceFragment"
-            app:destination="@id/sumirePreferenceFragment" />
+
         <action
             android:id="@+id/action_navigation_setting_to_customKeyboardPreferenceFragment"
             app:destination="@id/customKeyboardPreferenceFragment" />
@@ -220,10 +216,7 @@
         android:id="@+id/tenKeyCandidateLetterSizeFragment"
         android:name="com.kazumaproject.markdownhelperkeyboard.setting_activity.ui.tenkey_letter_size_setting.TenKeyCandidateLetterSizeFragment"
         android:label="@string/tenkeycandidatelettersizefragment" />
-    <fragment
-        android:id="@+id/circularFlickSettingsFragment"
-        android:name="com.kazumaproject.markdownhelperkeyboard.setting_activity.ui.sumire_custom_angle.CircularFlickSettingsFragment"
-        android:label="@string/circularflicksettingsfragment" />
+
 
     <!-- 設定カテゴリ個別フラグメント -->
     <fragment
@@ -291,14 +284,7 @@
             android:id="@+id/action_qwertyPreferenceFragment_to_tenKeyCandidateLetterSizeFragment"
             app:destination="@id/tenKeyCandidateLetterSizeFragment" />
     </fragment>
-    <fragment
-        android:id="@+id/sumirePreferenceFragment"
-        android:name="com.kazumaproject.markdownhelperkeyboard.setting_activity.ui.setting.SumirePreferenceFragment"
-        android:label="@string/category_sumire_input_keyboard_title">
-        <action
-            android:id="@+id/action_sumirePreferenceFragment_to_circularFlickSettingsFragment"
-            app:destination="@id/circularFlickSettingsFragment" />
-    </fragment>
+
     <fragment
         android:id="@+id/customKeyboardPreferenceFragment"
         android:name="com.kazumaproject.markdownhelperkeyboard.setting_activity.ui.setting.CustomKeyboardPreferenceFragment"

@@ -144,7 +144,6 @@ object AppModule {
     fun providesPreference(@ApplicationContext context: Context): AppPreference {
         return AppPreference.apply {
             init(context)
-            migrateSumirePreferenceIfNeeded()
         }
     }
 

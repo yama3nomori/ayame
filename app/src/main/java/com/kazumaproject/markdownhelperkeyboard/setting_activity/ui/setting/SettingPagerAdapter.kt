@@ -5,7 +5,7 @@ import androidx.viewpager2.adapter.FragmentStateAdapter
 import com.kazumaproject.markdownhelperkeyboard.setting_activity.ui.keyboard_theme.KeyboardThemeFragment
 
 class SettingPagerAdapter(fragment: Fragment) : FragmentStateAdapter(fragment) {
-    override fun getItemCount(): Int = 9
+    override fun getItemCount(): Int = 8
 
     override fun createFragment(position: Int): Fragment {
         return when (position) {
@@ -15,9 +15,8 @@ class SettingPagerAdapter(fragment: Fragment) : FragmentStateAdapter(fragment) {
             3 -> DictionaryPreferenceFragment()
             4 -> KanaPreferenceFragment()
             5 -> QwertyPreferenceFragment()
-            6 -> SumirePreferenceFragment()
-            7 -> CustomKeyboardPreferenceFragment()
-            8 -> TabletPreferenceFragment()
+            6 -> CustomKeyboardPreferenceFragment()
+            7 -> TabletPreferenceFragment()
             else -> CommonPreferenceFragment()
         }
     }
