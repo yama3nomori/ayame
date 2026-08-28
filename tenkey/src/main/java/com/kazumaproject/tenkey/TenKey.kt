@@ -1491,11 +1491,10 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     }
 
                     if (charToAnnounce != null) {
-                        if (accessibilityManager.isTouchExplorationEnabled) {
-                            accessibilityManager.interrupt()
+                        if (!accessibilityManager.isTouchExplorationEnabled) {
+                            announceForAccessibility(charToAnnounce)
+                            android.widget.Toast.makeText(context, charToAnnounce, android.widget.Toast.LENGTH_SHORT).show()
                         }
-                        announceForAccessibility(charToAnnounce)
-                        android.widget.Toast.makeText(context, charToAnnounce, android.widget.Toast.LENGTH_SHORT).show()
                         performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                     }
                     // Only send hover enter event if we are not actively dragging to keep focus frame synced
@@ -2070,9 +2069,6 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             // Immediately announce the currently hovered key
                             val targetView = getButtonFromKey(key)
                             if (targetView is View) {
-                                if (accessibilityManager.isTouchExplorationEnabled) {
-                                    accessibilityManager.interrupt()
-                                }
                                 targetView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
                             }
                         } else {
