@@ -1859,6 +1859,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         super.onWindowShown()
         isIMEWindowShown = true
         Timber.d("onWindowShown")
+        mainLayoutBinding?.accessibilityAnnouncementView?.text = ""
+        floatingKeyboardBinding?.accessibilityAnnouncementView?.text = ""
         // hijackWindowCallback() // Remove potentially conflicting hijacking
         val isTalkBackEnabled = isTalkBackActive()
         if (volumeKeyCursorMovePreference == true || isTalkBackEnabled) {
@@ -1929,6 +1931,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         super.onWindowHidden()
         isIMEWindowShown = false
         Timber.d("onWindowHidden")
+        mainLayoutBinding?.accessibilityAnnouncementView?.text = ""
+        floatingKeyboardBinding?.accessibilityAnnouncementView?.text = ""
         stopSilentAudio()
         abandonVolumeControlFocus()
         mediaSession?.isActive = false
