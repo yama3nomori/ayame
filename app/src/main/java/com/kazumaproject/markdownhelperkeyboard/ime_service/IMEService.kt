@@ -434,6 +434,17 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private var isFlickOnlyMode: Boolean? = false
     private var isOmissionSearchEnable: Boolean? = false
     private var delayTime: Int? = 1000
+    private fun getDelayTime(): Long {
+        val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager
+        val isTouchExploration = am?.isTouchExplorationEnabled == true
+        val currentKeyboard = keyboardOrder.getOrNull(currentKeyboardOrder)
+        val isAyameTenkey = currentKeyboard == KeyboardType.AYAME_TENKEY
+        return if (isTouchExploration && isAyameTenkey) {
+            3000L
+        } else {
+            delayTime?.toLong() ?: DEFAULT_DELAY_MS
+        }
+    }
     private var isLearnDictionaryMode: Boolean? = false
     private var isUserDictionaryEnable: Boolean? = false
     private var isUserTemplateEnable: Boolean? = false
@@ -1035,6 +1046,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         Timber.d("onCreate")
         ioScope.launch {
             romajiMapRepository.updateDefaultMap()
+            try {
+                learnRepository.predictiveSearchByInput("", limit = 1)
+            } catch (e: Exception) {
+                Timber.e(e, "Database pre-warming failed")
+            }
         }
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         initializeMediaSession()
@@ -9150,7 +9166,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             endBatchEdit()
         }
         _suggestionFlag.emit(CandidateShowFlag.Updating)
-        val timeToDelay = delayTime?.toLong() ?: DEFAULT_DELAY_MS
+        val timeToDelay = getDelayTime()
         delay(timeToDelay)
 
         if (inputString.value != string) {
@@ -11998,7 +12014,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
         if (isLiveConversionEnable == true && !hasConvertedKatakana) {
             if (isFlickOnlyMode != true) {
-                delay(delayTime?.toLong() ?: DEFAULT_DELAY_MS)
+                delay(getDelayTime())
             }
             isContinuousTapInputEnabled.set(true)
             lastFlickConvertedNextHiragana.set(true)
@@ -12059,7 +12075,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
         if (isLiveConversionEnable == true && !hasConvertedKatakana) {
             if (isFlickOnlyMode != true) {
-                delay(delayTime?.toLong() ?: DEFAULT_DELAY_MS)
+                delay(getDelayTime())
             }
             isContinuousTapInputEnabled.set(true)
             lastFlickConvertedNextHiragana.set(true)
@@ -12107,7 +12123,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
         if (isLiveConversionEnable == true && !hasConvertedKatakana) {
             if (isFlickOnlyMode != true) {
-                delay(delayTime?.toLong() ?: DEFAULT_DELAY_MS)
+                delay(getDelayTime())
             }
             isContinuousTapInputEnabled.set(true)
             lastFlickConvertedNextHiragana.set(true)
@@ -12155,7 +12171,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
         if (isLiveConversionEnable == true && !hasConvertedKatakana) {
             if (isFlickOnlyMode != true) {
-                delay(delayTime?.toLong() ?: DEFAULT_DELAY_MS)
+                delay(getDelayTime())
             }
             isContinuousTapInputEnabled.set(true)
             lastFlickConvertedNextHiragana.set(true)

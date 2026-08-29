@@ -1971,10 +1971,6 @@ class QWERTYKeyboardView @JvmOverloads constructor(
         } ?: return
         
         if (announcement.isNotEmpty()) {
-            if (accessibilityManager.isTouchExplorationEnabled) {
-                // 強制的にこれまでの読み上げを中断する
-                accessibilityManager.interrupt()
-            }
             // TalkBackのフォーカス移動を維持
             view.sendAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
         }

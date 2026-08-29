@@ -89,6 +89,13 @@ object AppModule {
             MIGRATION_15_16
         )
         .setJournalMode(androidx.room.RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
+        .addCallback(object : androidx.room.RoomDatabase.Callback() {
+            override fun onOpen(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                super.onOpen(db)
+                db.execSQL("PRAGMA synchronous = NORMAL;")
+                db.execSQL("PRAGMA cache_size = -4000;")
+            }
+        })
         .build()
 
     @Singleton

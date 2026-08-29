@@ -2251,10 +2251,10 @@ class FlickKeyboardView @JvmOverloads constructor(
             val announcement = buildKeyAnnouncement(info.keyData)
             if (announcement.isNotEmpty() && accessibilityManager.isEnabled) {
                 if (accessibilityManager.isTouchExplorationEnabled) {
-                    // 強制的にこれまでの読み上げを中断する
-                    accessibilityManager.interrupt()
+                    view.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+                } else {
+                    this.announceForAccessibility(announcement)
                 }
-                this.announceForAccessibility(announcement)
             }
         }
     }

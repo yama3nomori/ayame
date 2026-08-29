@@ -1747,9 +1747,6 @@ class TabletKeyboardView @JvmOverloads constructor(
         val view = getButtonFromKey(key)
         val description = (view as? View)?.contentDescription ?: (view as? TextView)?.text
         if (!description.isNullOrEmpty() && accessibilityManager.isEnabled) {
-            if (accessibilityManager.isTouchExplorationEnabled) {
-                accessibilityManager.interrupt()
-            }
             (view as? View)?.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
         }
     }

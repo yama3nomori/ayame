@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>アヤメキーボード - 視覚障害者のための次世代日本語IME</title>
+    <link rel="stylesheet" href="option.css">
+    <style>
+        body {
+            font-family: "Meiryo", "MS Gothic", sans-serif;
+        }
+        h1, h2, h3 {
+            padding: 10px 0;
+            margin-top: 40px;
+        }
+        section {
+            margin-bottom: 50px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .note {
+            background: #003300;
+            border-left: 10px solid #004F00;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .quote-box {
+            background: #003300;
+            border-left: 10px solid #004F00;
+            padding: 20px;
+            margin: 30px 0;
+            text-align: center;
+            font-size: 1.15em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>アヤメキーボード</h1>
+            <p style="text-align: center; font-size: 1.2em; color: #FFAA00; font-weight: bold;">視覚障害者のための次世代日本語IME</p>
+        </header>
+
+        <section id="concept">
+            <div class="quote-box">
+                <strong>「TalkBackを使って、もっと確実に、もっと自由に日本語を打ちたい。」</strong>
+            </div>
+            <p>
+                そんな切実な願いから生まれた、視覚障害者のためのAndroid用日本語IME（日本語入力アプリ）です。<br>
+                強力な変換エンジンと、アクセシビリティを最優先に考慮した独自の操作性を融合させ、スムーズでストレスのない入力体験を提供します。
+            </p>
+        </section>
+
+        <section id="features">
+            <h2>主な特徴・機能</h2>
+            
+            <h3>1. 「なぞり入力」と「ダブルタップ」の2大入力体系</h3>
+            <p>ユーザーの習熟度や好みに合わせて、最適な入力スタイルを選択できます。</p>
+            <ul>
+                <li><strong>なぞり入力（Lift-to-type）:</strong> 画面をなぞってキーを探索し、指を離した瞬間に確定する挙動を、Androidの <code>onHoverEvent</code> を駆使して緻密に制御。TalkBack標準を超えた軽快で高速な入力体験を実現します。</li>
+                <li><strong>ダブルタップ / 操作メニュー / スプリットタップ:</strong> 標準的なダブルタップ操作や「操作メニュー」からの入力に加え、対応端末では「スプリットタップ」も使用可能です。</li>
+            </ul>
+
+            <h3>2. Mozcエンジンによる高い変換精度</h3>
+            <p>強力な Mozc エンジンをベースに採用。アクセシビリティに優れた従来のIMEの操作性を継承しつつ、現代の高度な日本語変換精度を両立させています。</p>
+
+            <h3>3. 漢字詳細読み（田町読み）の統合</h3>
+            <p>「はし」と入力した際、「橋（川にかける橋）」「箸（食事で使う箸）」といった詳細な説明をTalkBackに喋らせるデータを組み込んでいます。変換候補を選択した瞬間に、迷うことなく正しい漢字を選択できます。</p>
+
+            <h3>4. 物理ボリュームキーによる「カーソル移動」</h3>
+            <p>TalkBack 12.2以降の仕様を活用し、入力中の物理ボリュームキーを「カーソル移動」専用キーとして復刻・再定義しました。画面に触れることなく、1文字単位の移動を確実に操作できます。</p>
+
+            <h3>5. マジックタップによる快適な音声入力</h3>
+            <p>2本指ダブルタップ（マジックタップ）のジェスチャー操作に対応し、キーボード画面からワンアクションで音声入力を瞬時に呼び出すことができます。</p>
+            <div class="note">
+                <strong>【お知らせ】</strong><br>
+                ※ジェスチャー起動を使用するには、TalkBackの設定で「メディアの再生/一時停止」にジェスチャーを割り当てる必要があります。
+            </div>
+        </section>
+
+        <section id="about-name">
+            <h2>アヤメという名前に込めた思い</h2>
+            <p>ベースとなった「スミレキーボード」の精神を受け継ぎ、美しく機能的な花の名前を冠しています。</p>
+            <ul>
+                <li><strong>音のアクセシビリティ:</strong> 「ア・ヤ・メ」の3音はスクリーンリーダーで非常に明瞭に読み上げられます。</li>
+                <li><strong>花言葉:</strong> 「よい便り」「メッセージ」「希望」という花言葉を持つアヤメのように、あなたの思考とデバイスを繋ぐ架け橋となります。</li>
+                <li><strong>UIの象徴:</strong> アヤメの網目模様のように、「迷わずに操作できるユーザーインターフェース」を追求しています。</li>
+            </ul>
+        </section>
+
+        <section id="vision">
+            <div class="quote-box">
+                <strong>自分の思いや言葉を、心地よく、確実に表現できること。<br>
+                アヤメキーボードが、あなたの「よい便り」を運ぶ頼もしいメッセンジャーとなりますように。</strong>
+            </div>
+        </section>
+
+        <section id="details">
+            <h2>主な機能詳細</h2>
+            <ul>
+                <li><strong>高性能な変換エンジン:</strong> Google日本語入力のコア「mozc」の大規模辞書を搭載。</li>
+                <li><strong>強力なユーザー辞書:</strong> よく使う単語や読みを登録し、すばやく予測変換できます。</li>
+                <li><strong>定型文（スニペット）機能:</strong> メールアドレスなどを一発で呼び出し可能です。</li>
+                <li><strong>究極のカスタマイズ:</strong> キーボードの高さや文字サイズ、配色（ガラステーマ等）を自由に変更できます。</li>
+            </ul>
+        </section>
+
+        <section id="accessibility">
+            <h2>視覚障害者・アクセシビリティ支援機能</h2>
+            <p>アヤメキーボードは、スクリーンリーダーTalkBackを使って快適に操作できるよう設計されています。</p>
+
+            <h3>入力の設定</h3>
+            <ul>
+                <li><strong>サーチ＆リリース:</strong> 画面をなぞって指を離す方式。テンキー文字キーはドラッグ（指を少しずらして離す）やフリックで操作します。</li>
+                <li><strong>読み上げキー:</strong> 未確定の入力文字がある場合は文字を、ない場合は行番号とテキストを読み上げます。漢字の田町読み説明や、文頭から文末までの読み上げも可能です。</li>
+                <li><strong>強制読み上げ:</strong> ボリュームキーでのカーソル移動時、TalkBackが読み上げない場合でもキーボード側から強制的に読み上げを行う設定を備えています。</li>
+            </ul>
+
+            <h3>便利なキー操作</h3>
+            <p>削除キーでの一括削除や、左右のカーソルキーによる文頭・文末への移動など、高度な編集機能も充実しています。</p>
+        </section>
+
+        <section id="faq">
+            <h2>困ったときは（Q&A）</h2>
+            <p><strong>Q: 予測変換が出なくなりました。</strong></p>
+            <p>A: 設定画面の「辞書」カテゴリで、ユーザー辞書や学習辞書が有効かご確認ください。</p>
+            
+            <p><strong>Q: 音声入力がジェスチャーで起動しません。</strong></p>
+            <p>A: Androidシステム設定内のTalkBack設定を開き、「ジェスチャーのカスタマイズ」で割り当てた機能が「メディアの再生/一時停止」になっているかご確認ください。</p>
+        </section>
+
+        <footer>
+            <p style="text-align: center; font-size: 0.8em; margin-top: 100px;">
+                アヤメキーボード
+            </p>
+        </footer>
+    </div>
+</body>
+</html>
