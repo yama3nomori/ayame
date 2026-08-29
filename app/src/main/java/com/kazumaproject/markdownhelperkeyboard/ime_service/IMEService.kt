@@ -1982,6 +1982,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     override fun onDestroy() {
         super.onDestroy()
         accessibilityScope.cancel()
+        scope.cancel()
+        ioScope.cancel()
         isIMEWindowShown = false
         Timber.d("onUpdate onDestroy")
 
@@ -2002,10 +2004,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             keyboardView.cancelTenKeyScope()
             keyboardSymbolView.release()
         }
+        mainLayoutBinding = null
         floatingKeyboardBinding?.apply {
             keyboardViewFloating.cancelTenKeyScope()
             floatingSymbolKeyboard.release()
         }
+        floatingKeyboardBinding = null
         zenzEngine = null
         suggestionAdapter?.release()
         suggestionAdapter = null
@@ -2176,6 +2180,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         System.gc()
         dismissFloatingDock()
     }
+
 
     override fun onComputeInsets(outInsets: Insets?) {
         super.onComputeInsets(outInsets)

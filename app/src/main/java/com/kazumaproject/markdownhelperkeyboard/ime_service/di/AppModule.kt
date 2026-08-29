@@ -88,6 +88,7 @@ object AppModule {
             MIGRATION_14_15,
             MIGRATION_15_16
         )
+        .setJournalMode(androidx.room.RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
         .build()
 
     @Singleton
