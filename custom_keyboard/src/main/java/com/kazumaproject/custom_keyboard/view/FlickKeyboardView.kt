@@ -1573,7 +1573,7 @@ class FlickKeyboardView @JvmOverloads constructor(
         // TalkBackのダブルタップを有効にするために常にクリック可能にしてリスナーを設定する
         view.isClickable = true
         view.setOnClickListener {
-            if (isTouchExplorationEnabled()) {
+            if (isTouchExplorationEnabled() && isAyameMode) {
                 handleKeyClick(view)
             }
         }

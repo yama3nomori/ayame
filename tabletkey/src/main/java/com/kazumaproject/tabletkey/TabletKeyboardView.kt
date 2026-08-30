@@ -496,8 +496,6 @@ class TabletKeyboardView @JvmOverloads constructor(
                                 lastClickedTime = currentTime
                             }
                         }
-                    } else if (accessibilityManager.isTouchExplorationEnabled) {
-                        performKeyInput(view, key)
                     }
                 }
             }

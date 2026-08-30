@@ -358,8 +358,6 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                                 lastClickedTime = currentTime
                             }
                         }
-                    } else if (accessibilityManager.isTouchExplorationEnabled) {
-                        performKeyInput(view, key)
                     }
                 }
             }
