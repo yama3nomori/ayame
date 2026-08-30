@@ -326,39 +326,49 @@ class KanaKanjiEngine {
         val objectInputReadPOSTable =
             ObjectInputStream(BufferedInputStream(context.assets.open("pos_table.dat")))
 
-        this.personTangoTrie = LOUDS().readExternalNotCompress(objectInputTango)
-        this.personYomiTrie = LOUDSWithTermId().readExternalNotCompress(objectInputYomi)
+        val localTangoTrie = LOUDS().readExternalNotCompress(objectInputTango)
+        val localYomiTrie = LOUDSWithTermId().readExternalNotCompress(objectInputYomi)
 
-        this.personTokenArray = TokenArray()
-        this.personTokenArray?.readExternal(objectInputTokenArray)
-        this.personTokenArray?.readPOSTable(objectInputReadPOSTable)
+        val localTokenArray = TokenArray()
+        localTokenArray.readExternal(objectInputTokenArray)
+        localTokenArray.readPOSTable(objectInputReadPOSTable)
 
-        this.personSuccinctBitVectorLBSYomi = SuccinctBitVector(personYomiTrie!!.LBS)
-        this.personSuccinctBitVectorIsLeaf = SuccinctBitVector(personYomiTrie!!.isLeaf)
-        this.personSuccinctBitVectorTokenArray = SuccinctBitVector(personTokenArray!!.bitvector)
-        this.personSuccinctBitVectorLBSTango = SuccinctBitVector(personTangoTrie!!.LBS)
+        val localSuccinctBitVectorLBSYomi = SuccinctBitVector(localYomiTrie.LBS)
+        val localSuccinctBitVectorIsLeaf = SuccinctBitVector(localYomiTrie.isLeaf)
+        val localSuccinctBitVectorTokenArray = SuccinctBitVector(localTokenArray.bitvector)
+        val localSuccinctBitVectorLBSTango = SuccinctBitVector(localTangoTrie.LBS)
+
+        synchronized(this) {
+            this.personTangoTrie = localTangoTrie
+            this.personYomiTrie = localYomiTrie
+            this.personTokenArray = localTokenArray
+            this.personSuccinctBitVectorLBSYomi = localSuccinctBitVectorLBSYomi
+            this.personSuccinctBitVectorIsLeaf = localSuccinctBitVectorIsLeaf
+            this.personSuccinctBitVectorTokenArray = localSuccinctBitVectorTokenArray
+            this.personSuccinctBitVectorLBSTango = localSuccinctBitVectorLBSTango
+        }
     }
 
     fun buildPlaceDictionary(context: Context) {
         val zipInputStreamTango = ZipInputStream(context.assets.open("places/tango_places.dat.zip"))
         zipInputStreamTango.nextEntry
-        ObjectInputStream(BufferedInputStream(zipInputStreamTango)).use {
-            this.placesTangoTrie = LOUDS().readExternalNotCompress(it)
+        val localTangoTrie = ObjectInputStream(BufferedInputStream(zipInputStreamTango)).use {
+            LOUDS().readExternalNotCompress(it)
         }
         val zipInputStreamYomi = ZipInputStream(context.assets.open("places/yomi_places.dat.zip"))
         zipInputStreamYomi.nextEntry
-        ObjectInputStream(BufferedInputStream(zipInputStreamYomi)).use {
-            this.placesYomiTrie = LOUDSWithTermId().readExternalNotCompress(it)
+        val localYomiTrie = ObjectInputStream(BufferedInputStream(zipInputStreamYomi)).use {
+            LOUDSWithTermId().readExternalNotCompress(it)
         }
 
-        this.placesTokenArray = TokenArray()
+        val localTokenArray = TokenArray()
 
         ZipInputStream(context.assets.open("places/token_places.dat.zip")).use { zipStream ->
             var entry = zipStream.nextEntry
             while (entry != null) {
                 if (entry.name == "token_places.dat") {
                     ObjectInputStream(BufferedInputStream(zipStream)).use { objectInput ->
-                        this.placesTokenArray?.readExternal(objectInput)
+                        localTokenArray.readExternal(objectInput)
                     }
                     break
                 }
@@ -369,33 +379,43 @@ class KanaKanjiEngine {
         val objectInputReadPOSTable =
             ObjectInputStream(BufferedInputStream(context.assets.open("pos_table.dat")))
 
-        this.placesTokenArray?.readPOSTable(objectInputReadPOSTable)
-        this.placesSuccinctBitVectorLBSYomi = SuccinctBitVector(placesYomiTrie!!.LBS)
-        this.placesSuccinctBitVectorIsLeaf = SuccinctBitVector(placesYomiTrie!!.isLeaf)
-        this.placesSuccinctBitVectorTokenArray = SuccinctBitVector(placesTokenArray!!.bitvector)
-        this.placesSuccinctBitVectorLBSTango = SuccinctBitVector(placesTangoTrie!!.LBS)
+        localTokenArray.readPOSTable(objectInputReadPOSTable)
+        val localSuccinctBitVectorLBSYomi = SuccinctBitVector(localYomiTrie.LBS)
+        val localSuccinctBitVectorIsLeaf = SuccinctBitVector(localYomiTrie.isLeaf)
+        val localSuccinctBitVectorTokenArray = SuccinctBitVector(localTokenArray.bitvector)
+        val localSuccinctBitVectorLBSTango = SuccinctBitVector(localTangoTrie.LBS)
+
+        synchronized(this) {
+            this.placesTangoTrie = localTangoTrie
+            this.placesYomiTrie = localYomiTrie
+            this.placesTokenArray = localTokenArray
+            this.placesSuccinctBitVectorLBSYomi = localSuccinctBitVectorLBSYomi
+            this.placesSuccinctBitVectorIsLeaf = localSuccinctBitVectorIsLeaf
+            this.placesSuccinctBitVectorTokenArray = localSuccinctBitVectorTokenArray
+            this.placesSuccinctBitVectorLBSTango = localSuccinctBitVectorLBSTango
+        }
     }
 
     fun buildWikiDictionary(context: Context) {
         val zipInputStreamTango = ZipInputStream(context.assets.open("wiki/tango_wiki.dat.zip"))
         zipInputStreamTango.nextEntry
-        ObjectInputStream(BufferedInputStream(zipInputStreamTango)).use {
-            this.wikiTangoTrie = LOUDS().readExternalNotCompress(it)
+        val localTangoTrie = ObjectInputStream(BufferedInputStream(zipInputStreamTango)).use {
+            LOUDS().readExternalNotCompress(it)
         }
         val zipInputStreamYomi = ZipInputStream(context.assets.open("wiki/yomi_wiki.dat.zip"))
         zipInputStreamYomi.nextEntry
-        ObjectInputStream(BufferedInputStream(zipInputStreamYomi)).use {
-            this.wikiYomiTrie = LOUDSWithTermId().readExternalNotCompress(it)
+        val localYomiTrie = ObjectInputStream(BufferedInputStream(zipInputStreamYomi)).use {
+            LOUDSWithTermId().readExternalNotCompress(it)
         }
 
-        this.wikiTokenArray = TokenArray()
+        val localTokenArray = TokenArray()
 
         ZipInputStream(context.assets.open("wiki/token_wiki.dat.zip")).use { zipStream ->
             var entry = zipStream.nextEntry
             while (entry != null) {
                 if (entry.name == "token_wiki.dat") {
                     ObjectInputStream(BufferedInputStream(zipStream)).use { objectInput ->
-                        this.wikiTokenArray?.readExternal(objectInput)
+                        localTokenArray.readExternal(objectInput)
                     }
                     break
                 }
@@ -406,35 +426,45 @@ class KanaKanjiEngine {
         val objectInputReadPOSTable =
             ObjectInputStream(BufferedInputStream(context.assets.open("pos_table.dat")))
 
-        this.wikiTokenArray?.readPOSTable(objectInputReadPOSTable)
+        localTokenArray.readPOSTable(objectInputReadPOSTable)
 
-        this.wikiSuccinctBitVectorLBSYomi = SuccinctBitVector(wikiYomiTrie!!.LBS)
-        this.wikiSuccinctBitVectorIsLeaf = SuccinctBitVector(wikiYomiTrie!!.isLeaf)
-        this.wikiSuccinctBitVectorTokenArray = SuccinctBitVector(wikiTokenArray!!.bitvector)
-        this.wikiSuccinctBitVectorLBSTango = SuccinctBitVector(wikiTangoTrie!!.LBS)
+        val localSuccinctBitVectorLBSYomi = SuccinctBitVector(localYomiTrie.LBS)
+        val localSuccinctBitVectorIsLeaf = SuccinctBitVector(localYomiTrie.isLeaf)
+        val localSuccinctBitVectorTokenArray = SuccinctBitVector(localTokenArray.bitvector)
+        val localSuccinctBitVectorLBSTango = SuccinctBitVector(localTangoTrie.LBS)
+
+        synchronized(this) {
+            this.wikiTangoTrie = localTangoTrie
+            this.wikiYomiTrie = localYomiTrie
+            this.wikiTokenArray = localTokenArray
+            this.wikiSuccinctBitVectorLBSYomi = localSuccinctBitVectorLBSYomi
+            this.wikiSuccinctBitVectorIsLeaf = localSuccinctBitVectorIsLeaf
+            this.wikiSuccinctBitVectorTokenArray = localSuccinctBitVectorTokenArray
+            this.wikiSuccinctBitVectorLBSTango = localSuccinctBitVectorLBSTango
+        }
     }
 
     fun buildNeologdDictionary(context: Context) {
         val zipInputStreamTango =
             ZipInputStream(context.assets.open("neologd/tango_neologd.dat.zip"))
         zipInputStreamTango.nextEntry
-        ObjectInputStream(BufferedInputStream(zipInputStreamTango)).use {
-            this.neologdTangoTrie = LOUDS().readExternalNotCompress(it)
+        val localTangoTrie = ObjectInputStream(BufferedInputStream(zipInputStreamTango)).use {
+            LOUDS().readExternalNotCompress(it)
         }
         val zipInputStreamYomi = ZipInputStream(context.assets.open("neologd/yomi_neologd.dat.zip"))
         zipInputStreamYomi.nextEntry
-        ObjectInputStream(BufferedInputStream(zipInputStreamYomi)).use {
-            this.neologdYomiTrie = LOUDSWithTermId().readExternalNotCompress(it)
+        val localYomiTrie = ObjectInputStream(BufferedInputStream(zipInputStreamYomi)).use {
+            LOUDSWithTermId().readExternalNotCompress(it)
         }
 
-        this.neologdTokenArray = TokenArray()
+        val localTokenArray = TokenArray()
 
         ZipInputStream(context.assets.open("neologd/token_neologd.dat.zip")).use { zipStream ->
             var entry = zipStream.nextEntry
             while (entry != null) {
                 if (entry.name == "token_neologd.dat") {
                     ObjectInputStream(BufferedInputStream(zipStream)).use { objectInput ->
-                        this.neologdTokenArray?.readExternal(objectInput)
+                        localTokenArray.readExternal(objectInput)
                     }
                     break
                 }
@@ -445,34 +475,44 @@ class KanaKanjiEngine {
         val objectInputReadPOSTable =
             ObjectInputStream(BufferedInputStream(context.assets.open("pos_table.dat")))
 
-        this.neologdTokenArray?.readPOSTable(objectInputReadPOSTable)
+        localTokenArray.readPOSTable(objectInputReadPOSTable)
 
-        this.neologdSuccinctBitVectorLBSYomi = SuccinctBitVector(neologdYomiTrie!!.LBS)
-        this.neologdSuccinctBitVectorIsLeaf = SuccinctBitVector(neologdYomiTrie!!.isLeaf)
-        this.neologdSuccinctBitVectorTokenArray = SuccinctBitVector(neologdTokenArray!!.bitvector)
-        this.neologdSuccinctBitVectorLBSTango = SuccinctBitVector(neologdTangoTrie!!.LBS)
+        val localSuccinctBitVectorLBSYomi = SuccinctBitVector(localYomiTrie.LBS)
+        val localSuccinctBitVectorIsLeaf = SuccinctBitVector(localYomiTrie.isLeaf)
+        val localSuccinctBitVectorTokenArray = SuccinctBitVector(localTokenArray.bitvector)
+        val localSuccinctBitVectorLBSTango = SuccinctBitVector(localTangoTrie.LBS)
+
+        synchronized(this) {
+            this.neologdTangoTrie = localTangoTrie
+            this.neologdYomiTrie = localYomiTrie
+            this.neologdTokenArray = localTokenArray
+            this.neologdSuccinctBitVectorLBSYomi = localSuccinctBitVectorLBSYomi
+            this.neologdSuccinctBitVectorIsLeaf = localSuccinctBitVectorIsLeaf
+            this.neologdSuccinctBitVectorTokenArray = localSuccinctBitVectorTokenArray
+            this.neologdSuccinctBitVectorLBSTango = localSuccinctBitVectorLBSTango
+        }
     }
 
     fun buildWebDictionary(context: Context) {
         val zipInputStreamTango = ZipInputStream(context.assets.open("web/tango_web.dat.zip"))
         zipInputStreamTango.nextEntry
-        ObjectInputStream(BufferedInputStream(zipInputStreamTango)).use {
-            this.webTangoTrie = LOUDS().readExternalNotCompress(it)
+        val localTangoTrie = ObjectInputStream(BufferedInputStream(zipInputStreamTango)).use {
+            LOUDS().readExternalNotCompress(it)
         }
         val zipInputStreamYomi = ZipInputStream(context.assets.open("web/yomi_web.dat.zip"))
         zipInputStreamYomi.nextEntry
-        ObjectInputStream(BufferedInputStream(zipInputStreamYomi)).use {
-            this.webYomiTrie = LOUDSWithTermId().readExternalNotCompress(it)
+        val localYomiTrie = ObjectInputStream(BufferedInputStream(zipInputStreamYomi)).use {
+            LOUDSWithTermId().readExternalNotCompress(it)
         }
 
-        this.webTokenArray = TokenArray()
+        val localTokenArray = TokenArray()
 
         ZipInputStream(context.assets.open("web/token_web.dat.zip")).use { zipStream ->
             var entry = zipStream.nextEntry
             while (entry != null) {
                 if (entry.name == "token_web.dat") {
                     ObjectInputStream(BufferedInputStream(zipStream)).use { objectInput ->
-                        this.webTokenArray?.readExternal(objectInput)
+                        localTokenArray.readExternal(objectInput)
                     }
                     break
                 }
@@ -483,12 +523,22 @@ class KanaKanjiEngine {
         val objectInputReadPOSTable =
             ObjectInputStream(BufferedInputStream(context.assets.open("pos_table.dat")))
 
-        this.webTokenArray?.readPOSTable(objectInputReadPOSTable)
+        localTokenArray.readPOSTable(objectInputReadPOSTable)
 
-        this.webSuccinctBitVectorLBSYomi = SuccinctBitVector(webYomiTrie!!.LBS)
-        this.webSuccinctBitVectorIsLeaf = SuccinctBitVector(webYomiTrie!!.isLeaf)
-        this.webSuccinctBitVectorTokenArray = SuccinctBitVector(webTokenArray!!.bitvector)
-        this.webSuccinctBitVectorLBSTango = SuccinctBitVector(webTangoTrie!!.LBS)
+        val localSuccinctBitVectorLBSYomi = SuccinctBitVector(localYomiTrie.LBS)
+        val localSuccinctBitVectorIsLeaf = SuccinctBitVector(localYomiTrie.isLeaf)
+        val localSuccinctBitVectorTokenArray = SuccinctBitVector(localTokenArray.bitvector)
+        val localSuccinctBitVectorLBSTango = SuccinctBitVector(localTangoTrie.LBS)
+
+        synchronized(this) {
+            this.webTangoTrie = localTangoTrie
+            this.webYomiTrie = localYomiTrie
+            this.webTokenArray = localTokenArray
+            this.webSuccinctBitVectorLBSYomi = localSuccinctBitVectorLBSYomi
+            this.webSuccinctBitVectorIsLeaf = localSuccinctBitVectorIsLeaf
+            this.webSuccinctBitVectorTokenArray = localSuccinctBitVectorTokenArray
+            this.webSuccinctBitVectorLBSTango = localSuccinctBitVectorLBSTango
+        }
     }
 
     fun releasePersonNamesDictionary() {

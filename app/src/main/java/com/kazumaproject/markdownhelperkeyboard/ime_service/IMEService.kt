@@ -1411,39 +1411,51 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             enableTypoCorrectionQwertyEnglishKeyboardPreference =
                 enable_typo_correction_qwerty_english_keyboard_preference
 
-            if (mozcUTPersonName == true) {
-                if (!kanaKanjiEngine.isMozcUTPersonDictionariesInitialized()) {
-                    kanaKanjiEngine.buildPersonNamesDictionary(
-                        applicationContext
-                    )
+            ioScope.launch {
+                if (mozcUTPersonName == true) {
+                    if (!kanaKanjiEngine.isMozcUTPersonDictionariesInitialized()) {
+                        try {
+                            kanaKanjiEngine.buildPersonNamesDictionary(applicationContext)
+                        } catch (e: Exception) {
+                            Timber.e(e, "Failed to build PersonNames dictionary")
+                        }
+                    }
                 }
-            }
-            if (mozcUTPlaces == true) {
-                if (!kanaKanjiEngine.isMozcUTPlacesDictionariesInitialized()) {
-                    kanaKanjiEngine.buildPlaceDictionary(
-                        applicationContext
-                    )
+                if (mozcUTPlaces == true) {
+                    if (!kanaKanjiEngine.isMozcUTPlacesDictionariesInitialized()) {
+                        try {
+                            kanaKanjiEngine.buildPlaceDictionary(applicationContext)
+                        } catch (e: Exception) {
+                            Timber.e(e, "Failed to build Places dictionary")
+                        }
+                    }
                 }
-            }
-            if (mozcUTWiki == true) {
-                if (!kanaKanjiEngine.isMozcUTWikiDictionariesInitialized()) {
-                    kanaKanjiEngine.buildWikiDictionary(
-                        applicationContext
-                    )
+                if (mozcUTWiki == true) {
+                    if (!kanaKanjiEngine.isMozcUTWikiDictionariesInitialized()) {
+                        try {
+                            kanaKanjiEngine.buildWikiDictionary(applicationContext)
+                        } catch (e: Exception) {
+                            Timber.e(e, "Failed to build Wiki dictionary")
+                        }
+                    }
                 }
-            }
-            if (mozcUTNeologd == true) {
-                if (!kanaKanjiEngine.isMozcUTNeologdDictionariesInitialized()) {
-                    kanaKanjiEngine.buildNeologdDictionary(
-                        applicationContext
-                    )
+                if (mozcUTNeologd == true) {
+                    if (!kanaKanjiEngine.isMozcUTNeologdDictionariesInitialized()) {
+                        try {
+                            kanaKanjiEngine.buildNeologdDictionary(applicationContext)
+                        } catch (e: Exception) {
+                            Timber.e(e, "Failed to build Neologd dictionary")
+                        }
+                    }
                 }
-            }
-            if (mozcUTWeb == true) {
-                if (!kanaKanjiEngine.isMozcUTWebDictionariesInitialized()) {
-                    kanaKanjiEngine.buildWebDictionary(
-                        applicationContext
-                    )
+                if (mozcUTWeb == true) {
+                    if (!kanaKanjiEngine.isMozcUTWebDictionariesInitialized()) {
+                        try {
+                            kanaKanjiEngine.buildWebDictionary(applicationContext)
+                        } catch (e: Exception) {
+                            Timber.e(e, "Failed to build Web dictionary")
+                        }
+                    }
                 }
             }
             this@IMEService.isClipboardHistoryFeatureEnabled = clipboard_history_enable ?: false
