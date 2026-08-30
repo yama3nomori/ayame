@@ -5442,10 +5442,6 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 lastClickedTime = currentTime
                             }
                         }
-                    } else {
-                        if (accessibilityManager.isTouchExplorationEnabled) {
-                            performKeyInput(key)
-                        }
                     }
                 }
                 ViewCompat.setAccessibilityDelegate(view, object : AccessibilityDelegateCompat() {
