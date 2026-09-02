@@ -158,6 +158,8 @@ import com.kazumaproject.markdownhelperkeyboard.ime_service.floating_view.Floati
 import com.kazumaproject.markdownhelperkeyboard.ime_service.floating_view.FloatingDockView
 import com.kazumaproject.markdownhelperkeyboard.ime_service.models.CandidateShowFlag
 import com.kazumaproject.markdownhelperkeyboard.ime_service.romaji_kana.RomajiKanaConverter
+import com.kazumaproject.core.domain.braille.BrailleInputMode
+import com.kazumaproject.markdownhelperkeyboard.braille.OnBrailleInputListener
 import com.kazumaproject.markdownhelperkeyboard.ime_service.state.CandidateTab
 import com.kazumaproject.markdownhelperkeyboard.ime_service.state.InputTypeForIME
 import com.kazumaproject.markdownhelperkeyboard.ime_service.state.KeyboardType
@@ -1249,7 +1251,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         physicalKeyboardFloatingYPosition = 150
         _suggestionViewStatus.update { true }
         appPreference.apply {
-            keyboardOrder = keyboard_order + KeyboardType.NUMERIC + KeyboardType.AYAME_NUMERIC
+            keyboardOrder = keyboard_order + KeyboardType.NUMERIC + KeyboardType.AYAME_NUMERIC + KeyboardType.BRAILLE
             candidateTabOrder = candidate_tab_order
             mozcUTPersonName = mozc_ut_person_names_preference ?: false
             mozcUTPlaces = mozc_ut_places_preference ?: false
@@ -2660,6 +2662,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                                     keyBackgroundColor = symbolKeyBg,
                                     liquidGlassEnable = liquidGlassThemePreference ?: false
                                 )
+                                mainView.brailleView.setKeyboardTheme(
+                                    backgroundColor = customThemeBgColor ?: Color.parseColor("#202124"),
+                                    keyBackgroundColor = customThemeKeyColor ?: Color.parseColor("#3C4043"),
+                                    textColor = customThemeKeyTextColor ?: Color.WHITE
+                                )
                                 suggestionAdapter?.setCandidateTextColor(
                                     customThemeKeyTextColor ?: Color.BLACK
                                 )
@@ -2739,6 +2746,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                         setTabletKeyListeners(mainView)
                     }
                     setTenKeyListeners(mainView)
+                    setBrailleKeyboardListeners(mainView)
                     setKeyboardSizeSwitchKeyboard(mainView)
                     updateClipboardPreview()
                     mainView.suggestionRecyclerView.isVisible = suggestionViewStatus.value
@@ -4034,6 +4042,97 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
     }
 
+    private fun setBrailleKeyboardListeners(
+        mainView: MainLayoutBinding
+    ) {
+        mainView.brailleView.apply {
+            listener = object : OnBrailleInputListener {
+                override fun onInputText(text: String) {
+                    clearDeletedBuffer()
+                    suggestionAdapter?.setUndoEnabled(false)
+                    when (inputProcessor.inputMode) {
+                        BrailleInputMode.JAPANESE -> {
+                            val insertString = inputString.value
+                            val sb = StringBuilder()
+                            sb.append(insertString).append(text)
+                            _inputString.update { sb.toString() }
+                        }
+                        BrailleInputMode.ENGLISH, BrailleInputMode.NUMBER -> {
+                            if (inputString.value.isNotEmpty()) {
+                                val insertString = inputString.value
+                                val sb = StringBuilder()
+                                sb.append(insertString).append(text)
+                                _inputString.update { sb.toString() }
+                            } else {
+                                currentInputConnection?.commitText(text, 1)
+                            }
+                        }
+                    }
+                }
+
+                override fun onDelete() {
+                    val insertString = inputString.value
+                    val suggestions = suggestionAdapter?.suggestions ?: emptyList()
+                    handleDeleteKeyTap(insertString, suggestions)
+                }
+
+                override fun onSpace() {
+                    val insertString = inputString.value
+                    val suggestions = suggestionAdapter?.suggestions ?: emptyList()
+                    if (insertString.isNotEmpty()) {
+                        handleSpaceKeyClick(
+                            isFlick = false,
+                            insertString = insertString,
+                            suggestions = suggestions,
+                            mainView = mainView
+                        )
+                    } else {
+                        currentInputConnection?.commitText(" ", 1)
+                    }
+                }
+
+                override fun onEnter() {
+                    val insertString = inputString.value
+                    val suggestions = suggestionAdapter?.suggestions ?: emptyList()
+                    if (insertString.isNotEmpty()) {
+                        handleNonEmptyInputEnterKey(suggestions, mainView, insertString)
+                    } else {
+                        handleEmptyInputEnterKey(mainView)
+                    }
+                }
+
+                override fun onNextCandidate() {
+                    val insertString = inputString.value
+                    val suggestions = suggestionAdapter?.suggestions ?: emptyList()
+                    if (insertString.isNotEmpty() && suggestions.isNotEmpty()) {
+                        handleJapaneseModeSpaceKey(mainView, suggestions, insertString)
+                    }
+                }
+
+                override fun onPrevCandidate() {
+                    val insertString = inputString.value
+                    val suggestions = suggestionAdapter?.suggestions ?: emptyList()
+                    if (insertString.isNotEmpty() && suggestions.isNotEmpty()) {
+                        handleJapaneseModeSpaceKeyReverse(mainView, suggestions, insertString)
+                    }
+                }
+
+                override fun onSwitchMode(mode: BrailleInputMode) {
+                    val modeName = when (mode) {
+                        BrailleInputMode.JAPANESE -> "日本語モード"
+                        BrailleInputMode.ENGLISH -> "英語モード"
+                        BrailleInputMode.NUMBER -> "数字モード"
+                    }
+                    announceText(modeName)
+                }
+
+                override fun onSwitchKeyboard() {
+                    switchNextKeyboard()
+                }
+            }
+        }
+    }
+
     private fun setTenKeyListeners(
         mainView: MainLayoutBinding
     ) {
@@ -5194,6 +5293,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     KeyboardType.AYAME_NUMERIC -> "アヤメ数字専用キーボード"
                     KeyboardType.TABLET_KANA -> "タブレット用かなレイアウト"
                     KeyboardType.AYAME_TABLET_KANA -> "アヤメタブレット用かなレイアウト"
+                    KeyboardType.BRAILLE -> "点字キーボード"
                 }
                 RowItem.Internal(type = type, title = title)
             }
@@ -5306,6 +5406,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                             KeyboardType.NUMERIC, KeyboardType.AYAME_NUMERIC -> {
                                 mainView.keyboardView.setCurrentMode(InputMode.ModeNumber)
+                            }
+
+                            KeyboardType.BRAILLE -> {
+                                mainView.keyboardView.setCurrentMode(InputMode.ModeJapanese)
                             }
                         }
 
@@ -5739,6 +5843,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             qwertyView.isVisible = false
             tabletView.isVisible = false
             customLayoutDefault.isVisible = false
+            brailleView.isVisible = false
             keyboardSymbolView.isVisible = false
             candidatesRowView.isVisible = false
         }
@@ -5759,6 +5864,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             qwertyView.isAyameMode = type == KeyboardType.AYAME_QWERTY || type == KeyboardType.AYAME_ROMAJI
             customLayoutDefault.isAyameMode = type == KeyboardType.AYAME_NUMERIC
             tabletView.isAyameMode = type == KeyboardType.AYAME_TABLET_KANA || (type == KeyboardType.AYAME_TENKEY && isTabletGojuonFallback)
+            brailleView.isAyameMode = isAyame
             Timber.d("setting isAyameMode on suggestionAdapter: current=${suggestionAdapter?.isAyameMode}")
             suggestionAdapter?.isAyameMode = isAyame
             suggestionAdapterFull?.isAyameMode = isAyame
@@ -5873,6 +5979,15 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     keyboardView.isVisible = false
                     _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Number }
                 }
+
+                KeyboardType.BRAILLE -> {
+                    brailleView.isVisible = true
+                    keyboardView.isVisible = false
+                    qwertyView.isVisible = false
+                    tabletView.isVisible = false
+                    customLayoutDefault.isVisible = false
+                    _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Default }
+                }
             }
             suggestionRecyclerView.isVisible = true
 
@@ -5890,6 +6005,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 KeyboardType.AYAME_NUMERIC -> "アヤメ数字専用キーボード"
                 KeyboardType.TABLET_KANA -> "タブレット用かなレイアウト"
                 KeyboardType.AYAME_TABLET_KANA -> "アヤメタブレット用かなレイアウト"
+                KeyboardType.BRAILLE -> "点字キーボード"
             }
             announceText(announcement, delayMs = 150)
         }
@@ -9625,6 +9741,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 KeyboardType.AYAME_NUMERIC -> _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Number }
                 KeyboardType.TABLET_KANA -> _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Default }
                 KeyboardType.AYAME_TABLET_KANA -> _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Default }
+                KeyboardType.BRAILLE -> _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Default }
             }
         }
     }
@@ -14330,6 +14447,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             KeyboardType.NUMERIC, KeyboardType.AYAME_NUMERIC -> {
                 mainLayoutBinding?.keyboardView?.setCurrentMode(InputMode.ModeNumber)
             }
+
+            KeyboardType.BRAILLE -> {
+                mainLayoutBinding?.keyboardView?.setCurrentMode(InputMode.ModeJapanese)
+            }
         }
 
         // 統一された showKeyboard 関数を呼び出す
@@ -14354,6 +14475,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 KeyboardType.AYAME_NUMERIC -> TenKeyQWERTYMode.Number
                 KeyboardType.TABLET_KANA -> TenKeyQWERTYMode.Default
                 KeyboardType.AYAME_TABLET_KANA -> TenKeyQWERTYMode.Default
+                KeyboardType.BRAILLE -> TenKeyQWERTYMode.Default
             }
             _tenKeyQWERTYMode.update { type }
         }

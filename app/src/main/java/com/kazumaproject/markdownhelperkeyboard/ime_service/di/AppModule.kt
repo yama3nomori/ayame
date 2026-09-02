@@ -54,7 +54,6 @@ import kotlinx.coroutines.flow.map
 import timber.log.Timber
 import java.io.BufferedInputStream
 import java.io.ObjectInputStream
-import java.util.zip.ZipInputStream
 import javax.inject.Singleton
 
 @Module
@@ -164,27 +163,16 @@ object AppModule {
     @Provides
     @ConnectionIds
     fun provideConnectionIds(@ApplicationContext context: Context): ShortArray {
-        ZipInputStream(context.assets.open("connectionId.dat.zip")).use { zipStream ->
-            var entry = zipStream.nextEntry
-            while (entry != null) {
-                if (entry.name == "connectionId.dat") {
-                    BufferedInputStream(zipStream).use { inputStream ->
-                        return ConnectionIdBuilder().readShortArrayFromBytes(inputStream)
-                    }
-                }
-                entry = zipStream.nextEntry
-            }
+        BufferedInputStream(context.assets.open("connectionId.dat")).use { inputStream ->
+            return ConnectionIdBuilder().readShortArrayFromBytes(inputStream)
         }
-        throw IllegalArgumentException("connectionId.dat not found in connectionId.zip")
     }
 
     @SystemTangoTrie
     @Singleton
     @Provides
     fun provideTangoTrie(@ApplicationContext context: Context): LOUDS {
-        val zipInputStream = ZipInputStream(context.assets.open("system/tango.dat.zip"))
-        zipInputStream.nextEntry
-        ObjectInputStream(BufferedInputStream(zipInputStream)).use {
+        ObjectInputStream(BufferedInputStream(context.assets.open("system/tango.dat"))).use {
             return LOUDS().readExternalNotCompress(it)
         }
     }
@@ -193,9 +181,7 @@ object AppModule {
     @Singleton
     @Provides
     fun provideYomiTrie(@ApplicationContext context: Context): LOUDSWithTermId {
-        val zipInputStream = ZipInputStream(context.assets.open("system/yomi.dat.zip"))
-        zipInputStream.nextEntry
-        ObjectInputStream(BufferedInputStream(zipInputStream)).use {
+        ObjectInputStream(BufferedInputStream(context.assets.open("system/yomi.dat"))).use {
             return LOUDSWithTermId().readExternalNotCompress(it)
         }
     }
@@ -206,18 +192,8 @@ object AppModule {
     fun providesTokenArray(@ApplicationContext context: Context): TokenArray {
         val tokenArray = TokenArray()
 
-        // Extract and read `token.dat` from `token.dat.zip`
-        ZipInputStream(context.assets.open("system/token.dat.zip")).use { zipStream ->
-            var entry = zipStream.nextEntry
-            while (entry != null) {
-                if (entry.name == "token.dat") { // Ensure we are processing the correct file inside the zip
-                    ObjectInputStream(BufferedInputStream(zipStream)).use { objectInput ->
-                        tokenArray.readExternal(objectInput) // Load `token.dat` into TokenArray
-                    }
-                    break
-                }
-                entry = zipStream.nextEntry
-            }
+        ObjectInputStream(BufferedInputStream(context.assets.open("system/token.dat"))).use { objectInput ->
+            tokenArray.readExternal(objectInput)
         }
 
         context.assets.open("pos_table.dat").use { inputStream ->
@@ -736,9 +712,7 @@ object AppModule {
     @Singleton
     @EnglishReadingLOUDS
     fun provideEnglishReadingLOUDS(@ApplicationContext context: Context): com.kazumaproject.markdownhelperkeyboard.converter.english.louds.louds_with_term_id.LOUDSWithTermId {
-        val zipInputStream = ZipInputStream(context.assets.open("english/reading.dat.zip"))
-        zipInputStream.nextEntry
-        ObjectInputStream(BufferedInputStream(zipInputStream)).use {
+        ObjectInputStream(BufferedInputStream(context.assets.open("english/reading.dat"))).use {
             return com.kazumaproject.markdownhelperkeyboard.converter.english.louds.louds_with_term_id.LOUDSWithTermId()
                 .readExternalNotCompress(it)
         }
@@ -758,9 +732,7 @@ object AppModule {
     @Singleton
     @EnglishTokenArray
     fun provideEnglishTokenArray(@ApplicationContext context: Context): com.kazumaproject.markdownhelperkeyboard.converter.english.tokenArray.TokenArray {
-        val zipInputStream = ZipInputStream(context.assets.open("english/token.dat.zip"))
-        zipInputStream.nextEntry
-        ObjectInputStream(BufferedInputStream(zipInputStream)).use {
+        ObjectInputStream(BufferedInputStream(context.assets.open("english/token.dat"))).use {
             return com.kazumaproject.markdownhelperkeyboard.converter.english.tokenArray.TokenArray()
                 .readExternal(it)
         }

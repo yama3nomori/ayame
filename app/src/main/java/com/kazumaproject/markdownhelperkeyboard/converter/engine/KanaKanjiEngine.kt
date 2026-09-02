@@ -47,7 +47,6 @@ import java.io.ObjectInputStream
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
-import java.util.zip.ZipInputStream
 
 class KanaKanjiEngine {
 
@@ -350,36 +349,22 @@ class KanaKanjiEngine {
     }
 
     fun buildPlaceDictionary(context: Context) {
-        val zipInputStreamTango = ZipInputStream(context.assets.open("places/tango_places.dat.zip"))
-        zipInputStreamTango.nextEntry
-        val localTangoTrie = ObjectInputStream(BufferedInputStream(zipInputStreamTango)).use {
-            LOUDS().readExternalNotCompress(it)
-        }
-        val zipInputStreamYomi = ZipInputStream(context.assets.open("places/yomi_places.dat.zip"))
-        zipInputStreamYomi.nextEntry
-        val localYomiTrie = ObjectInputStream(BufferedInputStream(zipInputStreamYomi)).use {
-            LOUDSWithTermId().readExternalNotCompress(it)
-        }
-
-        val localTokenArray = TokenArray()
-
-        ZipInputStream(context.assets.open("places/token_places.dat.zip")).use { zipStream ->
-            var entry = zipStream.nextEntry
-            while (entry != null) {
-                if (entry.name == "token_places.dat") {
-                    ObjectInputStream(BufferedInputStream(zipStream)).use { objectInput ->
-                        localTokenArray.readExternal(objectInput)
-                    }
-                    break
-                }
-                entry = zipStream.nextEntry
-            }
-        }
-
+        val objectInputTango =
+            ObjectInputStream(BufferedInputStream(context.assets.open("places/tango_places.dat")))
+        val objectInputYomi =
+            ObjectInputStream(BufferedInputStream(context.assets.open("places/yomi_places.dat")))
+        val objectInputTokenArray =
+            ObjectInputStream(BufferedInputStream(context.assets.open("places/token_places.dat")))
         val objectInputReadPOSTable =
             ObjectInputStream(BufferedInputStream(context.assets.open("pos_table.dat")))
 
+        val localTangoTrie = LOUDS().readExternalNotCompress(objectInputTango)
+        val localYomiTrie = LOUDSWithTermId().readExternalNotCompress(objectInputYomi)
+
+        val localTokenArray = TokenArray()
+        localTokenArray.readExternal(objectInputTokenArray)
         localTokenArray.readPOSTable(objectInputReadPOSTable)
+
         val localSuccinctBitVectorLBSYomi = SuccinctBitVector(localYomiTrie.LBS)
         val localSuccinctBitVectorIsLeaf = SuccinctBitVector(localYomiTrie.isLeaf)
         val localSuccinctBitVectorTokenArray = SuccinctBitVector(localTokenArray.bitvector)
@@ -397,35 +382,20 @@ class KanaKanjiEngine {
     }
 
     fun buildWikiDictionary(context: Context) {
-        val zipInputStreamTango = ZipInputStream(context.assets.open("wiki/tango_wiki.dat.zip"))
-        zipInputStreamTango.nextEntry
-        val localTangoTrie = ObjectInputStream(BufferedInputStream(zipInputStreamTango)).use {
-            LOUDS().readExternalNotCompress(it)
-        }
-        val zipInputStreamYomi = ZipInputStream(context.assets.open("wiki/yomi_wiki.dat.zip"))
-        zipInputStreamYomi.nextEntry
-        val localYomiTrie = ObjectInputStream(BufferedInputStream(zipInputStreamYomi)).use {
-            LOUDSWithTermId().readExternalNotCompress(it)
-        }
-
-        val localTokenArray = TokenArray()
-
-        ZipInputStream(context.assets.open("wiki/token_wiki.dat.zip")).use { zipStream ->
-            var entry = zipStream.nextEntry
-            while (entry != null) {
-                if (entry.name == "token_wiki.dat") {
-                    ObjectInputStream(BufferedInputStream(zipStream)).use { objectInput ->
-                        localTokenArray.readExternal(objectInput)
-                    }
-                    break
-                }
-                entry = zipStream.nextEntry
-            }
-        }
-
+        val objectInputTango =
+            ObjectInputStream(BufferedInputStream(context.assets.open("wiki/tango_wiki.dat")))
+        val objectInputYomi =
+            ObjectInputStream(BufferedInputStream(context.assets.open("wiki/yomi_wiki.dat")))
+        val objectInputTokenArray =
+            ObjectInputStream(BufferedInputStream(context.assets.open("wiki/token_wiki.dat")))
         val objectInputReadPOSTable =
             ObjectInputStream(BufferedInputStream(context.assets.open("pos_table.dat")))
 
+        val localTangoTrie = LOUDS().readExternalNotCompress(objectInputTango)
+        val localYomiTrie = LOUDSWithTermId().readExternalNotCompress(objectInputYomi)
+
+        val localTokenArray = TokenArray()
+        localTokenArray.readExternal(objectInputTokenArray)
         localTokenArray.readPOSTable(objectInputReadPOSTable)
 
         val localSuccinctBitVectorLBSYomi = SuccinctBitVector(localYomiTrie.LBS)
@@ -445,36 +415,20 @@ class KanaKanjiEngine {
     }
 
     fun buildNeologdDictionary(context: Context) {
-        val zipInputStreamTango =
-            ZipInputStream(context.assets.open("neologd/tango_neologd.dat.zip"))
-        zipInputStreamTango.nextEntry
-        val localTangoTrie = ObjectInputStream(BufferedInputStream(zipInputStreamTango)).use {
-            LOUDS().readExternalNotCompress(it)
-        }
-        val zipInputStreamYomi = ZipInputStream(context.assets.open("neologd/yomi_neologd.dat.zip"))
-        zipInputStreamYomi.nextEntry
-        val localYomiTrie = ObjectInputStream(BufferedInputStream(zipInputStreamYomi)).use {
-            LOUDSWithTermId().readExternalNotCompress(it)
-        }
-
-        val localTokenArray = TokenArray()
-
-        ZipInputStream(context.assets.open("neologd/token_neologd.dat.zip")).use { zipStream ->
-            var entry = zipStream.nextEntry
-            while (entry != null) {
-                if (entry.name == "token_neologd.dat") {
-                    ObjectInputStream(BufferedInputStream(zipStream)).use { objectInput ->
-                        localTokenArray.readExternal(objectInput)
-                    }
-                    break
-                }
-                entry = zipStream.nextEntry
-            }
-        }
-
+        val objectInputTango =
+            ObjectInputStream(BufferedInputStream(context.assets.open("neologd/tango_neologd.dat")))
+        val objectInputYomi =
+            ObjectInputStream(BufferedInputStream(context.assets.open("neologd/yomi_neologd.dat")))
+        val objectInputTokenArray =
+            ObjectInputStream(BufferedInputStream(context.assets.open("neologd/token_neologd.dat")))
         val objectInputReadPOSTable =
             ObjectInputStream(BufferedInputStream(context.assets.open("pos_table.dat")))
 
+        val localTangoTrie = LOUDS().readExternalNotCompress(objectInputTango)
+        val localYomiTrie = LOUDSWithTermId().readExternalNotCompress(objectInputYomi)
+
+        val localTokenArray = TokenArray()
+        localTokenArray.readExternal(objectInputTokenArray)
         localTokenArray.readPOSTable(objectInputReadPOSTable)
 
         val localSuccinctBitVectorLBSYomi = SuccinctBitVector(localYomiTrie.LBS)
@@ -494,35 +448,20 @@ class KanaKanjiEngine {
     }
 
     fun buildWebDictionary(context: Context) {
-        val zipInputStreamTango = ZipInputStream(context.assets.open("web/tango_web.dat.zip"))
-        zipInputStreamTango.nextEntry
-        val localTangoTrie = ObjectInputStream(BufferedInputStream(zipInputStreamTango)).use {
-            LOUDS().readExternalNotCompress(it)
-        }
-        val zipInputStreamYomi = ZipInputStream(context.assets.open("web/yomi_web.dat.zip"))
-        zipInputStreamYomi.nextEntry
-        val localYomiTrie = ObjectInputStream(BufferedInputStream(zipInputStreamYomi)).use {
-            LOUDSWithTermId().readExternalNotCompress(it)
-        }
-
-        val localTokenArray = TokenArray()
-
-        ZipInputStream(context.assets.open("web/token_web.dat.zip")).use { zipStream ->
-            var entry = zipStream.nextEntry
-            while (entry != null) {
-                if (entry.name == "token_web.dat") {
-                    ObjectInputStream(BufferedInputStream(zipStream)).use { objectInput ->
-                        localTokenArray.readExternal(objectInput)
-                    }
-                    break
-                }
-                entry = zipStream.nextEntry
-            }
-        }
-
+        val objectInputTango =
+            ObjectInputStream(BufferedInputStream(context.assets.open("web/tango_web.dat")))
+        val objectInputYomi =
+            ObjectInputStream(BufferedInputStream(context.assets.open("web/yomi_web.dat")))
+        val objectInputTokenArray =
+            ObjectInputStream(BufferedInputStream(context.assets.open("web/token_web.dat")))
         val objectInputReadPOSTable =
             ObjectInputStream(BufferedInputStream(context.assets.open("pos_table.dat")))
 
+        val localTangoTrie = LOUDS().readExternalNotCompress(objectInputTango)
+        val localYomiTrie = LOUDSWithTermId().readExternalNotCompress(objectInputYomi)
+
+        val localTokenArray = TokenArray()
+        localTokenArray.readExternal(objectInputTokenArray)
         localTokenArray.readPOSTable(objectInputReadPOSTable)
 
         val localSuccinctBitVectorLBSYomi = SuccinctBitVector(localYomiTrie.LBS)

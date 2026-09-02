@@ -38,3 +38,6 @@ captures/
 *.jks
 *.keystore
 ayame-release-key.jks
+
+# Assets zip backup
+assets_backup_zips/

@@ -104,6 +104,16 @@
         android:importantForAccessibility="yes"
         android:visibility="gone" />
 
+    <com.kazumaproject.markdownhelperkeyboard.braille.BrailleKeyboardView
+        android:id="@+id/braille_view"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/keyboard_height"
+        android:layout_gravity="bottom"
+        android:clickable="true"
+        android:focusable="true"
+        android:importantForAccessibility="yes"
+        android:visibility="gone" />
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/candidates_row_view"
         android:layout_width="match_parent"
