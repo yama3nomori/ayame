@@ -632,6 +632,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private var hasConvertedKatakana = false
     private var preInputKatakanaMode = 0 // 0 = Hiragana, 1 = Zenkaku Katakana, 2 = Hankaku Katakana
     private var isTenKeyEnglishCapsLock = false
+    private var lastDirectInputEnglishChar: Char? = null
 
 
     private val deletedBuffer = StringBuilder()
@@ -1467,6 +1468,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
     override fun onStartInputView(editorInfo: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(editorInfo, restarting)
+        resetDirectInputEnglishChar()
         Timber.d("onStartInputView")
         checkAndInsertClipboardHistory()
         hijackWindowCallback()
@@ -1970,6 +1972,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
     override fun onFinishInputView(finishingInput: Boolean) {
         super.onFinishInputView(finishingInput)
+        resetDirectInputEnglishChar()
         Timber.d("onFinishInputView: finishingInput=$finishingInput")
         mediaSession?.isActive = false
 
@@ -2993,7 +2996,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             } else {
                 mainLayoutBinding?.root
             }
-            val delay = delayOverride ?: 10L
+            val isPassword = isCurrentInputTypePassword()
+            val delay = delayOverride ?: if (isPassword) 50L else 10L
             val handler = targetView?.handler ?: android.os.Handler(android.os.Looper.getMainLooper())
             
             // 以前にスケジュールされていた未実行の読み上げをキャンセル（デバウンス）
@@ -3003,7 +3007,14 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             
             val runnable = Runnable {
                 try {
-                    android.util.Log.d("IMEServiceAccessibility", "announceChar posting announcement: '$announcement' (delay=$delay)")
+                    if (isPassword) {
+                        try {
+                            am.interrupt()
+                        } catch (e: Exception) {
+                            Timber.e(e, "Failed to interrupt TalkBack in password mode")
+                        }
+                    }
+                    android.util.Log.d("IMEServiceAccessibility", "announceChar posting announcement: '$announcement' (delay=$delay, isPassword=$isPassword)")
                     val event = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT)
                     event.text.add(announcement)
                     event.packageName = packageName
@@ -4401,6 +4412,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             suggestionAdapter?.setUndoEnabled(false)
             updateClipboardPreview()
         }
+        if (key != Key.KeyDakutenSmall) {
+            resetDirectInputEnglishChar()
+        }
         when (key) {
             Key.NotSelected -> {}
             Key.SideKeyEnter -> {
@@ -4708,6 +4722,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             suggestionAdapter?.setUndoEnabled(false)
             updateClipboardPreview()
         }
+        if (key != Key.KeyDakutenSmall) {
+            resetDirectInputEnglishChar()
+        }
         when (key) {
             Key.NotSelected -> {}
             Key.SideKeyEnter -> {
@@ -5000,6 +5017,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 charToSend = finalChar, insertString = insertString, sb = sb
             )
             announceChar(finalChar)
+            if (isEnglish && isCurrentInputTypePassword()) {
+                lastDirectInputEnglishChar = finalChar
+            } else {
+                resetDirectInputEnglishChar()
+            }
         }
         isContinuousTapInputEnabled.set(true)
         lastFlickConvertedNextHiragana.set(true)
@@ -5028,6 +5050,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 charToSend = finalChar, insertString = insertString, sb = sb
             )
             announceChar(finalChar)
+            if (isEnglish && isCurrentInputTypePassword()) {
+                lastDirectInputEnglishChar = finalChar
+            } else {
+                resetDirectInputEnglishChar()
+            }
         }
         isContinuousTapInputEnabled.set(true)
         lastFlickConvertedNextHiragana.set(true)
@@ -5062,6 +5089,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 }
             } else {
                 announceChar(finalChar)
+            }
+            if (isEnglish && isCurrentInputTypePassword()) {
+                lastDirectInputEnglishChar = finalChar
+            } else {
+                resetDirectInputEnglishChar()
             }
         }
     }
@@ -5098,6 +5130,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 }
             } else {
                 announceChar(finalChar)
+            }
+            if (isEnglish && isCurrentInputTypePassword()) {
+                lastDirectInputEnglishChar = finalChar
+            } else {
+                resetDirectInputEnglishChar()
             }
         }
     }
@@ -14485,6 +14522,60 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
     }
 
+    private fun isCurrentInputTypePassword(): Boolean {
+        if (currentInputType in passwordTypes) return true
+        val info = currentInputEditorInfo ?: return false
+        val inputType = info.inputType
+        val variation = inputType and android.text.InputType.TYPE_MASK_VARIATION
+        val inputClass = inputType and android.text.InputType.TYPE_MASK_CLASS
+        if (inputClass == android.text.InputType.TYPE_CLASS_TEXT) {
+            if (variation == android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD ||
+                variation == android.text.InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD ||
+                variation == android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+            ) return true
+        } else if (inputClass == android.text.InputType.TYPE_CLASS_NUMBER) {
+            if (variation == android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD) return true
+        }
+        return false
+    }
+
+    private fun resetDirectInputEnglishChar() {
+        lastDirectInputEnglishChar = null
+    }
+
+    private fun getDirectEnglishCharToConvert(): Char? {
+        val lastChar = lastDirectInputEnglishChar ?: return null
+        val textBefore = currentInputConnection?.getTextBeforeCursor(1, 0)
+        if (!textBefore.isNullOrEmpty()) {
+            val c = textBefore.last()
+            if (c.equals(lastChar, ignoreCase = true)) {
+                return c
+            } else {
+                lastDirectInputEnglishChar = null
+                return null
+            }
+        }
+        return lastChar
+    }
+
+    private fun handleDirectInputEnglishSmallBigConversion(): Boolean {
+        val directChar = getDirectEnglishCharToConvert() ?: return false
+        val convertedChar = directChar.getDakutenSmallChar()
+            ?: if (directChar.isLowerCase()) directChar.uppercaseChar() else directChar.lowercaseChar()
+
+        val ic = currentInputConnection
+        if (ic != null) {
+            ic.deleteSurroundingText(1, 0)
+            ic.commitText(convertedChar.toString(), 1)
+        } else {
+            sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL)
+            sendKeyChar(convertedChar)
+        }
+        announceChar(convertedChar)
+        lastDirectInputEnglishChar = convertedChar
+        return true
+    }
+
     private fun smallBigLetterConversionEnglish(
         sb: StringBuilder, insertString: String,
     ) {
@@ -14501,6 +14592,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 }
             }
         } else {
+            if (isCurrentInputTypePassword() && handleDirectInputEnglishSmallBigConversion()) {
+                return
+            }
             isTenKeyEnglishCapsLock = !isTenKeyEnglishCapsLock
             if (isTenKeyEnglishCapsLock) {
                 announceText("キャプスロックオン")
@@ -14528,6 +14622,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 }
             }
         } else {
+            if (isCurrentInputTypePassword() && handleDirectInputEnglishSmallBigConversion()) {
+                return
+            }
             isTenKeyEnglishCapsLock = !isTenKeyEnglishCapsLock
             if (isTenKeyEnglishCapsLock) {
                 announceText("キャプスロックオン")
