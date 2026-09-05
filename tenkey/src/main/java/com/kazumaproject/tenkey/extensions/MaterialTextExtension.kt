@@ -395,7 +395,7 @@ fun MaterialTextView.setTextFlickBottomEnglish(
             text = NUMBER_CHAR[0].toString()
         }
         R.id.key_12 ->{
-            text = EMPTY_STRING
+            text = ENGLISH_KEY12_CHAR[4].toString()
         }
     }
 }

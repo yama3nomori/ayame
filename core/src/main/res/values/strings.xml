@@ -75,7 +75,7 @@
     <string name="string_key9_english">"WXYZ"</string>
     <string name="string_key10_english">"'\":;"</string>
     <string name="string_key11_english">a A</string>
-    <string name="string_key12_english">".,?!"</string>
+    <string name="string_key12_english">".,?!-"</string>
 
     <string name="string_key1_number">"1\n☆♪→"</string>
     <string name="string_key2_number">"2\n￥$€"</string>
