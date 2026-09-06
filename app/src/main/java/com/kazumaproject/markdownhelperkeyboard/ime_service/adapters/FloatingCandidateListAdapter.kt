@@ -71,12 +71,12 @@ class FloatingCandidateListAdapter(
             textView.text = item.word
             val positionText = " ${position + 1}の$itemCount"
             // TalkBackには指定されたエンジンに応じた情報を渡す
-            itemView.contentDescription = if (isDTalkerTTSActive) {
-                getSyosaiYomiSSML(item.word, positionText)
-            } else {
-                val baseReading = tamachiRepository?.getDetailedReading(item.word) ?: item.word
-                "$baseReading $positionText"
-            }
+            itemView.contentDescription = com.kazumaproject.markdownhelperkeyboard.utils.DetailedReadingUtils.getDetailedReading(
+                text = item.word,
+                positionText = positionText,
+                isDTalkerTTS = isDTalkerTTSActive,
+                tamachiRepository = tamachiRepository
+            )
             androidx.core.view.ViewCompat.setAccessibilityDelegate(itemView, object : androidx.core.view.AccessibilityDelegateCompat() {
                 override fun onInitializeAccessibilityNodeInfo(host: View, info: androidx.core.view.accessibility.AccessibilityNodeInfoCompat) {
                     super.onInitializeAccessibilityNodeInfo(host, info)
@@ -174,42 +174,9 @@ class FloatingCandidateListAdapter(
     }
 
     private fun getSyosaiYomiSSML(word: String, positionText: String): String {
-        val escapedWord = word.replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-
-        val isPureKatakana = word.isNotEmpty() && word.all { com.kazumaproject.markdownhelperkeyboard.utils.JapaneseCharacterUtils.isKatakana(it) || it == 'ー' }
-        val isPureHiragana = word.isNotEmpty() && word.all { com.kazumaproject.markdownhelperkeyboard.utils.JapaneseCharacterUtils.isHiragana(it) || it == 'ー' }
-        val isPureHalfKatakana = word.isNotEmpty() && word.all { com.kazumaproject.markdownhelperkeyboard.utils.JapaneseCharacterUtils.isHalfWidthKatakana(it) || it == 'ｰ' }
-
-        val sb = StringBuilder()
-        sb.append("<?xml version=\"1.0\"?>")
-        sb.append("<speak version=\"1.0\" xmlns=\"http://www.w3.org/2001/10/synthesis\" ")
-        sb.append("xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" ")
-        sb.append("xsi:schemaLocation=\"http://www.w3.org/2001/10/synthesis ")
-        sb.append("http://www.w3.org/TR/speech-synthesis/synthesis.xsd\" ")
-        sb.append("xml:lang=\"ja\">")
-        when {
-            isPureKatakana -> {
-                sb.append("カタカナの")
-                sb.append(escapedWord)
-            }
-            isPureHiragana -> {
-                sb.append("ひらがなの")
-                sb.append(escapedWord)
-            }
-            isPureHalfKatakana -> {
-                sb.append("半角カタカナの")
-                sb.append(escapedWord)
-            }
-            else -> {
-                sb.append("<say-as interpret-as=\"characters\" format=\"glyphs\">")
-                sb.append(escapedWord)
-                sb.append("</say-as>")
-            }
-        }
-        sb.append(positionText)
-        sb.append("</speak>")
-        return sb.toString()
+        return com.kazumaproject.markdownhelperkeyboard.utils.DetailedReadingUtils.getSyosaiYomiSSML(
+            word = word,
+            positionText = positionText
+        )
     }
 }

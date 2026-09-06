@@ -9,6 +9,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.kazumaproject.core.data.clicked_symbol.SymbolMode
 import com.kazumaproject.custom_keyboard.data.FlickDirection
+import com.kazumaproject.markdownhelperkeyboard.BuildConfig
 import com.kazumaproject.markdownhelperkeyboard.ime_service.state.CandidateTab
 import com.kazumaproject.markdownhelperkeyboard.ime_service.state.KeyboardType
 
@@ -479,7 +480,10 @@ object AppPreference {
             val json = preferences.getString(KEYBOARD_ORDER.first, KEYBOARD_ORDER.second)
             val type = object : TypeToken<List<KeyboardType>>() {}.type
             val list: List<KeyboardType> = gson.fromJson(json, type) ?: emptyList()
-            val filtered = list.filter { it != KeyboardType.NUMERIC && it != KeyboardType.AYAME_NUMERIC && it != KeyboardType.CUSTOM }
+            val filtered = list.filter {
+                it != KeyboardType.NUMERIC && it != KeyboardType.AYAME_NUMERIC && it != KeyboardType.CUSTOM &&
+                        (BuildConfig.DEBUG || (it != KeyboardType.TABLET_KANA && it != KeyboardType.AYAME_TABLET_KANA && it != KeyboardType.BRAILLE))
+            }
             cachedKeyboardOrder = filtered
             return filtered
         }

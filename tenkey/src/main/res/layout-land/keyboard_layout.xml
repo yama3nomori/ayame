@@ -95,7 +95,7 @@
         app:layout_constraintBottom_toTopOf="@id/key_4"
         app:layout_constraintEnd_toStartOf="@id/key_2"
         app:layout_constraintHorizontal_weight="1"
-        app:layout_constraintStart_toEndOf="@id/key_return"
+        app:layout_constraintStart_toEndOf="@id/sideKey_read_aloud"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintVertical_chainStyle="spread" />
 

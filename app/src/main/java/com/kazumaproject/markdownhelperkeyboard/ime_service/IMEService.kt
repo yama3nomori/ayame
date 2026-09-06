@@ -939,9 +939,13 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         val ic = currentInputConnection ?: return
         val composing = _inputString.value
         val textToAnnounce: String
+        val repo = if (::tamachiRepository.isInitialized) tamachiRepository else null
         if (composing.isNotEmpty()) {
-            val detailed = tamachiRepository.getDetailedReading(composing) ?: composing
-            textToAnnounce = detailed
+            textToAnnounce = com.kazumaproject.markdownhelperkeyboard.utils.DetailedReadingUtils.getDetailedReading(
+                text = composing,
+                isDTalkerTTS = isDTalkerTTS,
+                tamachiRepository = repo
+            )
         } else {
             val textBefore = ic.getTextBeforeCursor(10000, 0) ?: ""
             val textAfter = ic.getTextAfterCursor(1000, 0) ?: ""
@@ -952,8 +956,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             if (lineText.isEmpty()) {
                 textToAnnounce = "${lineNumber}行目、空行"
             } else {
-                val detailed = tamachiRepository.getDetailedReading(lineText) ?: lineText
-                textToAnnounce = "${lineNumber}行目、${detailed}"
+                textToAnnounce = com.kazumaproject.markdownhelperkeyboard.utils.DetailedReadingUtils.getDetailedReading(
+                    text = lineText,
+                    prefix = "${lineNumber}行目、",
+                    isDTalkerTTS = isDTalkerTTS,
+                    tamachiRepository = repo
+                )
             }
         }
         announceText(textToAnnounce)
@@ -1252,7 +1260,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         physicalKeyboardFloatingYPosition = 150
         _suggestionViewStatus.update { true }
         appPreference.apply {
-            keyboardOrder = keyboard_order + KeyboardType.NUMERIC + KeyboardType.AYAME_NUMERIC + KeyboardType.BRAILLE
+            val devKeyboards = if (com.kazumaproject.markdownhelperkeyboard.BuildConfig.DEBUG) listOf(KeyboardType.BRAILLE) else emptyList()
+            keyboardOrder = keyboard_order + KeyboardType.NUMERIC + KeyboardType.AYAME_NUMERIC + devKeyboards
             candidateTabOrder = candidate_tab_order
             mozcUTPersonName = mozc_ut_person_names_preference ?: false
             mozcUTPlaces = mozc_ut_places_preference ?: false
