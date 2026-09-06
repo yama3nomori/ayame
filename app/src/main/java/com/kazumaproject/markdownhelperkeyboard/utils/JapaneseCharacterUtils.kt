@@ -14,6 +14,22 @@ object JapaneseCharacterUtils {
         return char in '\uFF66'..'\uFF9F'
     }
 
+    fun isFullWidthUpperCase(char: Char): Boolean {
+        return char in '\uFF21'..'\uFF3A'
+    }
+
+    fun isFullWidthLowerCase(char: Char): Boolean {
+        return char in '\uFF41'..'\uFF5A'
+    }
+
+    fun isHalfWidthUpperCase(char: Char): Boolean {
+        return char in 'A'..'Z'
+    }
+
+    fun isHalfWidthLowerCase(char: Char): Boolean {
+        return char in 'a'..'z'
+    }
+
     fun isFullWidthAlphabet(char: Char): Boolean {
         return char in '\uFF21'..'\uFF3A' || char in '\uFF41'..'\uFF5A'
     }
@@ -55,8 +71,10 @@ object JapaneseCharacterUtils {
             isHiragana(char) -> "ひらがな"
             isKatakana(char) -> "カタカナ"
             isHalfWidthKatakana(char) -> "半角カタカナ"
-            isFullWidthAlphabet(char) -> "全角アルファベット"
-            isHalfWidthAlphabet(char) -> "半角アルファベット"
+            isFullWidthUpperCase(char) -> "全角大文字"
+            isFullWidthLowerCase(char) -> "全角小文字"
+            isHalfWidthUpperCase(char) -> "半角大文字"
+            isHalfWidthLowerCase(char) -> "半角小文字"
             isFullWidthNumber(char) -> "全角数字"
             isHalfWidthNumber(char) -> "半角数字"
             isFullWidthSymbol(char) -> "全角記号"

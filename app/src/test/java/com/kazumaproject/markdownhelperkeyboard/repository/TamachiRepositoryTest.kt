@@ -40,5 +40,25 @@ class TamachiRepositoryTest {
         // Single character "ー" should fall back to default behavior (returning null, so caller uses original string)
         val readingSingleLongVowel = repository.getDetailedReading("ー")
         assertEquals(null, readingSingleLongVowel)
+
+        // 半角大文字
+        val readingHalfUpper = repository.getDetailedReading("ABC")
+        assertEquals("半角大文字 ABC", readingHalfUpper)
+
+        // 半角小文字
+        val readingHalfLower = repository.getDetailedReading("abc")
+        assertEquals("半角小文字 abc", readingHalfLower)
+
+        // 半角混合 (Hello)
+        val readingHalfMixed = repository.getDetailedReading("Hello")
+        assertEquals("半角大文字 H 半角小文字 ello", readingHalfMixed)
+
+        // 全角大文字
+        val readingFullUpper = repository.getDetailedReading("ＡＢＣ")
+        assertEquals("全角大文字 ＡＢＣ", readingFullUpper)
+
+        // 全角小文字
+        val readingFullLower = repository.getDetailedReading("ａｂｃ")
+        assertEquals("全角小文字 ａｂｃ", readingFullLower)
     }
 }
