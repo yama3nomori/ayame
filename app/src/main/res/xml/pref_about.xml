@@ -10,6 +10,10 @@
             android:data="https://yama3nomori.jp/download/ayame/manual.html" />
     </Preference>
     <Preference
+        android:key="preference_play_store"
+        android:title="@string/play_store_title"
+        android:summary="https://play.google.com/store/apps/details?id=jp.yama3nomori.ayame" />
+    <Preference
         android:key="preference_author"
         android:title="@string/author_title"
         android:summary="@string/author_summary"
@@ -21,10 +25,10 @@
     <Preference
         android:key="preference_contact"
         android:title="@string/contact_title"
-        android:summary="https://yama3nomori.jp/mail.html">
+        android:summary="https://yama3nomori.jp/android/ml.html?%3Eid">
         <intent
             android:action="android.intent.action.VIEW"
-            android:data="https://yama3nomori.jp/mail.html" />
+            android:data="https://yama3nomori.jp/android/ml.html?%3Eid" />
     </Preference>
     <Preference
         android:key="preference_github"

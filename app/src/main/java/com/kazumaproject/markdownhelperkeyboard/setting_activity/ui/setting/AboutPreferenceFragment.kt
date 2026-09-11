@@ -1,5 +1,8 @@
 package com.kazumaproject.markdownhelperkeyboard.setting_activity.ui.setting
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.text.method.LinkMovementMethod
@@ -11,6 +14,7 @@ import androidx.navigation.fragment.findNavController
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import com.kazumaproject.markdownhelperkeyboard.R
+import timber.log.Timber
 
 class AboutPreferenceFragment : PreferenceFragmentCompat() {
 
@@ -46,6 +50,32 @@ class AboutPreferenceFragment : PreferenceFragmentCompat() {
             if (messageView != null) {
                 messageView.movementMethod = LinkMovementMethod.getInstance()
                 Linkify.addLinks(messageView, Linkify.WEB_URLS)
+            }
+            true
+        }
+
+        val playStorePreference = findPreference<Preference>("preference_play_store")
+        playStorePreference?.setOnPreferenceClickListener {
+            val packageName = "jp.yama3nomori.ayame"
+            val marketUri = Uri.parse("market://details?id=$packageName")
+            val webUri = Uri.parse("https://play.google.com/store/apps/details?id=$packageName")
+
+            val marketIntent = Intent(Intent.ACTION_VIEW, marketUri).apply {
+                setPackage("com.android.vending")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            }
+
+            try {
+                startActivity(marketIntent)
+            } catch (e: ActivityNotFoundException) {
+                try {
+                    val webIntent = Intent(Intent.ACTION_VIEW, webUri).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    startActivity(webIntent)
+                } catch (e2: Exception) {
+                    Timber.e(e2)
+                }
             }
             true
         }

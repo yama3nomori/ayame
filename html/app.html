@@ -34,13 +34,55 @@
             text-align: center;
             font-size: 1.15em;
         }
+        nav {
+            text-align: center;
+            margin: 20px 0;
+            padding: 15px;
+            background: #001f00;
+            border: 2px solid #004F00;
+        }
+        nav a {
+            margin: 0 20px;
+            display: inline-block;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .bottom-nav {
+            text-align: center;
+            margin-top: 60px;
+            padding: 20px;
+            border-top: 2px solid #004F00;
+        }
+        .bottom-nav a {
+            margin: 0 20px;
+            display: inline-block;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .return-nav {
+            text-align: center;
+            margin-top: 20px;
+            padding: 10px;
+        }
+        .return-nav a {
+            margin: 0 20px;
+            display: inline-block;
+            text-decoration: none;
+        }
     </style>
 </head>
 <body>
+<div class="main">
+<div class="body">
     <div class="container">
         <header>
             <h1>アヤメキーボード</h1>
             <p style="text-align: center; font-size: 1.2em; color: #FFAA00; font-weight: bold;">視覚障害者のための次世代日本語IME</p>
+            <nav>
+                <a href="#">アプリダウンロード</a>
+                <a href="manual.html">簡易マニュアル</a>
+                <a href="privacy.html">プライバシーポリシー</a>
+            </nav>
         </header>
 
         <section id="concept">
@@ -111,9 +153,11 @@
             <h2>視覚障害者・アクセシビリティ支援機能</h2>
             <p>アヤメキーボードは、スクリーンリーダーTalkBackを使って快適に操作できるよう設計されています。</p>
 
-            <h3>入力の設定</h3>
+            <h3>入力の操作</h3>
             <ul>
                 <li><strong>サーチ＆リリース:</strong> 画面をなぞって指を離す方式。テンキー文字キーはドラッグ（指を少しずらして離す）やフリックで操作します。</li>
+                <li><strong>ダブルタップまたはスプリットタップ:</strong> 頭にアヤメと付くキーボードではダブルタップで確定ができます。また対応端末ではスプリットタップも使用できます。。</li>
+                <li><strong>操作メニュー:</strong> 頭にアヤメと付くキーボードではTalkBackの読み上げコントロールの「操作」から入力ができます。</li>
                 <li><strong>読み上げキー:</strong> 未確定の入力文字がある場合は文字を、ない場合は行番号とテキストを読み上げます。漢字の田町読み説明や、文頭から文末までの読み上げも可能です。</li>
                 <li><strong>強制読み上げ:</strong> ボリュームキーでのカーソル移動時、TalkBackが読み上げない場合でもキーボード側から強制的に読み上げを行う設定を備えています。</li>
             </ul>
@@ -122,14 +166,23 @@
             <p>削除キーでの一括削除や、左右のカーソルキーによる文頭・文末への移動など、高度な編集機能も充実しています。</p>
         </section>
 
-        <section id="faq">
-            <h2>困ったときは（Q&A）</h2>
-            <p><strong>Q: 予測変換が出なくなりました。</strong></p>
-            <p>A: 設定画面の「辞書」カテゴリで、ユーザー辞書や学習辞書が有効かご確認ください。</p>
-            
-            <p><strong>Q: 音声入力がジェスチャーで起動しません。</strong></p>
-            <p>A: Androidシステム設定内のTalkBack設定を開き、「ジェスチャーのカスタマイズ」で割り当てた機能が「メディアの再生/一時停止」になっているかご確認ください。</p>
+        <section id="related">
+            <h2>関連ページ</h2>
+            <ul>
+                <li>
+                    <a href="privacy.html">アヤメキーボード プライバシーポリシー</a>
+                </li>
+                <li>
+                    <a href="https://note.com/yama3nomori/n/n313242857ca4?sub_rt=share_pb" target="_blank" rel="noopener noreferrer">視覚障害者のための Android IME「アヤメキーボード」開発ノート｜風吹き童子 やま</a>
+                </li>
+            </ul>
         </section>
+
+        <div class="bottom-nav">
+            <a href="https://play.google.com/store/apps/details?id=jp.yama3nomori.ayame" target="_blank" rel="noopener noreferrer">▶ アプリダウンロード</a>
+            <a href="manual.html">▶ 簡易マニュアル</a>
+            <a href="privacy.html">▶ プライバシーポリシー</a>
+        </div>
 
         <footer>
             <p style="text-align: center; font-size: 0.8em; margin-top: 100px;">
@@ -137,5 +190,12 @@
             </p>
         </footer>
     </div>
+</div>
+
+<div class="header">
+            <a href="/download/display.html">自作ソフトコーナーに戻る</a>
+            <a href="/index.shtml"><img src="YAMA3.jpg" width="128" alt="やまさんの森"/> トップページに戻る</a>
+</div>
+</div>
 </body>
 </html>

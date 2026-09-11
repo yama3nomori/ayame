@@ -158,6 +158,7 @@
     <string name="open_source_libraries_title">使用した Open Source のライブラリ</string>
     <string name="app_version_title">アプリのバージョン</string>
     <string name="manual_title">簡易マニュアル</string>
+    <string name="play_store_title">Google Play ストア</string>
     <string name="base_project_title">ベースプロジェクト</string>
     <string name="base_project_summary">スミレ - 完全オフラインの日本語キーボードアプリ\nhttps://github.com/KazumaProject/JapaneseKeyboard</string>
 
