@@ -25,10 +25,10 @@
     <Preference
         android:key="preference_contact"
         android:title="@string/contact_title"
-        android:summary="https://yama3nomori.jp/android/ml.html?%3Eid">
+        android:summary="https://yama3nomori.jp/android/ml.html?id=ayame">
         <intent
             android:action="android.intent.action.VIEW"
-            android:data="https://yama3nomori.jp/android/ml.html?%3Eid" />
+            android:data="https://yama3nomori.jp/android/ml.html?id=ayame" />
     </Preference>
     <Preference
         android:key="preference_github"
