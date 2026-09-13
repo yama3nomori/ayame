@@ -81,6 +81,9 @@ class ClipboardHistoryViewModel @Inject constructor(
 
     private fun base64ToBitmap(base64Str: String): Bitmap {
         val decodedBytes = Base64.decode(base64Str, Base64.DEFAULT)
-        return BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
+        val options = BitmapFactory.Options().apply {
+            inPreferredConfig = Bitmap.Config.ARGB_8888
+        }
+        return BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size, options)
     }
 }

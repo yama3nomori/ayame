@@ -17,6 +17,9 @@ class BitmapConverter {
     @TypeConverter
     fun toBitmap(byteArray: ByteArray?): Bitmap? {
         if (byteArray == null) return null
-        return BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size)
+        val options = BitmapFactory.Options().apply {
+            inPreferredConfig = Bitmap.Config.ARGB_8888
+        }
+        return BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size, options)
     }
 }

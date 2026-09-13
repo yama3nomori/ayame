@@ -115,8 +115,22 @@ class ClipboardUtil(private val context: Context) {
             val uri = item.uri
             if (uri != null) {
                 try {
+                    // 1. まずサイズ情報だけを取得
+                    val options = BitmapFactory.Options().apply {
+                        inJustDecodeBounds = true
+                    }
                     context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                        return BitmapFactory.decodeStream(inputStream)
+                        BitmapFactory.decodeStream(inputStream, null, options)
+                    }
+
+                    // 2. 最大512x512pxに収まるように inSampleSize を計算
+                    options.inSampleSize = calculateInSampleSize(options, 512, 512)
+                    options.inJustDecodeBounds = false
+                    options.inPreferredConfig = Bitmap.Config.ARGB_8888
+
+                    // 3. ダウンサンプリングしてデコード
+                    context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                        return BitmapFactory.decodeStream(inputStream, null, options)
                     }
                 } catch (e: Exception) {
                     Timber.e("ClipboardUtil", "URIからのBitmapデコードに失敗しました: $uri", e)
@@ -126,5 +140,20 @@ class ClipboardUtil(private val context: Context) {
         }
 
         return null
+    }
+
+    private fun calculateInSampleSize(options: BitmapFactory.Options, reqWidth: Int, reqHeight: Int): Int {
+        val height = options.outHeight
+        val width = options.outWidth
+        var inSampleSize = 1
+
+        if (height > reqHeight || width > reqWidth) {
+            val halfHeight = height / 2
+            val halfWidth = width / 2
+            while ((halfHeight / inSampleSize) >= reqHeight && (halfWidth / inSampleSize) >= reqWidth) {
+                inSampleSize *= 2
+            }
+        }
+        return inSampleSize
     }
 }
