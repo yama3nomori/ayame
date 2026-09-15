@@ -1,6 +1,16 @@
 package com.kazumaproject.tenkey.extensions
 
 fun Char.getNextInputChar(charAtInsertPosition: Char): Char? {
+    val effectiveBase = if (charAtInsertPosition.isKatakana()) (charAtInsertPosition.code - 0x60).toChar() else charAtInsertPosition
+    if (this.isKatakana()) {
+        val hiragana = (this.code - 0x60).toChar()
+        val nextHiragana = hiragana.getNextInputChar(effectiveBase) ?: return null
+        return if (nextHiragana.isHiragana()) (nextHiragana.code + 0x60).toChar() else nextHiragana
+    }
+    return getNextInputCharInternal(effectiveBase)
+}
+
+private fun Char.getNextInputCharInternal(charAtInsertPosition: Char): Char? {
     return when {
         this == 'あ' && charAtInsertPosition == 'あ' -> 'い'
         this == 'い' && charAtInsertPosition == 'あ' -> 'う'
@@ -168,6 +178,11 @@ fun Char.getNextInputChar(charAtInsertPosition: Char): Char? {
 }
 
 fun Char.getNextReturnInputChar(): Char? {
+    if (this.isKatakana()) {
+        val hiragana = (this.code - 0x60).toChar()
+        val nextHiragana = hiragana.getNextReturnInputChar() ?: return null
+        return if (nextHiragana.isHiragana()) (nextHiragana.code + 0x60).toChar() else nextHiragana
+    }
     return when (this) {
         'あ' -> 'ぉ'
         'い' -> 'あ'
@@ -335,6 +350,11 @@ fun Char.getNextReturnInputChar(): Char? {
 }
 
 fun Char.getDakutenSmallChar(): Char? {
+    if (this.isKatakana()) {
+        val hiragana = (this.code - 0x60).toChar()
+        val convertedHiragana = hiragana.getDakutenSmallChar() ?: return null
+        return if (convertedHiragana.isHiragana()) (convertedHiragana.code + 0x60).toChar() else convertedHiragana
+    }
     return when (this) {
         'あ' -> 'ぁ'
         'ぁ' -> 'あ'
@@ -474,6 +494,11 @@ fun Char.getDakutenSmallChar(): Char? {
 
 /** 濁点 **/
 fun Char.getDakutenFlickLeft(): Char? {
+    if (this.isKatakana()) {
+        val hiragana = (this.code - 0x60).toChar()
+        val convertedHiragana = hiragana.getDakutenFlickLeft() ?: return null
+        return if (convertedHiragana.isHiragana()) (convertedHiragana.code + 0x60).toChar() else convertedHiragana
+    }
     return when (this) {
         'う', 'ぅ' -> 'ゔ'
         'か' -> 'が'
@@ -502,6 +527,11 @@ fun Char.getDakutenFlickLeft(): Char? {
 
 /** 半濁点 **/
 fun Char.getDakutenFlickRight(): Char? {
+    if (this.isKatakana()) {
+        val hiragana = (this.code - 0x60).toChar()
+        val convertedHiragana = hiragana.getDakutenFlickRight() ?: return null
+        return if (convertedHiragana.isHiragana()) (convertedHiragana.code + 0x60).toChar() else convertedHiragana
+    }
     return when (this) {
         'は', 'ば' -> 'ぱ'
         'ひ', 'び' -> 'ぴ'
@@ -514,6 +544,11 @@ fun Char.getDakutenFlickRight(): Char? {
 
 /** 小文字 **/
 fun Char.getDakutenFlickTop(): Char? {
+    if (this.isKatakana()) {
+        val hiragana = (this.code - 0x60).toChar()
+        val convertedHiragana = hiragana.getDakutenFlickTop() ?: return null
+        return if (convertedHiragana.isHiragana()) (convertedHiragana.code + 0x60).toChar() else convertedHiragana
+    }
     return when (this) {
         'あ' -> 'ぁ'
         'い' -> 'ぃ'
@@ -531,6 +566,14 @@ fun Char.getDakutenFlickTop(): Char? {
 
 fun Char.isHiragana(): Boolean {
     return this in '\u3040'..'\u309F'
+}
+
+fun Char.isKatakana(): Boolean {
+    return this in '\u30A1'..'\u30F6'
+}
+
+fun Char.isKana(): Boolean {
+    return isHiragana() || isKatakana()
 }
 
 fun Char.isLatinAlphabet(): Boolean {

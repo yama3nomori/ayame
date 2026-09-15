@@ -186,6 +186,7 @@ import com.kazumaproject.tenkey.extensions.getDakutenSmallChar
 import com.kazumaproject.tenkey.extensions.getNextInputChar
 import com.kazumaproject.tenkey.extensions.getNextReturnInputChar
 import com.kazumaproject.tenkey.extensions.isHiragana
+import com.kazumaproject.tenkey.extensions.isKana
 import com.kazumaproject.tenkey.extensions.isLatinAlphabet
 import com.kazumaproject.zenz.ZenzEngine
 import android.support.v4.media.session.MediaSessionCompat
@@ -7599,7 +7600,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         if (insertString.isNotEmpty()) {
             if (insertString.last().isLatinAlphabet()) {
                 smallConversionEnglish(sb, insertString)
-            } else if (insertString.last().isHiragana()) {
+            } else if (insertString.last().isKana()) {
                 dakutenSmallLetter(
                     sb, insertString, GestureType.Tap
                 )
@@ -7627,7 +7628,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         if (insertString.isNotEmpty()) {
             val insertPosition = insertString.last()
             insertPosition.let { c ->
-                if (!c.isHiragana()) {
+                if (c.isLatinAlphabet()) {
                     c.getDakutenSmallChar()?.let { dakutenChar ->
                         setStringBuilderForConvertStringInHiragana(dakutenChar, sb, insertString)
                     }
@@ -11895,7 +11896,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                             setSideKeySpaceDrawable(
                                 cachedHenkanDrawable
                             )
-                            if (insertString.last().isHiragana()) {
+                            if (insertString.last().isKana()) {
                                 setBackgroundSmallLetterKey(
                                     cachedKanaDrawable
                                 )
@@ -11966,7 +11967,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                         setSideKeySpaceDrawable(
                             cachedHenkanDrawable
                         )
-                        if (insertString.last().isHiragana()) {
+                        if (insertString.last().isKana()) {
                             setBackgroundSmallLetterKey(
                                 cachedKanaDrawable
                             )
@@ -12023,7 +12024,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 )
                 when (currentInputMode.value) {
                     InputMode.ModeJapanese -> {
-                        if (insertString.isNotEmpty() && insertString.last().isHiragana()) {
+                        if (insertString.isNotEmpty() && insertString.last().isKana()) {
                             setBackgroundSmallLetterKey(
                                 cachedKanaDrawable
                             )
@@ -12077,7 +12078,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             )
             when (currentInputMode.value) {
                 InputMode.ModeJapanese -> {
-                    if (insertString.isNotEmpty() && insertString.last().isHiragana()) {
+                    if (insertString.isNotEmpty() && insertString.last().isKana()) {
                         setBackgroundSmallLetterKey(
                             cachedKanaDrawable
                         )
@@ -14341,7 +14342,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         if (insertString.isNotEmpty()) {
             val insertPosition = insertString.last()
             insertPosition.let { c ->
-                if (c.isHiragana()) {
+                if (c.isKana()) {
                     when (gestureType) {
                         GestureType.Tap, GestureType.FlickBottom -> {
                             c.getDakutenSmallChar()?.let { dakutenChar ->
@@ -14400,7 +14401,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         if (insertString.isNotEmpty()) {
             val insertPosition = insertString.last()
             insertPosition.let { c ->
-                if (c.isHiragana()) {
+                if (c.isKana()) {
                     when (gestureType) {
                         GestureType.Tap, GestureType.FlickBottom -> {
                             c.getDakutenSmallChar()?.let { dakutenChar ->
@@ -14594,7 +14595,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         if (insertString.isNotEmpty()) {
             val insertPosition = insertString.last()
             insertPosition.let { c ->
-                if (!c.isHiragana()) {
+                if (c.isLatinAlphabet()) {
                     c.getDakutenSmallChar()?.let { dakutenChar ->
                         setStringBuilderForConvertStringInHiragana(dakutenChar, sb, insertString)
                     }
@@ -14624,7 +14625,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         if (insertString.isNotEmpty()) {
             val insertPosition = insertString.last()
             insertPosition.let { c ->
-                if (!c.isHiragana()) {
+                if (c.isLatinAlphabet()) {
                     c.getDakutenSmallChar()?.let { dakutenChar ->
                         setStringBuilderForConvertStringInHiragana(dakutenChar, sb, insertString)
                     }
