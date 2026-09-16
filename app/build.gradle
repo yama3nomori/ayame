@@ -44,6 +44,7 @@ android {
         targetSdk 36
         versionCode getGitCommitCount()
         versionName "1.0.1"
+        resourceConfigurations += ['ja', 'en']
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 

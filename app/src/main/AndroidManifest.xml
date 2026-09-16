@@ -43,7 +43,7 @@
         <activity
             android:name=".ime_service.PermissionRequestActivity"
             android:exported="false"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+            android:theme="@style/Theme.Transparent" />
 
         <service
             android:name=".ime_service.IMEService"
