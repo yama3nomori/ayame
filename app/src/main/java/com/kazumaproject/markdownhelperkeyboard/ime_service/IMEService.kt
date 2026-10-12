@@ -2867,25 +2867,51 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
 
         val now = android.os.SystemClock.uptimeMillis()
-        if (volumeKeyCursorMoveAnnouncePreference == true &&
+        val isCursorAnnounceEnabled = (volumeKeyCursorMoveAnnouncePreference == true) || isTalkBackActive()
+        if (isCursorAnnounceEnabled &&
             isVolumeKeyCursorMoving.getAndSet(false) &&
             (now - lastVolumeKeyCursorMoveTime < 500)
         ) {
             if (newSelStart == newSelEnd && oldSelStart != newSelStart) {
                 val ic = currentInputConnection
                 if (ic != null) {
-                    val charToAnnounce: Char? = if (newSelStart > oldSelStart) {
-                        val text = ic.getTextBeforeCursor(1, 0)
-                        if (!text.isNullOrEmpty()) text[0] else null
+                    val textToAnnounce: String? = if (newSelStart > oldSelStart) {
+                        val text = ic.getTextBeforeCursor(2, 0)
+                        if (!text.isNullOrEmpty()) {
+                            if (text.length >= 2 && Character.isSurrogatePair(text[text.length - 2], text[text.length - 1])) {
+                                text.substring(text.length - 2)
+                            } else {
+                                text.takeLast(1).toString()
+                            }
+                        } else null
                     } else {
-                        val text = ic.getTextAfterCursor(1, 0)
-                        if (!text.isNullOrEmpty()) text[0] else null
+                        val text = ic.getTextAfterCursor(2, 0)
+                        if (!text.isNullOrEmpty()) {
+                            if (text.length >= 2 && Character.isSurrogatePair(text[0], text[1])) {
+                                text.substring(0, 2)
+                            } else {
+                                text.take(1).toString()
+                            }
+                        } else null
                     }
-                    if (charToAnnounce != null) {
-                        announceTextForce(charToAnnounce.toAccessibilityName())
+                    if (!textToAnnounce.isNullOrEmpty()) {
+                        announceCursorDetailedReading(textToAnnounce)
                     }
                 }
             }
+        }
+    }
+
+    private fun announceCursorDetailedReading(text: String) {
+        if (text.isEmpty()) return
+        val repo = if (::tamachiRepository.isInitialized) tamachiRepository else null
+        val detailedText = com.kazumaproject.markdownhelperkeyboard.utils.DetailedReadingUtils.getCursorDetailedReading(
+            text = text,
+            isDTalkerTTS = isDTalkerTTS,
+            tamachiRepository = repo
+        )
+        if (detailedText.isNotEmpty()) {
+            announceTextForce(detailedText, allowSameText = true)
         }
     }
 
@@ -2907,10 +2933,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
     }
 
-    private fun announceTextForce(text: String) {
+    private fun announceTextForce(text: String, allowSameText: Boolean = false) {
         if (text.isEmpty() || isSuggestionConfirming) return
         val now = android.os.SystemClock.uptimeMillis()
-        if (text == lastAnnouncedText && now - lastAnnounceTime < 150L) {
+        if (!allowSameText && text == lastAnnouncedText && now - lastAnnounceTime < 150L) {
             return
         }
         lastAnnouncedText = text
@@ -13901,8 +13927,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             if (insertString.isNotEmpty()) {
                 val tail = stringInTail.get()
                 val stringBuilder = StringBuilder(tail)
+                val droppedChar = insertString.last()
+                announceCursorDetailedReading(droppedChar.toString())
                 if (insertString.length == 1) {
-                    stringInTail.set(stringBuilder.insert(0, insertString.last()).toString())
+                    stringInTail.set(stringBuilder.insert(0, droppedChar).toString())
                     _inputString.update { "" }
                     suggestionAdapter?.suggestions = emptyList()
                     if (isKeyboardFloatingMode == true) {
@@ -13919,7 +13947,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                         }
                     }
                 } else {
-                    stringInTail.set(stringBuilder.insert(0, insertString.last()).toString())
+                    stringInTail.set(stringBuilder.insert(0, droppedChar).toString())
                     _inputString.update { it.dropLast(1) }
                 }
             }
@@ -14009,6 +14037,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
     private fun updateLeftInputString(insertString: String) {
         if (insertString.isNotEmpty()) {
+            val droppedChar = insertString.last()
+            announceCursorDetailedReading(droppedChar.toString())
             if (insertString.length == 1) {
                 stringInTail.set(insertString + stringInTail.get())
                 _inputString.update { "" }
@@ -14027,7 +14057,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     }
                 }
             } else {
-                stringInTail.set(insertString.last() + stringInTail.get())
+                stringInTail.set(droppedChar + stringInTail.get())
                 _inputString.update { it.dropLast(1) }
             }
         }
@@ -14140,7 +14170,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         if (stringInTail.get().isNotEmpty()) {
             val nextChar = stringInTail.get().first()
             _inputString.update { insertString + nextChar }
-            announceChar(nextChar)
+            announceCursorDetailedReading(nextChar.toString())
             stringInTail.set(stringInTail.get().drop(1))
         }
     }
@@ -14154,7 +14184,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         if (stringInTail.get().isNotEmpty()) {
             val nextChar = stringInTail.get()[0]
             _inputString.update { insertString + nextChar }
-            announceChar(nextChar)
+            announceCursorDetailedReading(nextChar.toString())
             stringInTail.set(stringInTail.get().substring(1))
         }
     }

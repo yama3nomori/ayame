@@ -1,8 +1,47 @@
 package com.kazumaproject.markdownhelperkeyboard.utils
 
+import com.kazumaproject.core.domain.extensions.toAccessibilityName
 import com.kazumaproject.markdownhelperkeyboard.repository.TamachiRepository
 
 object DetailedReadingUtils {
+
+    /**
+     * カーソル移動時の文字（またはサロゲートペア）に対する詳細読みテキストを生成する。
+     *
+     * @param text カーソル移動対象の文字
+     * @param isDTalkerTTS DTalker TTSが有効かどうか
+     * @param tamachiRepository 田町読みリポジトリ
+     * @return 読み上げ用テキスト
+     */
+    fun getCursorDetailedReading(
+        text: String,
+        isDTalkerTTS: Boolean,
+        tamachiRepository: TamachiRepository?
+    ): String {
+        if (text.isEmpty()) {
+            return ""
+        }
+        when (text) {
+            "\n" -> return "改行"
+            " " -> return "スペース"
+            "　" -> return "全角スペース"
+            "\t" -> return "タブ"
+        }
+
+        if (text.length == 1) {
+            val char = text[0]
+            val accessName = char.toAccessibilityName()
+            if (accessName != text) {
+                return accessName
+            }
+        }
+
+        return getDetailedReading(
+            text = text,
+            isDTalkerTTS = isDTalkerTTS,
+            tamachiRepository = tamachiRepository
+        )
+    }
 
     /**
      * TTSエンジン（DTalker TTS またはその他）に応じた詳細読みテキストを生成する。

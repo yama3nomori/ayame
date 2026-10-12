@@ -104,4 +104,50 @@ class DetailedReadingUtilsTest {
         )
         assertEquals("1行目、", result)
     }
+
+    @Test
+    fun testGetCursorDetailedReading_whitespaceAndNewline() {
+        assertEquals("改行", DetailedReadingUtils.getCursorDetailedReading("\n", false, null))
+        assertEquals("スペース", DetailedReadingUtils.getCursorDetailedReading(" ", false, null))
+        assertEquals("全角スペース", DetailedReadingUtils.getCursorDetailedReading("　", false, null))
+        assertEquals("タブ", DetailedReadingUtils.getCursorDetailedReading("\t", false, null))
+    }
+
+    @Test
+    fun testGetCursorDetailedReading_symbols() {
+        assertEquals("読点", DetailedReadingUtils.getCursorDetailedReading("、", false, null))
+        assertEquals("句点", DetailedReadingUtils.getCursorDetailedReading("。", false, null))
+        assertEquals("長音", DetailedReadingUtils.getCursorDetailedReading("ー", false, null))
+        assertEquals("アットマーク", DetailedReadingUtils.getCursorDetailedReading("@", false, null))
+    }
+
+    @Test
+    fun testGetCursorDetailedReading_kanjiWithTamachi() {
+        val mockRepo = mock(TamachiRepository::class.java)
+        `when`(mockRepo.getDetailedReading("東")).thenReturn("東のとう")
+
+        val result = DetailedReadingUtils.getCursorDetailedReading(
+            text = "東",
+            isDTalkerTTS = false,
+            tamachiRepository = mockRepo
+        )
+        assertEquals("東のとう", result)
+    }
+
+    @Test
+    fun testGetCursorDetailedReading_dtalkerSSML() {
+        val result = DetailedReadingUtils.getCursorDetailedReading(
+            text = "東",
+            isDTalkerTTS = true,
+            tamachiRepository = null
+        )
+        assertTrue(result.contains("<say-as interpret-as=\"characters\" format=\"glyphs\">東</say-as>"))
+
+        val resultKana = DetailedReadingUtils.getCursorDetailedReading(
+            text = "あ",
+            isDTalkerTTS = true,
+            tamachiRepository = null
+        )
+        assertTrue(resultKana.contains("ひらがなのあ"))
+    }
 }
