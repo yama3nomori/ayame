@@ -2,6 +2,7 @@ package com.kazumaproject.markdownhelperkeyboard.utils
 
 import com.kazumaproject.markdownhelperkeyboard.repository.TamachiRepository
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.mockito.Mockito.`when`
@@ -149,5 +150,115 @@ class DetailedReadingUtilsTest {
             tamachiRepository = null
         )
         assertTrue(resultKana.contains("ひらがなのあ"))
+    }
+
+    @Test
+    fun testJapaneseCharacterUtils_isKanji() {
+        assertTrue(JapaneseCharacterUtils.isKanji('漢'))
+        assertTrue(JapaneseCharacterUtils.isKanji('字'))
+        assertTrue(JapaneseCharacterUtils.isKanji('東'))
+        assertTrue(JapaneseCharacterUtils.isKanji('京'))
+        assertTrue(JapaneseCharacterUtils.isKanji("𠮷")) // サロゲートペア漢字
+        assertTrue(JapaneseCharacterUtils.isKanji('々'))
+
+        assertFalse(JapaneseCharacterUtils.isKanji('あ'))
+        assertFalse(JapaneseCharacterUtils.isKanji('ア'))
+        assertFalse(JapaneseCharacterUtils.isKanji('A'))
+        assertFalse(JapaneseCharacterUtils.isKanji('1'))
+        assertFalse(JapaneseCharacterUtils.isKanji('、'))
+        assertFalse(JapaneseCharacterUtils.isKanji(' '))
+        assertFalse(JapaneseCharacterUtils.isKanji('\n'))
+    }
+
+    @Test
+    fun testGetCursorDetailedReading_nonDTalker_kanjiDetailedReading() {
+        val mockRepo = mock(TamachiRepository::class.java)
+        `when`(mockRepo.getDetailedReading("東")).thenReturn("東のとう")
+
+        // ドキュメントトーカ以外: 漢字は詳細読みされる
+        val result = DetailedReadingUtils.getCursorDetailedReading("東", isDTalkerTTS = false, tamachiRepository = mockRepo)
+        assertEquals("東のとう", result)
+    }
+
+    @Test
+    fun testGetCursorDetailedReading_nonDTalker_nonKanjiReturnsCharOnly() {
+        val mockRepo = mock(TamachiRepository::class.java)
+        `when`(mockRepo.getDetailedReading("あ")).thenReturn("ひらがな あ")
+        `when`(mockRepo.getDetailedReading("A")).thenReturn("半角大文字 A")
+
+        // ドキュメントトーカ以外: ひらがな・カタカナ・アルファベット・数字は詳細読みされず文字のみ
+        assertEquals("あ", DetailedReadingUtils.getCursorDetailedReading("あ", isDTalkerTTS = false, tamachiRepository = mockRepo))
+        assertEquals("さ", DetailedReadingUtils.getCursorDetailedReading("さ", isDTalkerTTS = false, tamachiRepository = mockRepo))
+        assertEquals("ア", DetailedReadingUtils.getCursorDetailedReading("ア", isDTalkerTTS = false, tamachiRepository = mockRepo))
+        assertEquals("A", DetailedReadingUtils.getCursorDetailedReading("A", isDTalkerTTS = false, tamachiRepository = mockRepo))
+        assertEquals("1", DetailedReadingUtils.getCursorDetailedReading("1", isDTalkerTTS = false, tamachiRepository = mockRepo))
+    }
+
+    @Test
+    fun testGetCursorDetailedReading_nonDTalker_whitespaceAndSymbols() {
+        // ドキュメントトーカ以外でも空白や記号はアクセシビリティ名
+        assertEquals("改行", DetailedReadingUtils.getCursorDetailedReading("\n", isDTalkerTTS = false, tamachiRepository = null))
+        assertEquals("スペース", DetailedReadingUtils.getCursorDetailedReading(" ", isDTalkerTTS = false, tamachiRepository = null))
+        assertEquals("読点", DetailedReadingUtils.getCursorDetailedReading("、", isDTalkerTTS = false, tamachiRepository = null))
+        assertEquals("長音", DetailedReadingUtils.getCursorDetailedReading("ー", isDTalkerTTS = false, tamachiRepository = null))
+    }
+
+    @Test
+    fun testGetCursorDetailedReading_dtalker_consecutiveHiragana() {
+        // 1文字目: 先頭なので詳細読み（SSML）
+        val firstChar = DetailedReadingUtils.getCursorDetailedReading("あ", textBefore = null, isDTalkerTTS = true, tamachiRepository = null)
+        assertTrue(firstChar.contains("ひらがなのあ"))
+
+        // 2文字目: 直前がひらがななので文字のみ
+        val secondChar = DetailedReadingUtils.getCursorDetailedReading("さ", textBefore = "あ", isDTalkerTTS = true, tamachiRepository = null)
+        assertEquals("さ", secondChar)
+    }
+
+    @Test
+    fun testGetCursorDetailedReading_dtalker_consecutiveKatakanaWithLongVowel() {
+        // 1文字目: カタカナ
+        val first = DetailedReadingUtils.getCursorDetailedReading("キ", textBefore = null, isDTalkerTTS = true, tamachiRepository = null)
+        assertTrue(first.contains("カタカナのキ"))
+
+        // 2文字目（長音）: 記号なので「長音」
+        val second = DetailedReadingUtils.getCursorDetailedReading("ー", textBefore = "キ", isDTalkerTTS = true, tamachiRepository = null)
+        assertEquals("長音", second)
+
+        // 3文字目（長音の後、前がカタカナグループ）: 連続なので文字のみ
+        val third = DetailedReadingUtils.getCursorDetailedReading("ボ", textBefore = "キー", isDTalkerTTS = true, tamachiRepository = null)
+        assertEquals("ボ", third)
+    }
+
+    @Test
+    fun testGetCursorDetailedReading_dtalker_consecutiveAlphabet() {
+        // 'H' (大文字先頭): SSML
+        val h = DetailedReadingUtils.getCursorDetailedReading("H", textBefore = null, isDTalkerTTS = true, tamachiRepository = null)
+        assertTrue(h.contains("H"))
+
+        // 'e' (小文字切り替わり): SSML
+        val e = DetailedReadingUtils.getCursorDetailedReading("e", textBefore = "H", isDTalkerTTS = true, tamachiRepository = null)
+        assertTrue(e.contains("e"))
+
+        // 'l' (小文字連続): 直前が小文字なので文字のみ
+        val l = DetailedReadingUtils.getCursorDetailedReading("l", textBefore = "He", isDTalkerTTS = true, tamachiRepository = null)
+        assertEquals("l", l)
+    }
+
+    @Test
+    fun testGetCursorDetailedReading_dtalker_consecutiveNumber() {
+        // 1文字目: SSML
+        val n1 = DetailedReadingUtils.getCursorDetailedReading("1", textBefore = null, isDTalkerTTS = true, tamachiRepository = null)
+        assertTrue(n1.contains("1"))
+
+        // 2文字目: 直前が数字なので文字のみ
+        val n2 = DetailedReadingUtils.getCursorDetailedReading("2", textBefore = "1", isDTalkerTTS = true, tamachiRepository = null)
+        assertEquals("2", n2)
+    }
+
+    @Test
+    fun testGetCursorDetailedReading_dtalker_isolatedSingleChar() {
+        // 漢字の後の単独の「を」 -> 先頭なのでSSML詳細読み
+        val wo = DetailedReadingUtils.getCursorDetailedReading("を", textBefore = "本", isDTalkerTTS = true, tamachiRepository = null)
+        assertTrue(wo.contains("ひらがなのを"))
     }
 }

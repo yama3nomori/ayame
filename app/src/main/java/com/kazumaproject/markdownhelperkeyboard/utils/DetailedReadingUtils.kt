@@ -5,18 +5,54 @@ import com.kazumaproject.markdownhelperkeyboard.repository.TamachiRepository
 
 object DetailedReadingUtils {
 
+    enum class CharacterGroup {
+        HIRAGANA,
+        KATAKANA,
+        ALPHABET_UPPER,
+        ALPHABET_LOWER,
+        NUMBER,
+        OTHER
+    }
+
+    fun getCharacterGroup(char: Char): CharacterGroup {
+        return when {
+            JapaneseCharacterUtils.isHiragana(char) -> CharacterGroup.HIRAGANA
+            JapaneseCharacterUtils.isKatakana(char) || JapaneseCharacterUtils.isHalfWidthKatakana(char) -> CharacterGroup.KATAKANA
+            JapaneseCharacterUtils.isHalfWidthUpperCase(char) || JapaneseCharacterUtils.isFullWidthUpperCase(char) -> CharacterGroup.ALPHABET_UPPER
+            JapaneseCharacterUtils.isHalfWidthLowerCase(char) || JapaneseCharacterUtils.isFullWidthLowerCase(char) -> CharacterGroup.ALPHABET_LOWER
+            JapaneseCharacterUtils.isHalfWidthNumber(char) || JapaneseCharacterUtils.isFullWidthNumber(char) -> CharacterGroup.NUMBER
+            else -> CharacterGroup.OTHER
+        }
+    }
+
+    private fun getEffectivePrevGroup(textBefore: String): CharacterGroup {
+        val lastChar = textBefore.lastOrNull() ?: return CharacterGroup.OTHER
+        if (lastChar == 'ー' || lastChar == 'ｰ') {
+            val nonLongVowel = textBefore.trimEnd('ー', 'ｰ').lastOrNull() ?: return CharacterGroup.OTHER
+            val group = getCharacterGroup(nonLongVowel)
+            if (group == CharacterGroup.HIRAGANA || group == CharacterGroup.KATAKANA) {
+                return group
+            }
+        }
+        return getCharacterGroup(lastChar)
+    }
+
     /**
      * カーソル移動時の文字（またはサロゲートペア）に対する詳細読みテキストを生成する。
+     * - ドキュメントトーカ以外の場合: 詳細読みは漢字のみ行い、漢字以外は文字そのものを読み上げる。
+     * - ドキュメントトーカの場合: ひらがな、カタカナ、アルファベット、数字が連続している場合（2文字目以降）は文字のみ読み上げる。
      *
      * @param text カーソル移動対象の文字
      * @param isDTalkerTTS DTalker TTSが有効かどうか
      * @param tamachiRepository 田町読みリポジトリ
+     * @param textBefore カーソル移動対象文字より前にあるテキスト（未確定入力中の直前文字やエディタの直前テキスト）
      * @return 読み上げ用テキスト
      */
     fun getCursorDetailedReading(
         text: String,
         isDTalkerTTS: Boolean,
-        tamachiRepository: TamachiRepository?
+        tamachiRepository: TamachiRepository?,
+        textBefore: String? = null
     ): String {
         if (text.isEmpty()) {
             return ""
@@ -33,6 +69,29 @@ object DetailedReadingUtils {
             val accessName = char.toAccessibilityName()
             if (accessName != text) {
                 return accessName
+            }
+        }
+
+        // ドキュメントトーカ以外の場合、カーソル移動時の詳細読みは漢字のみ行う
+        if (!isDTalkerTTS) {
+            return if (JapaneseCharacterUtils.isKanji(text)) {
+                getDetailedReading(
+                    text = text,
+                    isDTalkerTTS = false,
+                    tamachiRepository = tamachiRepository
+                )
+            } else {
+                text
+            }
+        }
+
+        // ドキュメントトーカの場合: ひらがな・カタカナ・アルファベット・数字の連続判定
+        if (text.length == 1 && !textBefore.isNullOrEmpty()) {
+            val char = text[0]
+            val currentGroup = getCharacterGroup(char)
+            val prevGroup = getEffectivePrevGroup(textBefore)
+            if (currentGroup != CharacterGroup.OTHER && currentGroup == prevGroup) {
+                return text
             }
         }
 

@@ -83,4 +83,27 @@ object JapaneseCharacterUtils {
             else -> null
         }
     }
+
+    fun isKanji(char: Char): Boolean {
+        return isKanji(char.code)
+    }
+
+    fun isKanji(codePoint: Int): Boolean {
+        return try {
+            Character.UnicodeScript.of(codePoint) == Character.UnicodeScript.HAN
+        } catch (_: Exception) {
+            val block = Character.UnicodeBlock.of(codePoint)
+            block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS ||
+                    block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_A ||
+                    block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_B ||
+                    block == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS ||
+                    block == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS_SUPPLEMENT
+        }
+    }
+
+    fun isKanji(text: String): Boolean {
+        if (text.isEmpty()) return false
+        val codePoint = text.codePointAt(0)
+        return isKanji(codePoint)
+    }
 }
