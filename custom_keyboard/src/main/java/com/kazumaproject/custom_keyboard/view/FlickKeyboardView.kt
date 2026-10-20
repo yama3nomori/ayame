@@ -205,6 +205,18 @@ class FlickKeyboardView @JvmOverloads constructor(
     private var deleteHoverSlideInEntryTime = 0L
     private var deleteHoverSlideInEntryX = 0f
     private var deleteHoverSlideInEntryY = 0f
+
+    // 読み上げキー
+    private var isHoverDraggingReadAloudKey = false
+    private var hoverReadAloudKeyDragStartX = 0f
+    private var hoverReadAloudKeyDragEndX = 0f
+    private var hoverReadAloudKeyDragStartY = 0f
+    private var hoverReadAloudKeyDragEndY = 0f
+    private var hoverReadAloudKeyDragTopY = 0f
+    private var isReadAloudLeftAnnounced = false
+    private var isReadAloudUpAnnounced = false
+    private var isReadAloudRightAnnounced = false
+    private var isReadAloudDownAnnounced = false
     
     // デバッグ用: 最初の1回だけTalkBackの状態を通知
     // private var hasAnnouncedTalkBackStatus = false
@@ -874,7 +886,8 @@ class FlickKeyboardView @JvmOverloads constructor(
             }
 
             KeyType.CROSS_FLICK -> {
-                val flickActionMap = layout.flickKeyMaps[keyData.label]?.firstOrNull()
+                val flickActionMap = (layout.flickKeyMaps[keyData.label]
+                    ?: keyData.keyId?.let { layout.flickKeyMaps[it] })?.firstOrNull()
                 Log.d(
                     "FlickKeyboardView KeyType.CROSS_FLICK",
                     "$flickActionMap"
@@ -1601,7 +1614,8 @@ class FlickKeyboardView @JvmOverloads constructor(
                     info.isClickable = true
                     info.isLongClickable = true
 
-                    val flickActionMap = currentLayout?.flickKeyMaps?.get(keyData.label)?.firstOrNull()
+                    val flickActionMap = (currentLayout?.flickKeyMaps?.get(keyData.label)
+                        ?: keyData.keyId?.let { currentLayout?.flickKeyMaps?.get(it) })?.firstOrNull()
                     if (flickActionMap != null) {
                         flickActionMap.forEach { (direction, flickAction) ->
                             if (direction != FlickDirection.TAP) {
@@ -1629,8 +1643,13 @@ class FlickKeyboardView @JvmOverloads constructor(
                 if (isTouchExplorationEnabled()) {
                     val direction = getFlickDirectionFromActionId(action)
                     if (direction != null) {
-                        val flickActionMap = currentLayout?.flickKeyMaps?.get(keyData.label)?.firstOrNull()
-                        val flickAction = flickActionMap?.get(direction)
+                        val flickActionMap = (currentLayout?.flickKeyMaps?.get(keyData.label)
+                            ?: keyData.keyId?.let { currentLayout?.flickKeyMaps?.get(it) })?.firstOrNull()
+                        val flickAction = flickActionMap?.get(direction) ?: when (direction) {
+                            FlickDirection.UP_LEFT -> flickActionMap?.get(FlickDirection.UP_LEFT_FAR)
+                            FlickDirection.UP_RIGHT -> flickActionMap?.get(FlickDirection.UP_RIGHT_FAR)
+                            else -> null
+                        }
                         if (flickAction != null) {
                             triggerFlickAction(flickAction, view)
                             return true
@@ -2055,6 +2074,77 @@ class FlickKeyboardView @JvmOverloads constructor(
                         }
                     }
 
+                    if (isHoverDraggingReadAloudKey) {
+                        if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced && !isReadAloudDownAnnounced) {
+                            if (screenX > hoverReadAloudKeyDragStartX) hoverReadAloudKeyDragStartX = screenX
+                            if (screenX < hoverReadAloudKeyDragEndX) hoverReadAloudKeyDragEndX = screenX
+                            if (screenY > hoverReadAloudKeyDragEndY) hoverReadAloudKeyDragEndY = screenY
+                            if (screenY < hoverReadAloudKeyDragTopY) hoverReadAloudKeyDragTopY = screenY
+                        }
+
+                        val dxStart = screenX - hoverReadAloudKeyDragStartX
+                        val dxEnd = screenX - hoverReadAloudKeyDragEndX
+                        val dyUp = screenY - hoverReadAloudKeyDragEndY
+                        val dyDown = screenY - hoverReadAloudKeyDragTopY
+
+                        val threshold = 35f
+                        val cancelLeftThreshold = -150f
+                        val cancelRightThreshold = 150f
+                        val cancelUpThreshold = -150f
+                        val cancelDownThreshold = 150f
+                        val cancelXThreshold = 60f
+                        val cancelYThreshold = 60f
+
+                        if (dxStart < -threshold && dxStart >= cancelLeftThreshold && abs(screenY - hoverReadAloudKeyDragStartY) <= cancelYThreshold) {
+                            if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced && !isReadAloudDownAnnounced) {
+                                isReadAloudLeftAnnounced = true
+                                announceForAccessibility("詳細読み上げ")
+                                android.widget.Toast.makeText(context, "詳細読み上げ", android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else if (dxEnd > threshold && dxEnd <= cancelRightThreshold && abs(screenY - hoverReadAloudKeyDragStartY) <= cancelYThreshold) {
+                            if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced && !isReadAloudDownAnnounced) {
+                                isReadAloudRightAnnounced = true
+                                announceForAccessibility("文末まで読み上げ")
+                                android.widget.Toast.makeText(context, "文末まで読み上げ", android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else if (dyUp < -threshold && dyUp >= cancelUpThreshold && abs(screenX - hoverReadAloudKeyDragStartX) <= cancelXThreshold) {
+                            if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced && !isReadAloudDownAnnounced) {
+                                isReadAloudUpAnnounced = true
+                                announceForAccessibility("文頭から読み上げ")
+                                android.widget.Toast.makeText(context, "文頭から読み上げ", android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else if (dyDown > threshold && dyDown <= cancelDownThreshold && abs(screenX - hoverReadAloudKeyDragStartX) <= cancelXThreshold) {
+                            if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced && !isReadAloudDownAnnounced) {
+                                isReadAloudDownAnnounced = true
+                                announceForAccessibility("カーソル位置")
+                                android.widget.Toast.makeText(context, "カーソル位置", android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else {
+                            val shouldCancel = if (isReadAloudLeftAnnounced) {
+                                (dxStart >= -threshold / 2f) || (dxStart < cancelLeftThreshold) || (abs(screenY - hoverReadAloudKeyDragStartY) > cancelYThreshold)
+                            } else if (isReadAloudRightAnnounced) {
+                                (dxEnd <= threshold / 2f) || (dxEnd > cancelRightThreshold) || (abs(screenY - hoverReadAloudKeyDragStartY) > cancelYThreshold)
+                            } else if (isReadAloudUpAnnounced) {
+                                (dyUp >= -threshold / 2f) || (dyUp < cancelUpThreshold) || (abs(screenX - hoverReadAloudKeyDragStartX) > cancelXThreshold)
+                            } else if (isReadAloudDownAnnounced) {
+                                (dyDown <= threshold / 2f) || (dyDown > cancelDownThreshold) || (abs(screenX - hoverReadAloudKeyDragStartX) > cancelXThreshold)
+                            } else false
+
+                            if (shouldCancel && !isFlicking) {
+                                isReadAloudLeftAnnounced = false
+                                isReadAloudUpAnnounced = false
+                                isReadAloudRightAnnounced = false
+                                isReadAloudDownAnnounced = false
+                                isHoverDraggingReadAloudKey = false
+                                isHoverDragActive = false
+                            }
+                        }
+                    }
+
                     // 通常の読み上げ位置の更新
                     if (targetView != lastHoverTarget) {
                         lastHoverTarget = targetView
@@ -2211,6 +2301,53 @@ class FlickKeyboardView @JvmOverloads constructor(
                         }
                     }
 
+                    if (isHoverDraggingReadAloudKey) {
+                        isHoverDraggingReadAloudKey = false
+                        var triggerLeft = isReadAloudLeftAnnounced
+                        var triggerUp = isReadAloudUpAnnounced
+                        var triggerRight = isReadAloudRightAnnounced
+                        var triggerDown = isReadAloudDownAnnounced
+
+                        if (!triggerLeft && !triggerUp && !triggerRight && !triggerDown) {
+                            val dx = screenX - hoverReadAloudKeyDragStartX
+                            val dy = screenY - hoverReadAloudKeyDragStartY
+                            val threshold = 35f
+                            val cancelXThreshold = 60f
+                            val cancelYThreshold = 60f
+
+                            if (abs(dy) <= cancelYThreshold && dx < -threshold) {
+                                triggerLeft = true
+                            } else if (abs(dy) <= cancelYThreshold && dx > threshold) {
+                                triggerRight = true
+                            } else if (abs(dx) <= cancelXThreshold && dy < -threshold) {
+                                triggerUp = true
+                            } else if (abs(dx) <= cancelXThreshold && dy > threshold) {
+                                triggerDown = true
+                            }
+                        }
+
+                        if (!isSlideOff || wasFlickingGesture) {
+                            if (triggerLeft) {
+                                listener?.onAction(KeyAction.ReadAloudLine, this, true)
+                            } else if (triggerUp) {
+                                listener?.onAction(KeyAction.ReadAloudAll, this, true)
+                            } else if (triggerRight) {
+                                listener?.onAction(KeyAction.ReadAloudFromCursor, this, true)
+                            } else if (triggerDown) {
+                                listener?.onAction(KeyAction.ReadAloudCursorPosition, this, true)
+                            }
+                        }
+                        isReadAloudLeftAnnounced = false
+                        isReadAloudUpAnnounced = false
+                        isReadAloudRightAnnounced = false
+                        isReadAloudDownAnnounced = false
+
+                        if (triggerLeft || triggerUp || triggerRight || triggerDown) {
+                            lastHoverTarget = null
+                            return true
+                        }
+                    }
+
                     if (!isSlideOff) {
                         // スライド/ドラッグを行わずに単純リフトした場合はタップ処理を行う
                         lastHoverTarget?.let { view ->
@@ -2324,7 +2461,8 @@ class FlickKeyboardView @JvmOverloads constructor(
             is KeyAction.ReadAloudCurrent,
             is KeyAction.ReadAloudLine,
             is KeyAction.ReadAloudAll,
-            is KeyAction.ReadAloudFromCursor -> context.getString(com.kazumaproject.core.R.string.read_aloud)
+            is KeyAction.ReadAloudFromCursor,
+            is KeyAction.ReadAloudCursorPosition -> context.getString(com.kazumaproject.core.R.string.read_aloud)
             is KeyAction.MoveCursorLeft -> context.getString(com.kazumaproject.core.R.string.left_key)
             is KeyAction.MoveCursorRight -> context.getString(com.kazumaproject.core.R.string.key_right)
             is KeyAction.MoveCursorToStartOfLine -> "行頭"
@@ -2385,6 +2523,10 @@ class FlickKeyboardView @JvmOverloads constructor(
                     KeyAction.MoveCursorToNextLine -> "下カーソル"
                     KeyAction.DeleteLeftWordOrSymbols -> if (isInputComposing) "一括削除" else "行頭まで削除"
                     KeyAction.DeleteForward -> "行末まで削除"
+                    KeyAction.ReadAloudLine -> "詳細読み上げ"
+                    KeyAction.ReadAloudAll -> "文頭から読み上げ"
+                    KeyAction.ReadAloudFromCursor -> "文末まで読み上げ"
+                    KeyAction.ReadAloudCursorPosition -> "カーソル位置読み上げ"
                     else -> getActionDescription(flickAction.action)
                 }
             }
@@ -2894,6 +3036,12 @@ class FlickKeyboardView @JvmOverloads constructor(
         isDeleteLeftAnnounced = false
         isDeleteRightAnnounced = false
         isDeleteUpAnnounced = false
+
+        isHoverDraggingReadAloudKey = false
+        isReadAloudLeftAnnounced = false
+        isReadAloudUpAnnounced = false
+        isReadAloudRightAnnounced = false
+        isReadAloudDownAnnounced = false
     }
 
     private fun initHoverDragState(label: String?, screenX: Float, screenY: Float) {
@@ -2919,6 +3067,13 @@ class FlickKeyboardView @JvmOverloads constructor(
             hoverDeleteKeyDragStartY = screenY
             hoverDeleteKeyDragEndY = screenY
             hoverDeleteKeyDragTopY = screenY
+        } else if (label == "読み上げ") {
+            isHoverDraggingReadAloudKey = true
+            hoverReadAloudKeyDragStartX = screenX
+            hoverReadAloudKeyDragEndX = screenX
+            hoverReadAloudKeyDragStartY = screenY
+            hoverReadAloudKeyDragEndY = screenY
+            hoverReadAloudKeyDragTopY = screenY
         }
     }
 

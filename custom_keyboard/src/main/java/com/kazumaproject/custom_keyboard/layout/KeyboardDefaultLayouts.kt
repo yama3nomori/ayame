@@ -3605,11 +3605,11 @@ object KeyboardDefaultLayouts {
                 label = "読み上げ",
                 row = 0,
                 column = 0,
-                isFlickable = true,
+                isFlickable = false,
                 action = KeyAction.ReadAloudCurrent,
                 isSpecialKey = true,
                 drawableResId = null,
-                keyType = KeyType.CIRCULAR_FLICK,
+                keyType = KeyType.CROSS_FLICK,
                 keyId = "read_aloud_key"
             ),
             KeyData(
@@ -3739,9 +3739,19 @@ object KeyboardDefaultLayouts {
             "read_aloud_key" to listOf(
                 mapOf(
                     FlickDirection.TAP to FlickAction.Action(KeyAction.ReadAloudCurrent),
-                    FlickDirection.UP_LEFT_FAR to FlickAction.Action(KeyAction.ReadAloudLine),
+                    FlickDirection.UP_LEFT to FlickAction.Action(KeyAction.ReadAloudLine),
                     FlickDirection.UP to FlickAction.Action(KeyAction.ReadAloudAll),
-                    FlickDirection.UP_RIGHT_FAR to FlickAction.Action(KeyAction.ReadAloudFromCursor)
+                    FlickDirection.UP_RIGHT to FlickAction.Action(KeyAction.ReadAloudFromCursor),
+                    FlickDirection.DOWN to FlickAction.Action(KeyAction.ReadAloudCursorPosition)
+                )
+            ),
+            "読み上げ" to listOf(
+                mapOf(
+                    FlickDirection.TAP to FlickAction.Action(KeyAction.ReadAloudCurrent),
+                    FlickDirection.UP_LEFT to FlickAction.Action(KeyAction.ReadAloudLine),
+                    FlickDirection.UP to FlickAction.Action(KeyAction.ReadAloudAll),
+                    FlickDirection.UP_RIGHT to FlickAction.Action(KeyAction.ReadAloudFromCursor),
+                    FlickDirection.DOWN to FlickAction.Action(KeyAction.ReadAloudCursorPosition)
                 )
             ),
             "CursorMoveLeft" to listOf(
@@ -3791,11 +3801,11 @@ object KeyboardDefaultLayouts {
                 label = "読み上げ",
                 row = 0,
                 column = 0,
-                isFlickable = true,
+                isFlickable = false,
                 action = KeyAction.ReadAloudCurrent,
                 isSpecialKey = true,
                 drawableResId = null,
-                keyType = KeyType.CIRCULAR_FLICK,
+                keyType = KeyType.CROSS_FLICK,
                 keyId = "read_aloud_key"
             ),
             KeyData(
@@ -3925,9 +3935,19 @@ object KeyboardDefaultLayouts {
             "read_aloud_key" to listOf(
                 mapOf(
                     FlickDirection.TAP to FlickAction.Action(KeyAction.ReadAloudCurrent),
-                    FlickDirection.UP_LEFT_FAR to FlickAction.Action(KeyAction.ReadAloudLine),
+                    FlickDirection.UP_LEFT to FlickAction.Action(KeyAction.ReadAloudLine),
                     FlickDirection.UP to FlickAction.Action(KeyAction.ReadAloudAll),
-                    FlickDirection.UP_RIGHT_FAR to FlickAction.Action(KeyAction.ReadAloudFromCursor)
+                    FlickDirection.UP_RIGHT to FlickAction.Action(KeyAction.ReadAloudFromCursor),
+                    FlickDirection.DOWN to FlickAction.Action(KeyAction.ReadAloudCursorPosition)
+                )
+            ),
+            "読み上げ" to listOf(
+                mapOf(
+                    FlickDirection.TAP to FlickAction.Action(KeyAction.ReadAloudCurrent),
+                    FlickDirection.UP_LEFT to FlickAction.Action(KeyAction.ReadAloudLine),
+                    FlickDirection.UP to FlickAction.Action(KeyAction.ReadAloudAll),
+                    FlickDirection.UP_RIGHT to FlickAction.Action(KeyAction.ReadAloudFromCursor),
+                    FlickDirection.DOWN to FlickAction.Action(KeyAction.ReadAloudCursorPosition)
                 )
             ),
             "CursorMoveLeft" to listOf(

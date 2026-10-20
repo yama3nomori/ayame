@@ -990,6 +990,30 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
     }
 
+    private fun readAloudCursorPosition() {
+        val ic = currentInputConnection ?: return
+        val textBefore = ic.getTextBeforeCursor(10000, 0)?.toString() ?: ""
+        val textAfter = ic.getTextAfterCursor(10000, 0)?.toString() ?: ""
+
+        val announcement = when {
+            textBefore.isEmpty() && textAfter.isEmpty() -> "空行"
+            textBefore.isEmpty() -> "文頭"
+            textAfter.isEmpty() -> "文末"
+            else -> {
+                val lineNumber = textBefore.count { it == '\n' } + 1
+                val lastNewLine = textBefore.lastIndexOf('\n')
+                val textInCurrentLineBeforeCursor = if (lastNewLine == -1) {
+                    textBefore
+                } else {
+                    textBefore.substring(lastNewLine + 1)
+                }
+                val colNumber = textInCurrentLineBeforeCursor.codePointCount(0, textInCurrentLineBeforeCursor.length) + 1
+                "${lineNumber}行${colNumber}桁目"
+            }
+        }
+        announceTextForce(announcement, allowSameText = true)
+    }
+
     private var candidateItemHighlightRunnable: Runnable? = null
 
     private fun announceCandidateItemHighlight(item: CandidateItem, index: Int, total: Int) {
@@ -1895,6 +1919,24 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             floatingModeSwitchWindow?.isTouchable = false
         }
         floatingKeyboardView?.dismiss()
+        if (!restarting) {
+            announceCursorPositionOnShow()
+        }
+    }
+
+    private fun announceCursorPositionOnShow() {
+        val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager ?: return
+        if (!am.isEnabled) return
+
+        val targetView = if (isKeyboardFloatingMode == true) {
+            floatingKeyboardBinding?.root
+        } else {
+            mainLayoutBinding?.root
+        }
+
+        targetView?.postDelayed({
+            readAloudCursorPosition()
+        }, 1000)
     }
 
     override fun onWindowShown() {
@@ -4550,10 +4592,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             }
 
             Key.SideKeyReadAloud -> {
-                when (char) {
-                    '\u0011' -> readAloudCurrentLineDetailed()
-                    '\u0012' -> readAloudFullText()
-                    '\u0013' -> readAloudFromCursorToEnd()
+                when {
+                    char == '\u0011' || gestureType == GestureType.FlickLeft -> readAloudCurrentLineDetailed()
+                    char == '\u0012' || gestureType == GestureType.FlickTop -> readAloudFullText()
+                    char == '\u0013' || gestureType == GestureType.FlickRight -> readAloudFromCursorToEnd()
+                    char == '\u0017' || gestureType == GestureType.FlickBottom -> readAloudCursorPosition()
                     else -> readAloudCurrentText()
                 }
             }
@@ -4862,10 +4905,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             }
 
             Key.SideKeyReadAloud -> {
-                when (char) {
-                    '\u0011' -> readAloudCurrentLineDetailed()
-                    '\u0012' -> readAloudFullText()
-                    '\u0013' -> readAloudFromCursorToEnd()
+                when {
+                    char == '\u0011' || gestureType == GestureType.FlickLeft -> readAloudCurrentLineDetailed()
+                    char == '\u0012' || gestureType == GestureType.FlickTop -> readAloudFullText()
+                    char == '\u0013' || gestureType == GestureType.FlickRight -> readAloudFromCursorToEnd()
+                    char == '\u0017' || gestureType == GestureType.FlickBottom -> readAloudCursorPosition()
                     else -> readAloudCurrentText()
                 }
             }
@@ -6577,6 +6621,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     KeyAction.ReadAloudLine -> {}
                     KeyAction.ReadAloudAll -> {}
                     KeyAction.ReadAloudFromCursor -> {}
+                    KeyAction.ReadAloudCursorPosition -> {}
                     KeyAction.MoveCursorToStartOfLine -> {}
                     KeyAction.MoveCursorToEndOfLine -> {}
                     KeyAction.MoveCursorToPrevLine -> {}
@@ -6643,6 +6688,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     KeyAction.ReadAloudLine -> {}
                     KeyAction.ReadAloudAll -> {}
                     KeyAction.ReadAloudFromCursor -> {}
+                    KeyAction.ReadAloudCursorPosition -> {}
                     KeyAction.MoveCursorToStartOfLine -> {}
                     KeyAction.MoveCursorToEndOfLine -> {}
                     KeyAction.MoveCursorToPrevLine -> {}
@@ -6780,6 +6826,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     KeyAction.ReadAloudLine -> {}
                     KeyAction.ReadAloudAll -> {}
                     KeyAction.ReadAloudFromCursor -> {}
+                    KeyAction.ReadAloudCursorPosition -> {}
                     KeyAction.MoveCursorToStartOfLine -> {}
                     KeyAction.MoveCursorToEndOfLine -> {}
                     KeyAction.MoveCursorToPrevLine -> {}
@@ -6927,6 +6974,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     KeyAction.ReadAloudLine -> {}
                     KeyAction.ReadAloudAll -> {}
                     KeyAction.ReadAloudFromCursor -> {}
+                    KeyAction.ReadAloudCursorPosition -> {}
                     KeyAction.MoveCursorToStartOfLine -> {}
                     KeyAction.MoveCursorToEndOfLine -> {}
                     KeyAction.MoveCursorToPrevLine -> {}
@@ -7285,6 +7333,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     }
                     KeyAction.ReadAloudFromCursor -> {
                         readAloudFromCursorToEnd()
+                    }
+                    KeyAction.ReadAloudCursorPosition -> {
+                        readAloudCursorPosition()
                     }
                     KeyAction.MoveCursorToStartOfLine -> {
                         moveCursorToStartOfLine()
@@ -10642,6 +10693,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                                 '\u0011' -> readAloudCurrentLineDetailed()
                                 '\u0012' -> readAloudFullText()
                                 '\u0013' -> readAloudFromCursorToEnd()
+                                '\u0017' -> readAloudCursorPosition()
                                 else -> readAloudCurrentText()
                             }
                         }

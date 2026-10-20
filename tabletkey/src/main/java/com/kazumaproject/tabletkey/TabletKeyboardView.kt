@@ -318,6 +318,18 @@ class TabletKeyboardView @JvmOverloads constructor(
     private var isSpaceUpAnnounced = false
     private var isSpaceRightAnnounced = false
 
+    // Read Aloud key drag tracking variables
+    private var isDraggingReadAloudKey = false
+    private var readAloudKeyDragStartX = 0f
+    private var readAloudKeyDragStartY = 0f
+    private var readAloudKeyDragEndX = 0f
+    private var readAloudKeyDragEndY = 0f
+    private var readAloudKeyDragTopY = 0f
+    private var isReadAloudLeftAnnounced = false
+    private var isReadAloudUpAnnounced = false
+    private var isReadAloudRightAnnounced = false
+    private var isReadAloudDownAnnounced = false
+
 
     private var longPressJob: Job? = null
     private var isLongPressed = false
@@ -451,6 +463,7 @@ class TabletKeyboardView @JvmOverloads constructor(
                     GestureType.FlickLeft -> '\u0011'
                     GestureType.FlickTop -> '\u0012'
                     GestureType.FlickRight -> '\u0013'
+                    GestureType.FlickBottom -> '\u0017'
                     else -> null
                 }
                 if (charCode != null) {
@@ -561,6 +574,7 @@ class TabletKeyboardView @JvmOverloads constructor(
                                     info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_left, "詳細読み上げ (左フリック)"))
                                     info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_top, "文頭から読み上げ (上フリック)"))
                                     info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_right, "文末まで読み上げ (右フリック)"))
+                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_bottom, "カーソル位置読み上げ (下フリック)"))
                                 }
                                 else -> {
                                     val keyInfo = currentInputMode.get().next(keyMap = keyMap, key = key, isTablet = true)
@@ -1131,6 +1145,26 @@ class TabletKeyboardView @JvmOverloads constructor(
                     ) {
                         toggleZenkaku()
                     }
+                    if (key == Key.SideKeyReadAloud) {
+                        isDraggingReadAloudKey = true
+                        isReadAloudLeftAnnounced = false
+                        isReadAloudUpAnnounced = false
+                        isReadAloudRightAnnounced = false
+                        isReadAloudDownAnnounced = false
+                        val (currentX, currentY) = getRawCoordinates(event, 0)
+                        readAloudKeyDragStartX = currentX
+                        readAloudKeyDragEndX = currentX
+                        readAloudKeyDragStartY = currentY
+                        readAloudKeyDragEndY = currentY
+                        readAloudKeyDragTopY = currentY
+                    } else {
+                        isDraggingReadAloudKey = false
+                        isReadAloudLeftAnnounced = false
+                        isReadAloudUpAnnounced = false
+                        isReadAloudRightAnnounced = false
+                        isReadAloudDownAnnounced = false
+                    }
+
                     if (currentInputMode.get() == InputMode.ModeEnglish &&
                         key != Key.SideKeyDelete &&
                         key != Key.SideKeyCursorRight &&
@@ -1217,6 +1251,30 @@ class TabletKeyboardView @JvmOverloads constructor(
                                     char = null
                                 )
                             }
+                            resetAllKeys()
+                            popupWindowActive.hide()
+                            return false
+                        }
+                    }
+                    if (isDraggingReadAloudKey) {
+                        isDraggingReadAloudKey = false
+                        val targetChar = when {
+                            isReadAloudLeftAnnounced -> '\u0011'
+                            isReadAloudUpAnnounced -> '\u0012'
+                            isReadAloudRightAnnounced -> '\u0013'
+                            isReadAloudDownAnnounced -> '\u0017'
+                            else -> null
+                        }
+                        isReadAloudLeftAnnounced = false
+                        isReadAloudUpAnnounced = false
+                        isReadAloudRightAnnounced = false
+                        isReadAloudDownAnnounced = false
+                        if (targetChar != null) {
+                            flickListener?.onFlick(
+                                gestureType = GestureType.Tap,
+                                key = Key.SideKeyReadAloud,
+                                char = targetChar
+                            )
                             resetAllKeys()
                             popupWindowActive.hide()
                             return false
@@ -1470,6 +1528,105 @@ class TabletKeyboardView @JvmOverloads constructor(
                         return true
                     }
 
+                    if (isDraggingReadAloudKey) {
+                        val (screenX, screenY) = if (event.pointerCount > 0) {
+                            getRawCoordinates(event, 0)
+                        } else {
+                            0f to 0f
+                        }
+                        if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced && !isReadAloudDownAnnounced) {
+                            if (screenX > readAloudKeyDragStartX) readAloudKeyDragStartX = screenX
+                            if (screenX < readAloudKeyDragEndX) readAloudKeyDragEndX = screenX
+                            if (screenY > readAloudKeyDragEndY) readAloudKeyDragEndY = screenY
+                            if (screenY < readAloudKeyDragTopY) readAloudKeyDragTopY = screenY
+                        }
+                        val dxStart = screenX - readAloudKeyDragStartX
+                        val dxEnd = screenX - readAloudKeyDragEndX
+                        val dyUp = screenY - readAloudKeyDragEndY
+                        val dyDown = screenY - readAloudKeyDragTopY
+
+                        val button = binding.sideKeyReadAloud
+                        val threshold = if (button != null) {
+                            val w = button.width.toFloat()
+                            val h = button.height.toFloat()
+                            if (w > 0f && h > 0f) kotlin.math.min(w / 6f, h / 6f) else 35f
+                        } else {
+                            35f
+                        }
+                        val cancelThreshold = threshold * 4.3f
+                        val cancelAxisThreshold = threshold * 1.7f
+
+                        if (dxStart < -threshold && dxStart >= -cancelThreshold && abs(screenY - readAloudKeyDragStartY) <= cancelAxisThreshold) {
+                            if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced && !isReadAloudDownAnnounced) {
+                                isReadAloudLeftAnnounced = true
+                                val annText = "詳細読み上げ"
+                                announceForAccessibility(annText)
+                                android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else if (dxEnd > threshold && dxEnd <= cancelThreshold && abs(screenY - readAloudKeyDragStartY) <= cancelAxisThreshold) {
+                            if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced && !isReadAloudDownAnnounced) {
+                                isReadAloudRightAnnounced = true
+                                val annText = "文末まで読み上げ"
+                                announceForAccessibility(annText)
+                                android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else if (dyUp < -threshold && dyUp >= -cancelThreshold && abs(screenX - readAloudKeyDragStartX) <= cancelAxisThreshold) {
+                            if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced && !isReadAloudDownAnnounced) {
+                                isReadAloudUpAnnounced = true
+                                val annText = "文頭から読み上げ"
+                                announceForAccessibility(annText)
+                                android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else if (dyDown > threshold && dyDown <= cancelThreshold && abs(screenX - readAloudKeyDragStartX) <= cancelAxisThreshold) {
+                            if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced && !isReadAloudDownAnnounced) {
+                                isReadAloudDownAnnounced = true
+                                val annText = "カーソル位置"
+                                announceForAccessibility(annText)
+                                android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else {
+                            val returnedToCenter = when {
+                                isReadAloudLeftAnnounced -> dxStart >= -threshold
+                                isReadAloudRightAnnounced -> dxEnd <= threshold
+                                isReadAloudUpAnnounced -> dyUp >= -threshold
+                                isReadAloudDownAnnounced -> dyDown <= threshold
+                                else -> false
+                            }
+                            if (returnedToCenter) {
+                                isReadAloudLeftAnnounced = false
+                                isReadAloudUpAnnounced = false
+                                isReadAloudRightAnnounced = false
+                                isReadAloudDownAnnounced = false
+                                readAloudKeyDragStartX = screenX
+                                readAloudKeyDragEndX = screenX
+                                readAloudKeyDragStartY = screenY
+                                readAloudKeyDragEndY = screenY
+                                readAloudKeyDragTopY = screenY
+                            } else {
+                                val shouldCancel = when {
+                                    isReadAloudLeftAnnounced -> (dxStart < -cancelThreshold) || (abs(screenY - readAloudKeyDragStartY) > cancelAxisThreshold)
+                                    isReadAloudRightAnnounced -> (dxEnd > cancelThreshold) || (abs(screenY - readAloudKeyDragStartY) > cancelAxisThreshold)
+                                    isReadAloudUpAnnounced -> (dyUp < -cancelThreshold) || (abs(screenX - readAloudKeyDragStartX) > cancelAxisThreshold)
+                                    isReadAloudDownAnnounced -> (dyDown > cancelThreshold) || (abs(screenX - readAloudKeyDragStartX) > cancelAxisThreshold)
+                                    else -> (dxStart < -cancelThreshold) || (dxEnd > cancelThreshold) || (dyUp < -cancelThreshold) || (dyDown > cancelThreshold) ||
+                                            (abs(screenY - readAloudKeyDragStartY) > cancelAxisThreshold && abs(screenX - readAloudKeyDragStartX) > cancelAxisThreshold)
+                                }
+                                if (shouldCancel && !isFlicking) {
+                                    isReadAloudLeftAnnounced = false
+                                    isReadAloudUpAnnounced = false
+                                    isReadAloudRightAnnounced = false
+                                    isReadAloudDownAnnounced = false
+                                    isDraggingReadAloudKey = false
+                                }
+                            }
+                        }
+                        return true
+                    }
+
                     val gestureType =
                         if (event.pointerCount == 1) getGestureType(event, 0) else getGestureType(
                             event, pressedKey.pointer
@@ -1599,7 +1756,31 @@ class TabletKeyboardView @JvmOverloads constructor(
 
                 MotionEvent.ACTION_POINTER_UP -> {
                     if (event.pointerCount == 2) {
-                        if (pressedKey.pointer == event.getPointerId(event.actionIndex)) {
+                        if (isDraggingReadAloudKey) {
+                        isDraggingReadAloudKey = false
+                        val targetChar = when {
+                            isReadAloudLeftAnnounced -> '\u0011'
+                            isReadAloudUpAnnounced -> '\u0012'
+                            isReadAloudRightAnnounced -> '\u0013'
+                            isReadAloudDownAnnounced -> '\u0017'
+                            else -> null
+                        }
+                        isReadAloudLeftAnnounced = false
+                        isReadAloudUpAnnounced = false
+                        isReadAloudRightAnnounced = false
+                        isReadAloudDownAnnounced = false
+                        if (targetChar != null) {
+                            flickListener?.onFlick(
+                                gestureType = GestureType.Tap,
+                                key = Key.SideKeyReadAloud,
+                                char = targetChar
+                            )
+                            resetAllKeys()
+                            popupWindowActive.hide()
+                            return false
+                        }
+                    }
+                    if (pressedKey.pointer == event.getPointerId(event.actionIndex)) {
                             resetLongPressAction()
                             val gestureType =
                                 getGestureType(event, event.getPointerId(event.actionIndex))

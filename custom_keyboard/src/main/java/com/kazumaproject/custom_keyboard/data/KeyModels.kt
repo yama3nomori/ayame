@@ -63,6 +63,7 @@ sealed class KeyAction {
     data object ReadAloudLine : KeyAction()
     data object ReadAloudAll : KeyAction()
     data object ReadAloudFromCursor : KeyAction()
+    data object ReadAloudCursorPosition : KeyAction()
     data object MoveCursorToStartOfLine : KeyAction()
     data object MoveCursorToEndOfLine : KeyAction()
     data object MoveCursorToPrevLine : KeyAction()

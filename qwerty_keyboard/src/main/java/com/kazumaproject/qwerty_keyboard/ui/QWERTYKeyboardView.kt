@@ -179,6 +179,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
     private var isReadAloudLeftAnnounced = false
     private var isReadAloudUpAnnounced = false
     private var isReadAloudRightAnnounced = false
+    private var isReadAloudDownAnnounced = false
     private var readAloudTouchSlideInEntryTime = 0L
     private var readAloudTouchSlideInEntryX = 0f
     private var readAloudTouchSlideInEntryY = 0f
@@ -404,6 +405,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                                     info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_left, "詳細読み上げ (左フリック)"))
                                     info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_top, "文頭から読み上げ (上フリック)"))
                                     info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_right, "文末まで読み上げ (右フリック)"))
+                                    info.addAction(androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_bottom, "カーソル位置読み上げ (下フリック)"))
                                 }
                                 else -> {
                                     val romajiMode = romajiModeState.value
@@ -575,6 +577,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                     com.kazumaproject.core.domain.state.GestureType.FlickLeft -> '\u0011'
                     com.kazumaproject.core.domain.state.GestureType.FlickTop -> '\u0012'
                     com.kazumaproject.core.domain.state.GestureType.FlickRight -> '\u0013'
+                    com.kazumaproject.core.domain.state.GestureType.FlickBottom -> '\u0017'
                     else -> null
                 }
                 if (charCode != null) {
@@ -1112,6 +1115,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                                     isReadAloudLeftAnnounced = false
                                     isReadAloudUpAnnounced = false
                                     isReadAloudRightAnnounced = false
+                                    isReadAloudDownAnnounced = false
                                     readAloudKeyDragStartX = screenX
                                     readAloudKeyDragEndX = screenX
                                     readAloudKeyDragStartY = screenY
@@ -1337,6 +1341,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                                     isReadAloudLeftAnnounced = false
                                     isReadAloudUpAnnounced = false
                                     isReadAloudRightAnnounced = false
+                                    isReadAloudDownAnnounced = false
                                     readAloudTouchSlideInEntryTime = 0L
                                 }
                             }
@@ -1349,6 +1354,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                         isReadAloudLeftAnnounced = false
                         isReadAloudUpAnnounced = false
                         isReadAloudRightAnnounced = false
+                        isReadAloudDownAnnounced = false
                     }
                 }
 
@@ -1702,7 +1708,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                 }
 
                 if (isDraggingReadAloudKey) {
-                    if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced) {
+                    if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced && !isReadAloudDownAnnounced) {
                         if (screenX > readAloudKeyDragStartX) readAloudKeyDragStartX = screenX
                         if (screenX < readAloudKeyDragEndX) readAloudKeyDragEndX = screenX
                         if (screenY > readAloudKeyDragEndY) readAloudKeyDragEndY = screenY
@@ -1711,9 +1717,10 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                     val dxStart = screenX - readAloudKeyDragStartX
                     val dxEnd = screenX - readAloudKeyDragEndX
                     val dyUp = screenY - readAloudKeyDragEndY
+                    val dyDown = screenY - readAloudKeyDragTopY
 
                     if (dxStart < -threshold && dxStart >= -cancelThreshold && abs(screenY - readAloudKeyDragStartY) <= cancelYThreshold) {
-                        if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced) {
+                        if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced && !isReadAloudDownAnnounced) {
                             isReadAloudLeftAnnounced = true
                             val annText = "詳細読み上げ"
                             announceForAccessibility(annText)
@@ -1721,7 +1728,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                             performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                         }
                     } else if (dxEnd > threshold && dxEnd <= cancelThreshold && abs(screenY - readAloudKeyDragStartY) <= cancelYThreshold) {
-                        if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced) {
+                        if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced && !isReadAloudDownAnnounced) {
                             isReadAloudRightAnnounced = true
                             val annText = "文末まで読み上げ"
                             announceForAccessibility(annText)
@@ -1729,9 +1736,17 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                             performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                         }
                     } else if (dyUp < -threshold && dyUp >= -cancelThreshold && abs(screenX - readAloudKeyDragStartX) <= cancelXThreshold) {
-                        if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced) {
+                        if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced && !isReadAloudDownAnnounced) {
                             isReadAloudUpAnnounced = true
                             val annText = "文頭から読み上げ"
+                            announceForAccessibility(annText)
+                            android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
+                            performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                        }
+                    } else if (dyDown > threshold && dyDown <= cancelThreshold && abs(screenX - readAloudKeyDragStartX) <= cancelXThreshold) {
+                        if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced && !isReadAloudDownAnnounced) {
+                            isReadAloudDownAnnounced = true
+                            val annText = "カーソル位置"
                             announceForAccessibility(annText)
                             android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
                             performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
@@ -1743,6 +1758,8 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                             dxEnd <= threshold
                         } else if (isReadAloudUpAnnounced) {
                             dyUp >= -threshold
+                        } else if (isReadAloudDownAnnounced) {
+                            dyDown <= threshold
                         } else {
                             false
                         }
@@ -1751,6 +1768,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                             isReadAloudLeftAnnounced = false
                             isReadAloudUpAnnounced = false
                             isReadAloudRightAnnounced = false
+                            isReadAloudDownAnnounced = false
 
                             readAloudKeyDragStartX = screenX
                             readAloudKeyDragEndX = screenX
@@ -1775,14 +1793,17 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                                 (dxEnd > cancelThreshold) || (abs(screenY - readAloudKeyDragStartY) > cancelYThreshold)
                             } else if (isReadAloudUpAnnounced) {
                                 (dyUp < -cancelThreshold) || (abs(screenX - readAloudKeyDragStartX) > cancelXThreshold)
+                            } else if (isReadAloudDownAnnounced) {
+                                (dyDown > cancelThreshold) || (abs(screenX - readAloudKeyDragStartX) > cancelXThreshold)
                             } else {
-                                (dxStart < -cancelThreshold) || (dxEnd > cancelThreshold) || (dyUp < -cancelThreshold) ||
+                                (dxStart < -cancelThreshold) || (dxEnd > cancelThreshold) || (dyUp < -cancelThreshold) || (dyDown > cancelThreshold) ||
                                 (abs(screenY - readAloudKeyDragStartY) > cancelYThreshold && abs(screenX - readAloudKeyDragStartX) > cancelXThreshold)
                             }
                             if (shouldCancel) {
                                 isReadAloudLeftAnnounced = false
                                 isReadAloudUpAnnounced = false
                                 isReadAloudRightAnnounced = false
+                                isReadAloudDownAnnounced = false
                                 isDraggingReadAloudKey = false
                             }
                         }
@@ -1896,6 +1917,9 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                                 } else if (isReadAloudRightAnnounced) {
                                     gestureChar = '\u0013'
                                     handledGesture = true
+                                } else if (isReadAloudDownAnnounced) {
+                                    gestureChar = '\u0017'
+                                    handledGesture = true
                                 }
                             }
                         }
@@ -2004,6 +2028,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
         isReadAloudLeftAnnounced = false
         isReadAloudUpAnnounced = false
         isReadAloudRightAnnounced = false
+        isReadAloudDownAnnounced = false
         readAloudTouchSlideInEntryTime = 0L
     }
 
@@ -2102,8 +2127,10 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                     if (distanceX < -threshold) '\u0011'
                     else if (distanceX > threshold) '\u0013'
                     else null
-                } else if (abs(distanceX) <= cancelThreshold && distanceY < -threshold && isFastY) {
-                    '\u0012'
+                } else if (abs(distanceX) <= cancelThreshold && isFastY) {
+                    if (distanceY < -threshold) '\u0012'
+                    else if (distanceY > threshold && abs(distanceX) < abs(distanceY) / 2f) '\u0017'
+                    else null
                 } else null
             }
             else -> null

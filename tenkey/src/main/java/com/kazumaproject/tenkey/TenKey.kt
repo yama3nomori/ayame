@@ -400,6 +400,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
     private var isReadAloudLeftAnnounced = false
     private var isReadAloudUpAnnounced = false
     private var isReadAloudRightAnnounced = false
+    private var isReadAloudDownAnnounced = false
     private var readAloudKeyDragStartX = 0f
     private var readAloudKeyDragEndX = 0f
     private var readAloudKeyDragStartY = 0f
@@ -1923,7 +1924,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
                 if (isHoverDraggingReadAloudKey) {
                     // Update peak coordinates before any trigger
-                    if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced) {
+                    if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced && !isReadAloudDownAnnounced) {
                         if (screenX > hoverReadAloudKeyDragStartX) {
                             hoverReadAloudKeyDragStartX = screenX
                         }
@@ -1941,18 +1942,20 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     val dxStart = screenX - hoverReadAloudKeyDragStartX // negative when sliding left
                     val dxEnd = screenX - hoverReadAloudKeyDragEndX     // positive when sliding right
                     val dyUp = screenY - hoverReadAloudKeyDragEndY       // negative when sliding up
+                    val dyDown = screenY - hoverReadAloudKeyDragTopY     // positive when sliding down
                     
                     val threshold = 35f // Highly sensitive and responsive
                     val cancelLeftThreshold = -150f
                     val cancelRightThreshold = 150f
                     val cancelUpThreshold = -150f
+                    val cancelDownThreshold = 150f
                     val cancelXThreshold = 60f
                     val cancelYThreshold = 60f
                     
-                    Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: isHoverDraggingReadAloudKey=true, screenX=$screenX, screenY=$screenY, dxStart=$dxStart, dxEnd=$dxEnd, dyUp=$dyUp")
+                    Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: isHoverDraggingReadAloudKey=true, screenX=$screenX, screenY=$screenY, dxStart=$dxStart, dxEnd=$dxEnd, dyUp=$dyUp, dyDown=$dyDown")
                     
                     if (dxStart < -threshold && dxStart >= cancelLeftThreshold && abs(screenY - hoverReadAloudKeyDragStartY) <= cancelYThreshold) {
-                        if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced) {
+                        if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced && !isReadAloudDownAnnounced) {
                             isReadAloudLeftAnnounced = true
                             val annText = "詳細読み上げ"
                             Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Read Aloud Left threshold reached! Announcing '$annText'")
@@ -1961,7 +1964,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                         }
                     } else if (dxEnd > threshold && dxEnd <= cancelRightThreshold && abs(screenY - hoverReadAloudKeyDragStartY) <= cancelYThreshold) {
-                        if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced) {
+                        if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced && !isReadAloudDownAnnounced) {
                             isReadAloudRightAnnounced = true
                             val annText = "文末まで読み上げ"
                             Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Read Aloud Right threshold reached! Announcing '$annText'")
@@ -1970,10 +1973,19 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                         }
                     } else if (dyUp < -threshold && dyUp >= cancelUpThreshold && abs(screenX - hoverReadAloudKeyDragStartX) <= cancelXThreshold) {
-                        if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced) {
+                        if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced && !isReadAloudDownAnnounced) {
                             isReadAloudUpAnnounced = true
                             val annText = "文頭から読み上げ"
                             Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Read Aloud Up threshold reached! Announcing '$annText'")
+                            announceForAccessibility(annText)
+                            android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
+                            performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                        }
+                    } else if (dyDown > threshold && dyDown <= cancelDownThreshold && abs(screenX - hoverReadAloudKeyDragStartX) <= cancelXThreshold) {
+                        if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced && !isReadAloudDownAnnounced) {
+                            isReadAloudDownAnnounced = true
+                            val annText = "カーソル位置"
+                            Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: Read Aloud Down threshold reached! Announcing '$annText'")
                             announceForAccessibility(annText)
                             android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
                             performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
@@ -1985,6 +1997,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             dxEnd <= threshold
                         } else if (isReadAloudUpAnnounced) {
                             dyUp >= -threshold
+                        } else if (isReadAloudDownAnnounced) {
+                            dyDown <= threshold
                         } else {
                             false
                         }
@@ -1993,6 +2007,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             isReadAloudLeftAnnounced = false
                             isReadAloudUpAnnounced = false
                             isReadAloudRightAnnounced = false
+                            isReadAloudDownAnnounced = false
 
                             hoverReadAloudKeyDragStartX = screenX
                             hoverReadAloudKeyDragEndX = screenX
@@ -2017,14 +2032,17 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 (dxEnd > cancelRightThreshold) || (abs(screenY - hoverReadAloudKeyDragStartY) > cancelYThreshold)
                             } else if (isReadAloudUpAnnounced) {
                                 (dyUp < cancelUpThreshold) || (abs(screenX - hoverReadAloudKeyDragStartX) > cancelXThreshold)
+                            } else if (isReadAloudDownAnnounced) {
+                                (dyDown > cancelDownThreshold) || (abs(screenX - hoverReadAloudKeyDragStartX) > cancelXThreshold)
                             } else {
-                                (dxStart < cancelLeftThreshold) || (dxEnd > cancelRightThreshold) || (dyUp < cancelUpThreshold) || 
+                                (dxStart < cancelLeftThreshold) || (dxEnd > cancelRightThreshold) || (dyUp < cancelUpThreshold) || (dyDown > cancelDownThreshold) || 
                                 (abs(screenY - hoverReadAloudKeyDragStartY) > cancelYThreshold && abs(screenX - hoverReadAloudKeyDragStartX) > cancelXThreshold)
                             }
                             if (shouldCancel && !isFlicking) {
                                 isReadAloudLeftAnnounced = false
                                 isReadAloudUpAnnounced = false
                                 isReadAloudRightAnnounced = false
+                                isReadAloudDownAnnounced = false
                                 isHoverDraggingReadAloudKey = false
                                 isHoverDragActive = false
                             }
@@ -2309,14 +2327,15 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
                 if (isHoverDraggingReadAloudKey) {
                     isHoverDraggingReadAloudKey = false
-                    Log.d("TenKeyDrag", "ACTION_HOVER_EXIT: hover Read Aloud drag finished. Left=$isReadAloudLeftAnnounced, Up=$isReadAloudUpAnnounced, Right=$isReadAloudRightAnnounced")
+                    Log.d("TenKeyDrag", "ACTION_HOVER_EXIT: hover Read Aloud drag finished. Left=$isReadAloudLeftAnnounced, Up=$isReadAloudUpAnnounced, Right=$isReadAloudRightAnnounced, Down=$isReadAloudDownAnnounced")
                     
                     var triggerLeft = isReadAloudLeftAnnounced
                     var triggerUp = isReadAloudUpAnnounced
                     var triggerRight = isReadAloudRightAnnounced
+                    var triggerDown = isReadAloudDownAnnounced
 
                     // Fallback for fast flick in Hover Mode: if not already announced, check final delta
-                    if (!triggerLeft && !triggerUp && !triggerRight) {
+                    if (!triggerLeft && !triggerUp && !triggerRight && !triggerDown) {
                         val dx = screenX - hoverReadAloudKeyDragStartX
                         val dy = screenY - hoverReadAloudKeyDragStartY
                         val threshold = 35f
@@ -2329,6 +2348,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             triggerRight = true
                         } else if (abs(dx) <= cancelXThreshold && dy < -threshold) {
                             triggerUp = true
+                        } else if (abs(dx) <= cancelXThreshold && dy > threshold) {
+                            triggerDown = true
                         }
                     }
 
@@ -2361,6 +2382,17 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyReadAloud,
                                 char = '\u0013'
+                            )
+                        }
+                        currentHoverKey = Key.NotSelected
+                        return true
+                    } else if (triggerDown) {
+                        isReadAloudDownAnnounced = false
+                        if (!isSlideOff || wasFlickingGesture) {
+                            flickListener?.onFlick(
+                                gestureType = GestureType.Tap,
+                                key = Key.SideKeyReadAloud,
+                                char = '\u0017'
                             )
                         }
                         currentHoverKey = Key.NotSelected
@@ -2659,6 +2691,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         isReadAloudLeftAnnounced = false
                         isReadAloudUpAnnounced = false
                         isReadAloudRightAnnounced = false
+                        isReadAloudDownAnnounced = false
                         val currentX = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                             event.getRawX(0)
                         } else {
@@ -2867,16 +2900,18 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
                     if (isDraggingReadAloudKey) {
                         isDraggingReadAloudKey = false
-                        Log.d("TenKeyDrag", "ACTION_UP: Read Aloud key drag finished. Left=$isReadAloudLeftAnnounced, Up=$isReadAloudUpAnnounced, Right=$isReadAloudRightAnnounced")
+                        Log.d("TenKeyDrag", "ACTION_UP: Read Aloud key drag finished. Left=$isReadAloudLeftAnnounced, Up=$isReadAloudUpAnnounced, Right=$isReadAloudRightAnnounced, Down=$isReadAloudDownAnnounced")
                         val targetChar = when {
                             isReadAloudLeftAnnounced -> '\u0011'
                             isReadAloudUpAnnounced -> '\u0012'
                             isReadAloudRightAnnounced -> '\u0013'
+                            isReadAloudDownAnnounced -> '\u0017'
                             else -> null
                         }
                         isReadAloudLeftAnnounced = false
                         isReadAloudUpAnnounced = false
                         isReadAloudRightAnnounced = false
+                        isReadAloudDownAnnounced = false
                         
                         flickListener?.onFlick(
                             gestureType = GestureType.Tap,
@@ -3022,6 +3057,15 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyReadAloud,
                                 char = '\u0013'
+                            )
+                            resetAllKeys()
+                            popupWindowActive.hide()
+                            return false
+                        } else if (gestureType == GestureType.FlickBottom) {
+                            flickListener?.onFlick(
+                                gestureType = GestureType.Tap,
+                                key = Key.SideKeyReadAloud,
+                                char = '\u0017'
                             )
                             resetAllKeys()
                             popupWindowActive.hide()
@@ -3441,6 +3485,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                         isReadAloudLeftAnnounced = false
                                         isReadAloudUpAnnounced = false
                                         isReadAloudRightAnnounced = false
+                                        isReadAloudDownAnnounced = false
                                         readAloudTouchSlideInEntryTime = 0L
                                         Log.d("TenKeyDrag", "ACTION_MOVE: Slid onto Read Aloud key and remained stationary for 150ms. Starting drag tracking.")
                                     }
@@ -3455,6 +3500,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             isReadAloudLeftAnnounced = false
                             isReadAloudUpAnnounced = false
                             isReadAloudRightAnnounced = false
+                            isReadAloudDownAnnounced = false
                         }
                     }
 
@@ -3909,7 +3955,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
                     if (isDraggingReadAloudKey) {
                         // Update peak coordinates before any trigger
-                        if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced) {
+                        if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced && !isReadAloudDownAnnounced) {
                             if (screenX > readAloudKeyDragStartX) {
                                 readAloudKeyDragStartX = screenX
                             }
@@ -3927,6 +3973,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         val dxStart = screenX - readAloudKeyDragStartX // negative when sliding left
                         val dxEnd = screenX - readAloudKeyDragEndX     // positive when sliding right
                         val dyUp = screenY - readAloudKeyDragEndY       // negative when sliding up
+                        val dyDown = screenY - readAloudKeyDragTopY     // positive when sliding down
                         
                         val button = binding.sideKeyReadAloud
                         val threshold = if (button != null) {
@@ -3939,13 +3986,14 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         val cancelLeftThreshold = -threshold * 4.3f
                         val cancelRightThreshold = threshold * 4.3f
                         val cancelUpThreshold = -threshold * 4.3f
+                        val cancelDownThreshold = threshold * 4.3f
                         val cancelXThreshold = threshold * 1.7f
                         val cancelYThreshold = threshold * 1.7f
                         
-                        Log.d("TenKeyDrag", "ACTION_MOVE: isDraggingReadAloudKey=true, screenX=$screenX, screenY=$screenY, dxStart=$dxStart, dxEnd=$dxEnd, dyUp=$dyUp")
+                        Log.d("TenKeyDrag", "ACTION_MOVE: isDraggingReadAloudKey=true, screenX=$screenX, screenY=$screenY, dxStart=$dxStart, dxEnd=$dxEnd, dyUp=$dyUp, dyDown=$dyDown")
                         
                         if (dxStart < -threshold && dxStart >= cancelLeftThreshold && abs(screenY - readAloudKeyDragStartY) <= cancelYThreshold) {
-                            if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced) {
+                            if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced && !isReadAloudDownAnnounced) {
                                 isReadAloudLeftAnnounced = true
                                 val annText = "詳細読み上げ"
                                 Log.d("TenKeyDrag", "ACTION_MOVE: Read Aloud Left threshold reached! Announcing '$annText'")
@@ -3954,7 +4002,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                             }
                         } else if (dxEnd > threshold && dxEnd <= cancelRightThreshold && abs(screenY - readAloudKeyDragStartY) <= cancelYThreshold) {
-                            if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced) {
+                            if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced && !isReadAloudDownAnnounced) {
                                 isReadAloudRightAnnounced = true
                                 val annText = "文末まで読み上げ"
                                 Log.d("TenKeyDrag", "ACTION_MOVE: Read Aloud Right threshold reached! Announcing '$annText'")
@@ -3963,10 +4011,19 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                             }
                         } else if (dyUp < -threshold && dyUp >= cancelUpThreshold && abs(screenX - readAloudKeyDragStartX) <= cancelXThreshold) {
-                            if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced) {
+                            if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced && !isReadAloudDownAnnounced) {
                                 isReadAloudUpAnnounced = true
                                 val annText = "文頭から読み上げ"
                                 Log.d("TenKeyDrag", "ACTION_MOVE: Read Aloud Up threshold reached! Announcing '$annText'")
+                                announceForAccessibility(annText)
+                                android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
+                                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                        } else if (dyDown > threshold && dyDown <= cancelDownThreshold && abs(screenX - readAloudKeyDragStartX) <= cancelXThreshold) {
+                            if (!isReadAloudLeftAnnounced && !isReadAloudUpAnnounced && !isReadAloudRightAnnounced && !isReadAloudDownAnnounced) {
+                                isReadAloudDownAnnounced = true
+                                val annText = "カーソル位置"
+                                Log.d("TenKeyDrag", "ACTION_MOVE: Read Aloud Down threshold reached! Announcing '$annText'")
                                 announceForAccessibility(annText)
                                 android.widget.Toast.makeText(context, annText, android.widget.Toast.LENGTH_SHORT).show()
                                 performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
@@ -3978,6 +4035,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 dxEnd <= threshold
                             } else if (isReadAloudUpAnnounced) {
                                 dyUp >= -threshold
+                            } else if (isReadAloudDownAnnounced) {
+                                dyDown <= threshold
                             } else {
                                 false
                             }
@@ -3986,6 +4045,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 isReadAloudLeftAnnounced = false
                                 isReadAloudUpAnnounced = false
                                 isReadAloudRightAnnounced = false
+                                isReadAloudDownAnnounced = false
 
                                 readAloudKeyDragStartX = screenX
                                 readAloudKeyDragEndX = screenX
@@ -4010,14 +4070,17 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                     (dxEnd > cancelRightThreshold) || (abs(screenY - readAloudKeyDragStartY) > cancelYThreshold)
                                 } else if (isReadAloudUpAnnounced) {
                                     (dyUp < cancelUpThreshold) || (abs(screenX - readAloudKeyDragStartX) > cancelXThreshold)
+                                } else if (isReadAloudDownAnnounced) {
+                                    (dyDown > cancelDownThreshold) || (abs(screenX - readAloudKeyDragStartX) > cancelXThreshold)
                                 } else {
-                                    (dxStart < cancelLeftThreshold) || (dxEnd > cancelRightThreshold) || (dyUp < cancelUpThreshold) || 
+                                    (dxStart < cancelLeftThreshold) || (dxEnd > cancelRightThreshold) || (dyUp < cancelUpThreshold) || (dyDown > cancelDownThreshold) || 
                                     (abs(screenY - readAloudKeyDragStartY) > cancelYThreshold && abs(screenX - readAloudKeyDragStartX) > cancelXThreshold)
                                 }
                                 if (shouldCancel && !isFlicking) {
                                     isReadAloudLeftAnnounced = false
                                     isReadAloudUpAnnounced = false
                                     isReadAloudRightAnnounced = false
+                                    isReadAloudDownAnnounced = false
                                     isDraggingReadAloudKey = false
                                 }
                             }
@@ -4067,6 +4130,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     isReadAloudLeftAnnounced = false
                     isReadAloudUpAnnounced = false
                     isReadAloudRightAnnounced = false
+                    isReadAloudDownAnnounced = false
                     isHoverDraggingCharKey = false
                     hoverCharKey = Key.NotSelected
                     if (isCursorMode) {
@@ -5523,6 +5587,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                     info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_left, "詳細読み上げ (左フリック)"))
                                     info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_top, "文頭から読み上げ (上フリック)"))
                                     info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_right, "文末まで読み上げ (右フリック)"))
+                                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(com.kazumaproject.core.R.id.action_flick_bottom, "カーソル位置読み上げ (下フリック)"))
                                 }
                                 else -> {
                                     val keyInfo = currentInputMode.value.next(keyMap = keyMap, key = key, isTablet = false)
@@ -5613,6 +5678,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     GestureType.FlickLeft -> '\u0011'
                     GestureType.FlickTop -> '\u0012'
                     GestureType.FlickRight -> '\u0013'
+                    GestureType.FlickBottom -> '\u0017'
                     else -> null
                 }
                 if (charCode != null) {
@@ -5753,6 +5819,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
         isReadAloudLeftAnnounced = false
         isReadAloudUpAnnounced = false
         isReadAloudRightAnnounced = false
+        isReadAloudDownAnnounced = false
 
         isHoverDraggingCharKey = false
         hoverCharKey = Key.NotSelected
