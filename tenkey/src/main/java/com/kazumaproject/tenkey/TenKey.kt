@@ -1462,7 +1462,13 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             val dx = screenX - hoverCurrentKeyEntryX
                             val dy = screenY - hoverCurrentKeyEntryY
                             val dist = kotlin.math.sqrt(dx * dx + dy * dy)
-                            if (dist > 10f * density) {
+                            val currentButton = getButtonFromKey(hoverCurrentKey) as? View
+                            val stationaryThreshold = if (currentButton != null && currentButton.width > 0) {
+                                currentButton.width.toFloat() * 0.1f
+                            } else {
+                                10f * density
+                            }
+                            if (dist > stationaryThreshold) {
                                 hoverCurrentKeyEntryTime = System.currentTimeMillis()
                                 hoverCurrentKeyEntryX = screenX
                                 hoverCurrentKeyEntryY = screenY
@@ -1529,13 +1535,15 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     val dyUp = screenY - hoverRightCursorDragEndY       // negative when sliding up
                     val dyDown = screenY - hoverRightCursorDragTopY     // positive when sliding down
                     
-                    val threshold = 35f // Highly sensitive and responsive
-                    val cancelLeftThreshold = -150f
-                    val cancelRightThreshold = 150f
-                    val cancelUpThreshold = -150f
-                    val cancelDownThreshold = 150f
-                    val cancelXThreshold = 60f
-                    val cancelYThreshold = 60f
+                    val button = binding.keyMoveCursorRight
+                    val w = button.width.toFloat()
+                    val threshold = if (w > 0f) w / 6f else 35f
+                    val cancelLeftThreshold = -threshold * 4.3f
+                    val cancelRightThreshold = threshold * 4.3f
+                    val cancelUpThreshold = -threshold * 4.3f
+                    val cancelDownThreshold = threshold * 4.3f
+                    val cancelXThreshold = threshold * 1.7f
+                    val cancelYThreshold = threshold * 1.7f
                     
                     Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: isHoverDraggingRightCursor=true, screenX=$screenX, screenY=$screenY, dxStart=$dxStart, dxEnd=$dxEnd, dyUp=$dyUp, dyDown=$dyDown")
                     
@@ -1653,13 +1661,15 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     val dyUp = screenY - hoverLeftCursorDragEndY       // negative when sliding up
                     val dyDown = screenY - hoverLeftCursorDragTopY     // positive when sliding down
                     
-                    val threshold = 35f // Highly sensitive and responsive
-                    val cancelLeftThreshold = -150f
-                    val cancelRightThreshold = 150f
-                    val cancelUpThreshold = -150f
-                    val cancelDownThreshold = 150f
-                    val cancelXThreshold = 60f
-                    val cancelYThreshold = 60f
+                    val button = binding.keySoftLeft
+                    val w = button.width.toFloat()
+                    val threshold = if (w > 0f) w / 6f else 35f
+                    val cancelLeftThreshold = -threshold * 4.3f
+                    val cancelRightThreshold = threshold * 4.3f
+                    val cancelUpThreshold = -threshold * 4.3f
+                    val cancelDownThreshold = threshold * 4.3f
+                    val cancelXThreshold = threshold * 1.7f
+                    val cancelYThreshold = threshold * 1.7f
                     
                     Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: isHoverDraggingLeftCursor=true, screenX=$screenX, screenY=$screenY, dxStart=$dxStart, dxEnd=$dxEnd, dyUp=$dyUp, dyDown=$dyDown")
                     
@@ -1765,10 +1775,12 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
                     val dxStart = screenX - hoverDeleteKeyDragStartX // negative when sliding left
                     
-                    val threshold = 35f // Highly sensitive and responsive
-                    val cancelLeftThreshold = -150f
-                    val cancelRightThreshold = 150f
-                    val cancelYThreshold = 60f
+                    val button = binding.keyDelete
+                    val w = button.width.toFloat()
+                    val threshold = if (w > 0f) w / 6f else 35f
+                    val cancelLeftThreshold = -threshold * 4.3f
+                    val cancelRightThreshold = threshold * 4.3f
+                    val cancelYThreshold = threshold * 1.7f
                     
                     Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: isHoverDraggingDeleteKey=true, screenX=$screenX, screenY=$screenY, dxStart=$dxStart")
                     
@@ -1841,11 +1853,13 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     val dyStart = screenY - hoverSpaceKeyDragStartY // positive when sliding down
                     val dxStart = screenX - hoverSpaceKeyDragStartX // positive when sliding right
                     
-                    val threshold = 35f
-                    val dragUpThreshold = -35f
-                    val dragRightThreshold = 35f
-                    val cancelDownThreshold = 150f
-                    val cancelXThreshold = 60f
+                    val spaceButton = binding.keySpace
+                    val w = spaceButton.width.toFloat()
+                    val threshold = if (w > 0f) w / 6f else 35f
+                    val dragUpThreshold = -threshold
+                    val dragRightThreshold = threshold
+                    val cancelDownThreshold = threshold * 4.3f
+                    val cancelXThreshold = threshold * 1.7f
                     
                     Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: isHoverDraggingSpaceKey=true, screenX=$screenX, screenY=$screenY, dyStart=$dyStart, dxStart=$dxStart")
                     
@@ -1944,13 +1958,15 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     val dyUp = screenY - hoverReadAloudKeyDragEndY       // negative when sliding up
                     val dyDown = screenY - hoverReadAloudKeyDragTopY     // positive when sliding down
                     
-                    val threshold = 35f // Highly sensitive and responsive
-                    val cancelLeftThreshold = -150f
-                    val cancelRightThreshold = 150f
-                    val cancelUpThreshold = -150f
-                    val cancelDownThreshold = 150f
-                    val cancelXThreshold = 60f
-                    val cancelYThreshold = 60f
+                    val button = binding.sideKeyReadAloud
+                    val w = button.width.toFloat()
+                    val threshold = if (w > 0f) w / 6f else 35f
+                    val cancelLeftThreshold = -threshold * 4.3f
+                    val cancelRightThreshold = threshold * 4.3f
+                    val cancelUpThreshold = -threshold * 4.3f
+                    val cancelDownThreshold = threshold * 4.3f
+                    val cancelXThreshold = threshold * 1.7f
+                    val cancelYThreshold = threshold * 1.7f
                     
                     Log.d("TenKeyDrag", "ACTION_HOVER_MOVE: isHoverDraggingReadAloudKey=true, screenX=$screenX, screenY=$screenY, dxStart=$dxStart, dxEnd=$dxEnd, dyUp=$dyUp, dyDown=$dyDown")
                     
@@ -2059,9 +2075,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         val button = getButtonFromKey(hoverCharKey) as? View
                         val threshold = if (button != null) {
                             val keyWidth = button.width.toFloat()
-                            val keyHeight = button.height.toFloat()
-                            if (keyWidth > 0f && keyHeight > 0f) {
-                                kotlin.math.min(keyWidth / 6f, keyHeight / 6f)
+                            if (keyWidth > 0f) {
+                                keyWidth / 6f
                             } else {
                                 flickSensitivity.toFloat()
                             }
@@ -2140,9 +2155,10 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     if (!triggerLineStart && !triggerLineEnd && !triggerLineUp && !triggerLineDown) {
                         val dx = screenX - hoverRightCursorDragStartX
                         val dy = screenY - hoverRightCursorDragStartY
-                        val threshold = 35f
-                        val cancelXThreshold = 60f
-                        val cancelYThreshold = 60f
+                        val w = binding.keyMoveCursorRight.width.toFloat()
+                        val threshold = if (w > 0f) w / 6f else 35f
+                        val cancelXThreshold = threshold * 1.7f
+                        val cancelYThreshold = threshold * 1.7f
                         
                         if (abs(dy) <= cancelYThreshold && dx < -threshold) {
                             triggerLineStart = true
@@ -2215,9 +2231,10 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     if (!triggerLineStart && !triggerLineEnd && !triggerLineUp && !triggerLineDown) {
                         val dx = screenX - hoverLeftCursorDragStartX
                         val dy = screenY - hoverLeftCursorDragStartY
-                        val threshold = 35f
-                        val cancelXThreshold = 60f
-                        val cancelYThreshold = 60f
+                        val w = binding.keySoftLeft.width.toFloat()
+                        val threshold = if (w > 0f) w / 6f else 35f
+                        val cancelXThreshold = threshold * 1.7f
+                        val cancelYThreshold = threshold * 1.7f
                         
                         if (abs(dy) <= cancelYThreshold && dx < -threshold) {
                             triggerLineStart = true
@@ -2288,8 +2305,9 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     if (!triggerDeleteLeft && !triggerDeleteRight) {
                         val dx = screenX - hoverDeleteKeyDragStartX
                         val dy = screenY - hoverDeleteKeyDragStartY
-                        val threshold = 35f
-                        val cancelYThreshold = 60f
+                        val w = binding.keyDelete.width.toFloat()
+                        val threshold = if (w > 0f) w / 6f else 35f
+                        val cancelYThreshold = threshold * 1.7f
                         
                         if (abs(dy) <= cancelYThreshold) {
                             if (dx < -threshold) {
@@ -2338,9 +2356,10 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     if (!triggerLeft && !triggerUp && !triggerRight && !triggerDown) {
                         val dx = screenX - hoverReadAloudKeyDragStartX
                         val dy = screenY - hoverReadAloudKeyDragStartY
-                        val threshold = 35f
-                        val cancelXThreshold = 60f
-                        val cancelYThreshold = 60f
+                        val w = binding.sideKeyReadAloud.width.toFloat()
+                        val threshold = if (w > 0f) w / 6f else 35f
+                        val cancelXThreshold = threshold * 1.7f
+                        val cancelYThreshold = threshold * 1.7f
                         
                         if (abs(dy) <= cancelYThreshold && dx < -threshold) {
                             triggerLeft = true
@@ -2412,8 +2431,9 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     if (!triggerSpaceDown && !triggerSpaceUp && !triggerSpaceRight) {
                         val dx = screenX - hoverSpaceKeyDragStartX
                         val dy = screenY - hoverSpaceKeyDragStartY
-                        val threshold = 35f
-                        val cancelXThreshold = 60f
+                        val w = binding.keySpace.width.toFloat()
+                        val threshold = if (w > 0f) w / 6f else 35f
+                        val cancelXThreshold = threshold * 1.7f
                         
                         if (abs(dx) <= cancelXThreshold && dy > threshold) {
                             triggerSpaceDown = true
@@ -3196,8 +3216,9 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
                 MotionEvent.ACTION_MOVE -> {
                     if (isCursorMode) {
-                        // sensitivity threshold in pixels
-                        val threshold = 16f
+                        // sensitivity threshold based on key width ratio
+                        val spaceWidth = binding.keySpace.width.toFloat()
+                        val threshold = if (spaceWidth > 0f) spaceWidth / 13f else 16f
 
                         // 1) get the tracked pointer index
                         val pointer = pressedKey.pointer
@@ -3289,7 +3310,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 touchSlideInEntryX = screenX
                                 touchSlideInEntryY = screenY
                             } else {
-                                val movementThreshold = 10f
+                                val w = binding.keyMoveCursorRight.width.toFloat()
+                                val movementThreshold = if (w > 0f) w / 21f else 10f
                                 val dx = screenX - touchSlideInEntryX
                                 val dy = screenY - touchSlideInEntryY
                                 if (abs(dx) > movementThreshold || abs(dy) > movementThreshold) {
@@ -3335,7 +3357,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 leftTouchSlideInEntryX = screenX
                                 leftTouchSlideInEntryY = screenY
                             } else {
-                                val movementThreshold = 10f
+                                val w = binding.keySoftLeft.width.toFloat()
+                                val movementThreshold = if (w > 0f) w / 21f else 10f
                                 val dx = screenX - leftTouchSlideInEntryX
                                 val dy = screenY - leftTouchSlideInEntryY
                                 if (abs(dx) > movementThreshold || abs(dy) > movementThreshold) {
@@ -3381,7 +3404,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 deleteTouchSlideInEntryX = screenX
                                 deleteTouchSlideInEntryY = screenY
                             } else {
-                                val movementThreshold = 10f
+                                val w = binding.keyDelete.width.toFloat()
+                                val movementThreshold = if (w > 0f) w / 21f else 10f
                                 val dx = screenX - deleteTouchSlideInEntryX
                                 val dy = screenY - deleteTouchSlideInEntryY
                                 if (abs(dx) > movementThreshold || abs(dy) > movementThreshold) {
@@ -3423,7 +3447,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 spaceTouchSlideInEntryX = screenX
                                 spaceTouchSlideInEntryY = screenY
                             } else {
-                                val movementThreshold = 10f
+                                val w = binding.keySpace.width.toFloat()
+                                val movementThreshold = if (w > 0f) w / 21f else 10f
                                 val dx = screenX - spaceTouchSlideInEntryX
                                 val dy = screenY - spaceTouchSlideInEntryY
                                 if (abs(dx) > movementThreshold || abs(dy) > movementThreshold) {
@@ -3466,7 +3491,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                 readAloudTouchSlideInEntryX = screenX
                                 readAloudTouchSlideInEntryY = screenY
                             } else {
-                                val movementThreshold = 10f
+                                val w = binding.sideKeyReadAloud.width.toFloat()
+                                val movementThreshold = if (w > 0f) w / 21f else 10f
                                 val dx = screenX - readAloudTouchSlideInEntryX
                                 val dy = screenY - readAloudTouchSlideInEntryY
                                 if (abs(dx) > movementThreshold || abs(dy) > movementThreshold) {
@@ -3527,13 +3553,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         val dyDown = screenY - rightCursorDragTopY     // positive when sliding down
                         
                         val button = binding.keyMoveCursorRight
-                        val threshold = if (button != null) {
-                            val w = button.width.toFloat()
-                            val h = button.height.toFloat()
-                            if (w > 0f && h > 0f) kotlin.math.min(w / 6f, h / 6f) else 35f
-                        } else {
-                            35f
-                        }
+                        val w = button.width.toFloat()
+                        val threshold = if (w > 0f) w / 6f else 35f
                         val cancelLeftThreshold = -threshold * 4.3f
                         val cancelRightThreshold = threshold * 4.3f
                         val cancelUpThreshold = -threshold * 4.3f
@@ -3658,13 +3679,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         val dyDown = screenY - leftCursorDragTopY     // positive when sliding down
                         
                         val button = binding.keySoftLeft
-                        val threshold = if (button != null) {
-                            val w = button.width.toFloat()
-                            val h = button.height.toFloat()
-                            if (w > 0f && h > 0f) kotlin.math.min(w / 6f, h / 6f) else 35f
-                        } else {
-                            35f
-                        }
+                        val w = button.width.toFloat()
+                        val threshold = if (w > 0f) w / 6f else 35f
                         val cancelLeftThreshold = -threshold * 4.3f
                         val cancelRightThreshold = threshold * 4.3f
                         val cancelUpThreshold = -threshold * 4.3f
@@ -3777,13 +3793,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         val dxStart = screenX - deleteKeyDragStartX // negative when sliding left
                         
                         val button = binding.keyDelete
-                        val threshold = if (button != null) {
-                            val w = button.width.toFloat()
-                            val h = button.height.toFloat()
-                            if (w > 0f && h > 0f) kotlin.math.min(w / 6f, h / 6f) else 35f
-                        } else {
-                            35f
-                        }
+                        val w = button.width.toFloat()
+                        val threshold = if (w > 0f) w / 6f else 35f
                         val cancelLeftThreshold = -threshold * 4.3f
                         val cancelRightThreshold = threshold * 4.3f
                         val cancelYThreshold = threshold * 1.7f
@@ -3860,17 +3871,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         val dxStart = screenX - spaceKeyDragStartX
                         
                         val spaceButton = binding.keySpace
-                        val threshold = if (spaceButton != null) {
-                            val keyWidth = spaceButton.width.toFloat()
-                            val keyHeight = spaceButton.height.toFloat()
-                            if (keyWidth > 0f && keyHeight > 0f) {
-                                kotlin.math.min(keyWidth / 6f, keyHeight / 6f)
-                            } else {
-                                35f
-                            }
-                        } else {
-                            35f
-                        }
+                        val w = spaceButton.width.toFloat()
+                        val threshold = if (w > 0f) w / 6f else 35f
                         val dragUpThreshold = -threshold
                         val dragRightThreshold = threshold
                         val cancelDownThreshold = threshold * 4.3f
@@ -3976,13 +3978,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         val dyDown = screenY - readAloudKeyDragTopY     // positive when sliding down
                         
                         val button = binding.sideKeyReadAloud
-                        val threshold = if (button != null) {
-                            val w = button.width.toFloat()
-                            val h = button.height.toFloat()
-                            if (w > 0f && h > 0f) kotlin.math.min(w / 6f, h / 6f) else 35f
-                        } else {
-                            35f
-                        }
+                        val w = button.width.toFloat()
+                        val threshold = if (w > 0f) w / 6f else 35f
                         val cancelLeftThreshold = -threshold * 4.3f
                         val cancelRightThreshold = threshold * 4.3f
                         val cancelUpThreshold = -threshold * 4.3f
@@ -4646,9 +4643,8 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
         val button = getButtonFromKey(pressedKey.key) as? View
         val threshold = if (button != null) {
             val keyWidth = button.width.toFloat()
-            val keyHeight = button.height.toFloat()
-            if (keyWidth > 0f && keyHeight > 0f) {
-                kotlin.math.min(keyWidth / 6f, keyHeight / 6f)
+            if (keyWidth > 0f) {
+                keyWidth / 6f
             } else {
                 flickSensitivity.toFloat()
             }
