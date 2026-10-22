@@ -29,6 +29,7 @@ import androidx.core.widget.ImageViewCompat
 import androidx.core.widget.TextViewCompat
 import com.google.android.material.textview.MaterialTextView
 import com.kazumaproject.core.SafeAccessibilityManager
+import com.kazumaproject.core.domain.extensions.buildTenKeyAccessibilityDescription
 import com.kazumaproject.core.domain.extensions.hide
 import com.kazumaproject.core.domain.extensions.toAccessibilityName
 import com.kazumaproject.core.domain.extensions.layoutXPosition
@@ -5519,20 +5520,11 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         Log.d("TenKeyAccessibility", "onInitializeAccessibilityNodeInfo: key=$key, mode=${currentInputMode.value}, desc=$description")
 
                         if (!description.isNullOrEmpty()) {
-                            val mappedDescription = if ((currentInputMode.value == InputMode.ModeEnglish || currentInputMode.value == InputMode.ModeNumber)
-                                && key in listOf(
-                                    Key.KeyA, Key.KeyKA, Key.KeySA,
-                                    Key.KeyTA, Key.KeyNA, Key.KeyHA,
-                                    Key.KeyMA, Key.KeyYA, Key.KeyRA,
-                                    Key.KeyWA, Key.KeyKutouten
-                                )
-                            ) {
-                                description.filter { !it.isWhitespace() }
-                                    .map { it.toAccessibilityName() }
-                                    .joinToString(" ")
-                            } else {
-                                description.toString()
-                            }
+                            val mappedDescription = buildTenKeyAccessibilityDescription(
+                                description = description,
+                                key = key,
+                                inputMode = currentInputMode.value
+                            )
                             info.text = mappedDescription
                             info.contentDescription = mappedDescription
                         } else {

@@ -34,6 +34,7 @@ import androidx.core.view.isInvisible
 import com.google.android.material.color.DynamicColors
 import com.google.android.material.textview.MaterialTextView
 import com.kazumaproject.core.data.tablet.TabletCapsLockState
+import com.kazumaproject.core.domain.extensions.buildTenKeyAccessibilityDescription
 import com.kazumaproject.core.domain.extensions.hide
 import com.kazumaproject.core.domain.extensions.layoutXPosition
 import com.kazumaproject.core.domain.extensions.layoutYPosition
@@ -520,20 +521,11 @@ class TabletKeyboardView @JvmOverloads constructor(
 
                     var description = host.contentDescription ?: (host as? TextView)?.text
                     if (!description.isNullOrEmpty() && key != null) {
-                        val mappedDescription = if ((currentInputMode.get() == InputMode.ModeEnglish || currentInputMode.get() == InputMode.ModeNumber)
-                            && key in listOf(
-                                Key.KeyA, Key.KeyKA, Key.KeySA,
-                                Key.KeyTA, Key.KeyNA, Key.KeyHA,
-                                Key.KeyMA, Key.KeyYA, Key.KeyRA,
-                                Key.KeyWA, Key.KeyKutouten
-                            )
-                        ) {
-                            description.filter { !it.isWhitespace() }
-                                .map { it.toAccessibilityName() }
-                                .joinToString(" ")
-                        } else {
-                            description.toString()
-                        }
+                        val mappedDescription = buildTenKeyAccessibilityDescription(
+                            description = description,
+                            key = key,
+                            inputMode = currentInputMode.get()
+                        )
                         info.text = mappedDescription
                         info.contentDescription = mappedDescription
                     }
