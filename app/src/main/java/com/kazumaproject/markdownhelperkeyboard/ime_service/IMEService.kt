@@ -1936,7 +1936,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
         targetView?.postDelayed({
             readAloudCursorPosition()
-        }, 1000)
+        }, 1500)
     }
 
     override fun onWindowShown() {
