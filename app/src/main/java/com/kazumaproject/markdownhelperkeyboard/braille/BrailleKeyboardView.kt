@@ -4,8 +4,11 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Rect
+import android.graphics.Region
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -13,6 +16,7 @@ import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
+import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
@@ -30,12 +34,18 @@ import kotlin.math.max
 interface OnBrailleInputListener {
     fun onInputText(text: String)
     fun onDelete()
+    fun onDeleteLeftGesture()
     fun onSpace()
     fun onEnter()
     fun onNextCandidate()
     fun onPrevCandidate()
     fun onSwitchMode(mode: BrailleInputMode)
     fun onSwitchKeyboard()
+    fun onCursorLeft()
+    fun onCursorRight()
+    fun onCursorUp()
+    fun onCursorDown()
+    fun onReadAloudTap()
 }
 
 class BrailleKeyboardView @JvmOverloads constructor(
@@ -74,8 +84,59 @@ class BrailleKeyboardView @JvmOverloads constructor(
     private val strokeKeySet = mutableSetOf<Int>() // 1, 2, 3, 4
     private var maxPointerCount = 0
     private var isGestureRecognized = false
+    private var isHoldSwipeExecuted = false
+    private var isLongPressExecuted = false
+    private var isSwipeHoldExecuted = false
+    private var swipeHoldAnchorX = 0f
+    private var swipeHoldAnchorY = 0f
+    private var isSwipeLeftHoldPending = false
+    private var lastNonAnchorSwipeDx = 0f
+    private var lastNonAnchorSwipeDy = 0f
+    private var hadAnchorAtPointerUp = false
 
     private val swipeThresholdPx: Float = 40f * context.resources.displayMetrics.density
+    private val swipeHoldMoveSlopPx: Float = 12f * context.resources.displayMetrics.density
+    private val longPressTimeoutMs = 450L
+    private val swipeHoldTimeoutMs = 400L
+    private val longPressHandler = Handler(Looper.getMainLooper())
+    private val threeFingerLongPressRunnable = Runnable {
+        if (activePointers.size == 3 && !isGestureRecognized && !isHoldSwipeExecuted && !isLongPressExecuted) {
+            isLongPressExecuted = true
+            strokeKeySet.clear()
+            clearAllHighlights()
+            vibrate(50)
+            listener?.onReadAloudTap()
+        }
+    }
+
+    private val oneFingerLeftSwipeHoldRunnable = Runnable {
+        if (activePointers.size == 1 && maxPointerCount == 1 && !isHoldSwipeExecuted && !isLongPressExecuted && !isSwipeHoldExecuted) {
+            val tp = activePointers.values.firstOrNull()
+            if (tp != null) {
+                val dx = tp.lastX - tp.startX
+                val dy = tp.lastY - tp.startY
+                if (dx < -swipeThresholdPx && abs(dx) > abs(dy)) {
+                    isSwipeHoldExecuted = true
+                    isSwipeLeftHoldPending = false
+                    strokeKeySet.clear()
+                    clearAllHighlights()
+                    inputProcessor.resetStroke()
+                    updatePreview()
+                    vibrate(50)
+                    listener?.onDeleteLeftGesture()
+                }
+            }
+        }
+    }
+
+    private fun cancelThreeFingerLongPress() {
+        longPressHandler.removeCallbacks(threeFingerLongPressRunnable)
+    }
+
+    private fun cancelOneFingerLeftSwipeHold() {
+        isSwipeLeftHoldPending = false
+        longPressHandler.removeCallbacks(oneFingerLeftSwipeHoldRunnable)
+    }
 
     // バイブレーター
     private val vibrator: Vibrator? by lazy {
@@ -102,28 +163,79 @@ class BrailleKeyboardView @JvmOverloads constructor(
         binding.braillePreviewBar.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
         binding.braillePreviewBar.isFocusable = true
 
-        // 下部キーエリア: コンテナ全体を1つのタッチサーフェスとして設定し、内部個別ボタンへの個別フォーカスを抑止
-        binding.brailleKeysContainer.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
-        binding.brailleKeysContainer.isFocusable = true
-        binding.brailleKeysContainer.contentDescription = "点字キーボード 4点タッチエリア"
+        // 下部キーエリア: 内部個別ボタンやコンテナ自体へのTalkBackフォーカスを抑止し、
+        // 上部の変換候補やショートカットツールバーで1本指スワイプした際にキーボードへフォーカスが吸われないようにする
+        binding.brailleKeysContainer.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        binding.brailleKeysContainer.isFocusable = false
+        binding.brailleKeysContainer.isClickable = false
 
         binding.brailleKey1.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
         binding.brailleKey2.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
         binding.brailleKey3.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
         binding.brailleKey4.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
 
-        // 親ViewGroup自体はフォーカスを奪わず、上部の候補エリアやツールバーへのTalkBackナビゲーションを阻害しない
+        // 親ViewGroup自体もフォーカスを奪わず、上部の候補エリアやツールバーでのTalkBackスワイプナビゲーションを阻害しない
         this.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-
-        if (Build.VERSION.SDK_INT >= 34) {
-            try {
-                val method = View::class.java.getMethod("setTouchExplorationPassthrough", Boolean::class.javaPrimitiveType)
-                method.invoke(binding.brailleKeysContainer, true)
-            } catch (_: Exception) {}
-        }
+        this.isFocusable = false
+        this.isClickable = false
 
         applyTheme()
         updatePreview()
+    }
+
+    /**
+     * 4点タッチエリアの表示状態・座標に応じて、TalkBackパススルー領域を更新または解除する
+     */
+    fun syncPassthroughRegion() {
+        if (!isShown || visibility != View.VISIBLE) {
+            BraillePassthroughAccessibilityService.clearPassthroughRegion()
+            return
+        }
+        val container = binding.brailleKeysContainer
+        if (container.width <= 0 || container.height <= 0) {
+            BraillePassthroughAccessibilityService.clearPassthroughRegion()
+            return
+        }
+        val loc = IntArray(2)
+        container.getLocationOnScreen(loc)
+        val rect = Rect(
+            loc[0],
+            loc[1],
+            loc[0] + container.width,
+            loc[1] + container.height
+        )
+        BraillePassthroughAccessibilityService.updatePassthroughRegion(Region(rect))
+    }
+
+    override fun onVisibilityChanged(changedView: View, visibility: Int) {
+        super.onVisibilityChanged(changedView, visibility)
+        if (visibility == View.VISIBLE && isShown) {
+            post { syncPassthroughRegion() }
+        } else {
+            BraillePassthroughAccessibilityService.clearPassthroughRegion()
+        }
+    }
+
+    override fun onWindowVisibilityChanged(visibility: Int) {
+        super.onWindowVisibilityChanged(visibility)
+        if (visibility == View.VISIBLE && isShown) {
+            post { syncPassthroughRegion() }
+        } else {
+            BraillePassthroughAccessibilityService.clearPassthroughRegion()
+        }
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        this.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        this.isFocusable = false
+        this.isClickable = false
+        post { syncPassthroughRegion() }
+    }
+
+    override fun onDetachedFromWindow() {
+        BraillePassthroughAccessibilityService.clearPassthroughRegion()
+        super.onDetachedFromWindow()
     }
 
     /**
@@ -382,27 +494,36 @@ class BrailleKeyboardView @JvmOverloads constructor(
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
         super.onLayout(changed, l, t, r, b)
+        val container = binding.brailleKeysContainer
+        val rect = Rect(container.left, container.top, container.right, container.bottom)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val container = binding.brailleKeysContainer
-            val rect = Rect(container.left, container.top, container.right, container.bottom)
             systemGestureExclusionRects = listOf(rect)
         }
+        post { syncPassthroughRegion() }
     }
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         val action = event.actionMasked
         if (action == MotionEvent.ACTION_DOWN && !isTouchInKeysArea(event.getX(0), event.getY(0))) {
-            return super.onTouchEvent(event)
+            return false
         }
         val actionIndex = event.actionIndex
 
         when (action) {
             MotionEvent.ACTION_DOWN -> {
+                cancelThreeFingerLongPress()
+                cancelOneFingerLeftSwipeHold()
                 activePointers.clear()
                 strokeKeySet.clear()
                 maxPointerCount = 1
                 isGestureRecognized = false
+                isHoldSwipeExecuted = false
+                isLongPressExecuted = false
+                isSwipeHoldExecuted = false
+                lastNonAnchorSwipeDx = 0f
+                lastNonAnchorSwipeDy = 0f
+                hadAnchorAtPointerUp = false
 
                 val pointerId = event.getPointerId(0)
                 val x = event.getX(0)
@@ -426,6 +547,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_POINTER_DOWN -> {
+                cancelOneFingerLeftSwipeHold()
                 val pointerId = event.getPointerId(actionIndex)
                 val x = event.getX(actionIndex)
                 val y = event.getY(actionIndex)
@@ -440,11 +562,16 @@ class BrailleKeyboardView @JvmOverloads constructor(
                 maxPointerCount = max(maxPointerCount, event.pointerCount)
 
                 val key = getKeyIndexAtPosition(x, y)
-                if (key > 0) {
+                if (key > 0 && !isHoldSwipeExecuted && !isLongPressExecuted && !isSwipeHoldExecuted) {
                     strokeKeySet.add(key)
                     setKeyHighlight(key, true)
                 }
                 vibrate(15)
+
+                cancelThreeFingerLongPress()
+                if (activePointers.size == 3 && !isGestureRecognized && !isHoldSwipeExecuted && !isLongPressExecuted && !isSwipeHoldExecuted) {
+                    longPressHandler.postDelayed(threeFingerLongPressRunnable, longPressTimeoutMs)
+                }
                 return true
             }
 
@@ -459,6 +586,39 @@ class BrailleKeyboardView @JvmOverloads constructor(
                         val dy = tp.lastY - tp.startY
                         if (abs(dx) > swipeThresholdPx || abs(dy) > swipeThresholdPx) {
                             isGestureRecognized = true
+                            cancelThreeFingerLongPress()
+                        }
+
+                        // 1本指の左スワイプ後の長押し判定
+                        if (activePointers.size == 1 && maxPointerCount == 1 &&
+                            !isHoldSwipeExecuted && !isLongPressExecuted && !isSwipeHoldExecuted
+                        ) {
+                            if (dx < -swipeThresholdPx && abs(dx) > abs(dy)) {
+                                if (!isSwipeLeftHoldPending) {
+                                    isSwipeLeftHoldPending = true
+                                    swipeHoldAnchorX = tp.lastX
+                                    swipeHoldAnchorY = tp.lastY
+                                    longPressHandler.postDelayed(
+                                        oneFingerLeftSwipeHoldRunnable,
+                                        swipeHoldTimeoutMs
+                                    )
+                                } else if (abs(tp.lastX - swipeHoldAnchorX) > swipeHoldMoveSlopPx ||
+                                    abs(tp.lastY - swipeHoldAnchorY) > swipeHoldMoveSlopPx
+                                ) {
+                                    // 指がまだ動いている間は基準座標を更新しタイマーをリセット
+                                    swipeHoldAnchorX = tp.lastX
+                                    swipeHoldAnchorY = tp.lastY
+                                    longPressHandler.removeCallbacks(oneFingerLeftSwipeHoldRunnable)
+                                    longPressHandler.postDelayed(
+                                        oneFingerLeftSwipeHoldRunnable,
+                                        swipeHoldTimeoutMs
+                                    )
+                                }
+                            } else {
+                                cancelOneFingerLeftSwipeHold()
+                            }
+                        } else {
+                            cancelOneFingerLeftSwipeHold()
                         }
                     }
                 }
@@ -466,12 +626,49 @@ class BrailleKeyboardView @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_POINTER_UP -> {
+                cancelThreeFingerLongPress()
+                cancelOneFingerLeftSwipeHold()
                 val pointerId = event.getPointerId(actionIndex)
-                activePointers.remove(pointerId)
+                val upPointer = activePointers.remove(pointerId)
+                if (isLongPressExecuted || isSwipeHoldExecuted) {
+                    return true
+                }
+                if (upPointer != null) {
+                    upPointer.lastX = event.getX(actionIndex)
+                    upPointer.lastY = event.getY(actionIndex)
+                    val dx = upPointer.lastX - upPointer.startX
+                    val dy = upPointer.lastY - upPointer.startY
+
+                    // 残っているポインタの中に静止しているホールド指があるか判定
+                    val hasStationaryAnchor = activePointers.values.any { p ->
+                        abs(p.lastX - p.startX) <= swipeThresholdPx &&
+                            abs(p.lastY - p.startY) <= swipeThresholdPx
+                    }
+
+                    if (abs(dx) > swipeThresholdPx || abs(dy) > swipeThresholdPx) {
+                        if (hasStationaryAnchor) {
+                            // 1本指ホールド + もう1本指スワイプが確定
+                            isHoldSwipeExecuted = true
+                            strokeKeySet.clear()
+                            handleHoldAndSwipe(dx, dy)
+                        } else {
+                            // 2本指同時スワイプ等のため記録しておく
+                            lastNonAnchorSwipeDx = dx
+                            lastNonAnchorSwipeDy = dy
+                            hadAnchorAtPointerUp = false
+                        }
+                    } else {
+                        // 離れた指自体が静止（ホールド指）だった場合、
+                        // 残っているスワイプ指が直後に ACTION_UP されるケースに備えて記録
+                        hadAnchorAtPointerUp = true
+                    }
+                }
                 return true
             }
 
             MotionEvent.ACTION_UP -> {
+                cancelThreeFingerLongPress()
+                cancelOneFingerLeftSwipeHold()
                 val pointerId = event.getPointerId(0)
                 val tp = activePointers[pointerId]
                 if (tp != null) {
@@ -485,9 +682,24 @@ class BrailleKeyboardView @JvmOverloads constructor(
 
                 clearAllHighlights()
 
-                if (isGestureRecognized || abs(dx) > swipeThresholdPx || abs(dy) > swipeThresholdPx) {
-                    // ジェスチャー処理
-                    handleGesture(dx, dy, pointerCount)
+                if (isLongPressExecuted || isSwipeHoldExecuted) {
+                    // ロングタップまたはスワイプ後長押しを既に実行済みの場合は何もしない
+                } else if (isHoldSwipeExecuted) {
+                    // 既に ACTION_POINTER_UP でホールド＋スワイプを実行済み。
+                    // ただし最後の指自体もスワイプしていて、かつ直前に離れた指が静止していた場合は追加判定
+                    if (hadAnchorAtPointerUp && (abs(dx) > swipeThresholdPx || abs(dy) > swipeThresholdPx)) {
+                        handleHoldAndSwipe(dx, dy)
+                    }
+                } else if (pointerCount >= 2 && hadAnchorAtPointerUp &&
+                    (abs(dx) > swipeThresholdPx || abs(dy) > swipeThresholdPx)
+                ) {
+                    // ホールド指がわずかに先に離れ、直後にスワイプ指が離れたケース
+                    handleHoldAndSwipe(dx, dy)
+                } else if (isGestureRecognized || abs(dx) > swipeThresholdPx || abs(dy) > swipeThresholdPx) {
+                    // 通常のジェスチャー処理（2本指同時スワイプで最後の指の移動量が小さい場合は先に離れた指の移動量を使用）
+                    val gestureDx = if (abs(dx) > swipeThresholdPx || abs(dy) > swipeThresholdPx) dx else lastNonAnchorSwipeDx
+                    val gestureDy = if (abs(dx) > swipeThresholdPx || abs(dy) > swipeThresholdPx) dy else lastNonAnchorSwipeDy
+                    handleGesture(gestureDx, gestureDy, pointerCount)
                 } else {
                     // タップ処理
                     handleTap()
@@ -495,17 +707,54 @@ class BrailleKeyboardView @JvmOverloads constructor(
 
                 activePointers.clear()
                 strokeKeySet.clear()
+                isHoldSwipeExecuted = false
+                isLongPressExecuted = false
+                isSwipeHoldExecuted = false
+                hadAnchorAtPointerUp = false
                 return true
             }
 
             MotionEvent.ACTION_CANCEL -> {
+                cancelThreeFingerLongPress()
+                cancelOneFingerLeftSwipeHold()
                 clearAllHighlights()
                 activePointers.clear()
                 strokeKeySet.clear()
+                isHoldSwipeExecuted = false
+                isLongPressExecuted = false
+                isSwipeHoldExecuted = false
+                hadAnchorAtPointerUp = false
                 return true
             }
         }
         return super.onTouchEvent(event)
+    }
+
+    /**
+     * 1本指ホールド + もう1本指スワイプ（カーソル移動）の判定と実行
+     */
+    private fun handleHoldAndSwipe(dx: Float, dy: Float) {
+        if (abs(dx) > abs(dy)) {
+            if (dx < -swipeThresholdPx) {
+                // 左スワイプ: 左カーソル
+                vibrate(20)
+                listener?.onCursorLeft()
+            } else if (dx > swipeThresholdPx) {
+                // 右スワイプ: 右カーソル
+                vibrate(20)
+                listener?.onCursorRight()
+            }
+        } else {
+            if (dy > swipeThresholdPx) {
+                // 下スワイプ: 下カーソル
+                vibrate(20)
+                listener?.onCursorDown()
+            } else if (dy < -swipeThresholdPx) {
+                // 上スワイプ: 上カーソル
+                vibrate(20)
+                listener?.onCursorUp()
+            }
+        }
     }
 
     /**

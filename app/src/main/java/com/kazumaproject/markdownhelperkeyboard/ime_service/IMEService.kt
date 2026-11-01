@@ -1945,6 +1945,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         Timber.d("onWindowShown")
         mainLayoutBinding?.accessibilityAnnouncementView?.text = ""
         floatingKeyboardBinding?.accessibilityAnnouncementView?.text = ""
+        mainLayoutBinding?.brailleView?.post {
+            mainLayoutBinding?.brailleView?.syncPassthroughRegion()
+        }
         // hijackWindowCallback() // Remove potentially conflicting hijacking
         val isTalkBackEnabled = isTalkBackActive()
         if (volumeKeyCursorMovePreference == true || isTalkBackEnabled) {
@@ -2015,6 +2018,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         super.onWindowHidden()
         isIMEWindowShown = false
         Timber.d("onWindowHidden")
+        com.kazumaproject.markdownhelperkeyboard.braille.BraillePassthroughAccessibilityService.clearPassthroughRegion()
         mainLayoutBinding?.accessibilityAnnouncementView?.text = ""
         floatingKeyboardBinding?.accessibilityAnnouncementView?.text = ""
         stopSilentAudio()
@@ -4169,6 +4173,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     handleDeleteKeyTap(insertString, suggestions)
                 }
 
+                override fun onDeleteLeftGesture() {
+                    val insertString = inputString.value
+                    handleDeleteLeftDragOrFlick(insertString)
+                }
+
                 override fun onSpace() {
                     val insertString = inputString.value
                     val suggestions = suggestionAdapter?.suggestions ?: emptyList()
@@ -4221,6 +4230,38 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                 override fun onSwitchKeyboard() {
                     switchNextKeyboard()
+                }
+
+                override fun onCursorLeft() {
+                    val insertString = inputString.value
+                    val suggestions = suggestionAdapter?.suggestions ?: emptyList()
+                    if (isHenkan.get()) {
+                        handleDeleteKeyInHenkan(suggestions, insertString)
+                    } else {
+                        handleLeftCursor(GestureType.Tap, insertString)
+                    }
+                }
+
+                override fun onCursorRight() {
+                    val insertString = inputString.value
+                    val suggestions = suggestionAdapter?.suggestions ?: emptyList()
+                    if (isHenkan.get()) {
+                        handleJapaneseModeSpaceKey(mainView, suggestions, insertString)
+                    } else {
+                        actionInRightKeyPressed(GestureType.Tap, insertString)
+                    }
+                }
+
+                override fun onCursorUp() {
+                    moveCursorToPrevLineAndReadAloud()
+                }
+
+                override fun onCursorDown() {
+                    moveCursorToNextLineAndReadAloud()
+                }
+
+                override fun onReadAloudTap() {
+                    readAloudCurrentText()
                 }
             }
         }
@@ -5959,6 +6000,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
      * 全てのキーボードビューを確実に非表示にする
      */
     private fun hideAllKeyboards() {
+        com.kazumaproject.markdownhelperkeyboard.braille.BraillePassthroughAccessibilityService.clearPassthroughRegion()
         mainLayoutBinding?.apply {
             keyboardView.isVisible = false
             qwertyView.isVisible = false
@@ -6103,6 +6145,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                 KeyboardType.BRAILLE -> {
                     brailleView.isVisible = true
+                    brailleView.post { brailleView.syncPassthroughRegion() }
                     keyboardView.isVisible = false
                     qwertyView.isVisible = false
                     tabletView.isVisible = false
@@ -8843,6 +8886,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             mainView.keyboardView,
             mainView.customLayoutDefault,
             mainView.qwertyView,
+            mainView.brailleView,
             mainView.candidatesRowView,
             mainView.candidateTabLayout
         ).forEach { view ->
@@ -9016,7 +9060,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             mainView.suggestionViewParent,
             mainView.keyboardView,
             mainView.customLayoutDefault,
-            mainView.qwertyView
+            mainView.qwertyView,
+            mainView.brailleView
         ).forEach { view ->
             (view.layoutParams as? FrameLayout.LayoutParams)?.let { params ->
                 if (view != mainView.suggestionViewParent) params.height = heightPx
@@ -9132,6 +9177,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                             tabletView, isVisible = true, true
                         )
                     }
+
+                    brailleView.isInvisible -> {
+                        animateViewVisibility(
+                            brailleView, isVisible = true, true
+                        )
+                    }
                 }
             }
         } else {
@@ -9141,6 +9192,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     qwertyView.isVisible -> qwertyView.visibility = View.INVISIBLE
                     customLayoutDefault.isVisible -> customLayoutDefault.visibility = View.INVISIBLE
                     tabletView.isVisible -> tabletView.visibility = View.INVISIBLE
+                    brailleView.isVisible -> brailleView.visibility = View.INVISIBLE
                 }
             }
         }
