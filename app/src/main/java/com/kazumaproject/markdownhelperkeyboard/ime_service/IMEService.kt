@@ -4178,6 +4178,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     handleDeleteLeftDragOrFlick(insertString)
                 }
 
+                override fun onDeleteRightGesture() {
+                    handleDeleteRightDragOrFlick()
+                }
+
                 override fun onSpace() {
                     val insertString = inputString.value
                     val suggestions = suggestionAdapter?.suggestions ?: emptyList()
@@ -4262,6 +4266,22 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                 override fun onReadAloudTap() {
                     readAloudCurrentText()
+                }
+
+                override fun onReadAloudLeft() {
+                    readAloudCurrentLineDetailed()
+                }
+
+                override fun onReadAloudUp() {
+                    readAloudFullText()
+                }
+
+                override fun onReadAloudRight() {
+                    readAloudFromCursorToEnd()
+                }
+
+                override fun onReadAloudDown() {
+                    readAloudCursorPosition()
                 }
             }
         }

@@ -35,6 +35,7 @@ interface OnBrailleInputListener {
     fun onInputText(text: String)
     fun onDelete()
     fun onDeleteLeftGesture()
+    fun onDeleteRightGesture()
     fun onSpace()
     fun onEnter()
     fun onNextCandidate()
@@ -46,6 +47,10 @@ interface OnBrailleInputListener {
     fun onCursorUp()
     fun onCursorDown()
     fun onReadAloudTap()
+    fun onReadAloudLeft()
+    fun onReadAloudUp()
+    fun onReadAloudRight()
+    fun onReadAloudDown()
 }
 
 class BrailleKeyboardView @JvmOverloads constructor(
@@ -90,6 +95,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
     private var swipeHoldAnchorX = 0f
     private var swipeHoldAnchorY = 0f
     private var isSwipeLeftHoldPending = false
+    private var isSwipeRightHoldPending = false
     private var lastNonAnchorSwipeDx = 0f
     private var lastNonAnchorSwipeDy = 0f
     private var hadAnchorAtPointerUp = false
@@ -129,13 +135,35 @@ class BrailleKeyboardView @JvmOverloads constructor(
         }
     }
 
+    private val oneFingerRightSwipeHoldRunnable = Runnable {
+        if (activePointers.size == 1 && maxPointerCount == 1 && !isHoldSwipeExecuted && !isLongPressExecuted && !isSwipeHoldExecuted) {
+            val tp = activePointers.values.firstOrNull()
+            if (tp != null) {
+                val dx = tp.lastX - tp.startX
+                val dy = tp.lastY - tp.startY
+                if (dx > swipeThresholdPx && abs(dx) > abs(dy)) {
+                    isSwipeHoldExecuted = true
+                    isSwipeRightHoldPending = false
+                    strokeKeySet.clear()
+                    clearAllHighlights()
+                    inputProcessor.resetStroke()
+                    updatePreview()
+                    vibrate(50)
+                    listener?.onDeleteRightGesture()
+                }
+            }
+        }
+    }
+
     private fun cancelThreeFingerLongPress() {
         longPressHandler.removeCallbacks(threeFingerLongPressRunnable)
     }
 
-    private fun cancelOneFingerLeftSwipeHold() {
+    private fun cancelOneFingerSwipeHold() {
         isSwipeLeftHoldPending = false
+        isSwipeRightHoldPending = false
         longPressHandler.removeCallbacks(oneFingerLeftSwipeHoldRunnable)
+        longPressHandler.removeCallbacks(oneFingerRightSwipeHoldRunnable)
     }
 
     // バイブレーター
@@ -513,7 +541,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
         when (action) {
             MotionEvent.ACTION_DOWN -> {
                 cancelThreeFingerLongPress()
-                cancelOneFingerLeftSwipeHold()
+                cancelOneFingerSwipeHold()
                 activePointers.clear()
                 strokeKeySet.clear()
                 maxPointerCount = 1
@@ -547,7 +575,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_POINTER_DOWN -> {
-                cancelOneFingerLeftSwipeHold()
+                cancelOneFingerSwipeHold()
                 val pointerId = event.getPointerId(actionIndex)
                 val x = event.getX(actionIndex)
                 val y = event.getY(actionIndex)
@@ -589,11 +617,15 @@ class BrailleKeyboardView @JvmOverloads constructor(
                             cancelThreeFingerLongPress()
                         }
 
-                        // 1本指の左スワイプ後の長押し判定
+                        // 1本指の左右スワイプ後の長押し判定
                         if (activePointers.size == 1 && maxPointerCount == 1 &&
                             !isHoldSwipeExecuted && !isLongPressExecuted && !isSwipeHoldExecuted
                         ) {
                             if (dx < -swipeThresholdPx && abs(dx) > abs(dy)) {
+                                if (isSwipeRightHoldPending) {
+                                    isSwipeRightHoldPending = false
+                                    longPressHandler.removeCallbacks(oneFingerRightSwipeHoldRunnable)
+                                }
                                 if (!isSwipeLeftHoldPending) {
                                     isSwipeLeftHoldPending = true
                                     swipeHoldAnchorX = tp.lastX
@@ -614,11 +646,36 @@ class BrailleKeyboardView @JvmOverloads constructor(
                                         swipeHoldTimeoutMs
                                     )
                                 }
+                            } else if (dx > swipeThresholdPx && abs(dx) > abs(dy)) {
+                                if (isSwipeLeftHoldPending) {
+                                    isSwipeLeftHoldPending = false
+                                    longPressHandler.removeCallbacks(oneFingerLeftSwipeHoldRunnable)
+                                }
+                                if (!isSwipeRightHoldPending) {
+                                    isSwipeRightHoldPending = true
+                                    swipeHoldAnchorX = tp.lastX
+                                    swipeHoldAnchorY = tp.lastY
+                                    longPressHandler.postDelayed(
+                                        oneFingerRightSwipeHoldRunnable,
+                                        swipeHoldTimeoutMs
+                                    )
+                                } else if (abs(tp.lastX - swipeHoldAnchorX) > swipeHoldMoveSlopPx ||
+                                    abs(tp.lastY - swipeHoldAnchorY) > swipeHoldMoveSlopPx
+                                ) {
+                                    // 指がまだ動いている間は基準座標を更新しタイマーをリセット
+                                    swipeHoldAnchorX = tp.lastX
+                                    swipeHoldAnchorY = tp.lastY
+                                    longPressHandler.removeCallbacks(oneFingerRightSwipeHoldRunnable)
+                                    longPressHandler.postDelayed(
+                                        oneFingerRightSwipeHoldRunnable,
+                                        swipeHoldTimeoutMs
+                                    )
+                                }
                             } else {
-                                cancelOneFingerLeftSwipeHold()
+                                cancelOneFingerSwipeHold()
                             }
                         } else {
-                            cancelOneFingerLeftSwipeHold()
+                            cancelOneFingerSwipeHold()
                         }
                     }
                 }
@@ -627,7 +684,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
 
             MotionEvent.ACTION_POINTER_UP -> {
                 cancelThreeFingerLongPress()
-                cancelOneFingerLeftSwipeHold()
+                cancelOneFingerSwipeHold()
                 val pointerId = event.getPointerId(actionIndex)
                 val upPointer = activePointers.remove(pointerId)
                 if (isLongPressExecuted || isSwipeHoldExecuted) {
@@ -668,7 +725,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
 
             MotionEvent.ACTION_UP -> {
                 cancelThreeFingerLongPress()
-                cancelOneFingerLeftSwipeHold()
+                cancelOneFingerSwipeHold()
                 val pointerId = event.getPointerId(0)
                 val tp = activePointers[pointerId]
                 if (tp != null) {
@@ -716,7 +773,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
 
             MotionEvent.ACTION_CANCEL -> {
                 cancelThreeFingerLongPress()
-                cancelOneFingerLeftSwipeHold()
+                cancelOneFingerSwipeHold()
                 clearAllHighlights()
                 activePointers.clear()
                 strokeKeySet.clear()
@@ -764,12 +821,19 @@ class BrailleKeyboardView @JvmOverloads constructor(
         if (abs(dx) > abs(dy)) {
             // 水平スワイプ
             if (dx < -swipeThresholdPx) {
-                // 左スワイプ (←): 削除
-                vibrate(30)
-                val wasReset = inputProcessor.resetStroke()
-                updatePreview()
-                if (!wasReset) {
-                    listener?.onDelete()
+                // 左スワイプ (←)
+                if (pointerCount >= 3) {
+                    // 3本指以上: 読み上げ左ジェスチャー（現在行の詳細読み上げ）
+                    vibrate(40)
+                    listener?.onReadAloudLeft()
+                } else {
+                    // 1〜2本指: 削除
+                    vibrate(30)
+                    val wasReset = inputProcessor.resetStroke()
+                    updatePreview()
+                    if (!wasReset) {
+                        listener?.onDelete()
+                    }
                 }
             } else if (dx > swipeThresholdPx) {
                 // 右スワイプ (→)
@@ -785,8 +849,25 @@ class BrailleKeyboardView @JvmOverloads constructor(
                         listener?.onEnter()
                     }
                     else -> {
-                        // 3本指以上: モード切替
-                        vibrate(50)
+                        // 3本指以上: 読み上げ右ジェスチャー（カーソル位置から末尾まで読み上げ）
+                        vibrate(40)
+                        listener?.onReadAloudRight()
+                    }
+                }
+            }
+        } else {
+            // 垂直スワイプ
+            if (dy > swipeThresholdPx) {
+                // 下スワイプ (↓)
+                when {
+                    pointerCount >= 3 -> {
+                        // 3本指以上: 読み上げ下ジェスチャー（カーソル位置の読み上げ）
+                        vibrate(40)
+                        listener?.onReadAloudDown()
+                    }
+                    pointerCount == 2 -> {
+                        // 2本指: 入力モード切替
+                        vibrate(40)
                         val newMode = inputProcessor.switchMode()
                         updatePreview()
                         listener?.onSwitchMode(newMode)
@@ -797,24 +878,30 @@ class BrailleKeyboardView @JvmOverloads constructor(
                         }
                         announceForAccessibility(modeName)
                     }
+                    else -> {
+                        // 1本指: 変換候補を進める
+                        vibrate(20)
+                        listener?.onNextCandidate()
+                    }
                 }
-            }
-        } else {
-            // 垂直スワイプ
-            if (dy > swipeThresholdPx) {
-                // 下スワイプ (↓): 変換候補を進める
-                vibrate(20)
-                listener?.onNextCandidate()
             } else if (dy < -swipeThresholdPx) {
                 // 上スワイプ (↑)
-                if (pointerCount >= 2) {
-                    // 2本指以上: キーボード切替
-                    vibrate(40)
-                    listener?.onSwitchKeyboard()
-                } else {
-                    // 1本指: 変換候補を戻す
-                    vibrate(20)
-                    listener?.onPrevCandidate()
+                when {
+                    pointerCount >= 3 -> {
+                        // 3本指以上: 読み上げ上ジェスチャー（全文読み上げ）
+                        vibrate(40)
+                        listener?.onReadAloudUp()
+                    }
+                    pointerCount == 2 -> {
+                        // 2本指: キーボード切替
+                        vibrate(40)
+                        listener?.onSwitchKeyboard()
+                    }
+                    else -> {
+                        // 1本指: 変換候補を戻す
+                        vibrate(20)
+                        listener?.onPrevCandidate()
+                    }
                 }
             }
         }
