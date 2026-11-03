@@ -4236,6 +4236,18 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     switchNextKeyboard()
                 }
 
+                override fun onShowSymbolKeyboard() {
+                    vibrate()
+                    _keyboardSymbolViewState.value = !_keyboardSymbolViewState.value
+                    stringInTail.set("")
+                    finishComposingText()
+                    setComposingText("", 0)
+                }
+
+                override fun onStartVoiceInput() {
+                    startVoiceInput(mainView)
+                }
+
                 override fun onCursorLeft() {
                     val insertString = inputString.value
                     val suggestions = suggestionAdapter?.suggestions ?: emptyList()
@@ -8266,6 +8278,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                             qwertyView.isVisible -> {
                                 qwertyView.visibility = View.INVISIBLE
                             }
+
+                            brailleView.isVisible -> {
+                                brailleView.visibility = View.INVISIBLE
+                            }
                         }
                         animateViewVisibility(keyboardSymbolView, true)
                         suggestionRecyclerView.isVisible = false
@@ -8285,6 +8301,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                                 customLayoutDefault.isInvisible -> {
                                     customLayoutDefault.isVisible = true
                                 }
+
+                                brailleView.isInvisible -> {
+                                    brailleView.isVisible = true
+                                }
                             }
                         } else {
                             when {
@@ -8298,6 +8318,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                                 customLayoutDefault.isInvisible -> {
                                     customLayoutDefault.isVisible = true
+                                }
+
+                                brailleView.isInvisible -> {
+                                    brailleView.isVisible = true
                                 }
                             }
                         }

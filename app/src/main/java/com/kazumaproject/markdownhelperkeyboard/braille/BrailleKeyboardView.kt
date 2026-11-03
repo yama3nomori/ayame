@@ -42,6 +42,8 @@ interface OnBrailleInputListener {
     fun onPrevCandidate()
     fun onSwitchMode(mode: BrailleInputMode)
     fun onSwitchKeyboard()
+    fun onShowSymbolKeyboard()
+    fun onStartVoiceInput()
     fun onCursorLeft()
     fun onCursorRight()
     fun onCursorUp()
@@ -105,8 +107,18 @@ class BrailleKeyboardView @JvmOverloads constructor(
     private val longPressTimeoutMs = 450L
     private val swipeHoldTimeoutMs = 400L
     private val longPressHandler = Handler(Looper.getMainLooper())
+    private val twoFingerLongPressRunnable = Runnable {
+        if (activePointers.size == 2 && !isGestureRecognized && !isHoldSwipeExecuted && !isLongPressExecuted && !isSwipeHoldExecuted) {
+            isLongPressExecuted = true
+            strokeKeySet.clear()
+            clearAllHighlights()
+            vibrate(50)
+            listener?.onStartVoiceInput()
+        }
+    }
+
     private val threeFingerLongPressRunnable = Runnable {
-        if (activePointers.size == 3 && !isGestureRecognized && !isHoldSwipeExecuted && !isLongPressExecuted) {
+        if (activePointers.size == 3 && !isGestureRecognized && !isHoldSwipeExecuted && !isLongPressExecuted && !isSwipeHoldExecuted) {
             isLongPressExecuted = true
             strokeKeySet.clear()
             clearAllHighlights()
@@ -155,7 +167,8 @@ class BrailleKeyboardView @JvmOverloads constructor(
         }
     }
 
-    private fun cancelThreeFingerLongPress() {
+    private fun cancelMultiFingerLongPress() {
+        longPressHandler.removeCallbacks(twoFingerLongPressRunnable)
         longPressHandler.removeCallbacks(threeFingerLongPressRunnable)
     }
 
@@ -540,7 +553,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
 
         when (action) {
             MotionEvent.ACTION_DOWN -> {
-                cancelThreeFingerLongPress()
+                cancelMultiFingerLongPress()
                 cancelOneFingerSwipeHold()
                 activePointers.clear()
                 strokeKeySet.clear()
@@ -596,9 +609,12 @@ class BrailleKeyboardView @JvmOverloads constructor(
                 }
                 vibrate(15)
 
-                cancelThreeFingerLongPress()
-                if (activePointers.size == 3 && !isGestureRecognized && !isHoldSwipeExecuted && !isLongPressExecuted && !isSwipeHoldExecuted) {
-                    longPressHandler.postDelayed(threeFingerLongPressRunnable, longPressTimeoutMs)
+                cancelMultiFingerLongPress()
+                if (!isGestureRecognized && !isHoldSwipeExecuted && !isLongPressExecuted && !isSwipeHoldExecuted) {
+                    when (activePointers.size) {
+                        2 -> longPressHandler.postDelayed(twoFingerLongPressRunnable, longPressTimeoutMs)
+                        3 -> longPressHandler.postDelayed(threeFingerLongPressRunnable, longPressTimeoutMs)
+                    }
                 }
                 return true
             }
@@ -614,7 +630,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
                         val dy = tp.lastY - tp.startY
                         if (abs(dx) > swipeThresholdPx || abs(dy) > swipeThresholdPx) {
                             isGestureRecognized = true
-                            cancelThreeFingerLongPress()
+                            cancelMultiFingerLongPress()
                         }
 
                         // 1本指の左右スワイプ後の長押し判定
@@ -683,7 +699,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_POINTER_UP -> {
-                cancelThreeFingerLongPress()
+                cancelMultiFingerLongPress()
                 cancelOneFingerSwipeHold()
                 val pointerId = event.getPointerId(actionIndex)
                 val upPointer = activePointers.remove(pointerId)
@@ -724,7 +740,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_UP -> {
-                cancelThreeFingerLongPress()
+                cancelMultiFingerLongPress()
                 cancelOneFingerSwipeHold()
                 val pointerId = event.getPointerId(0)
                 val tp = activePointers[pointerId]
@@ -772,7 +788,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_CANCEL -> {
-                cancelThreeFingerLongPress()
+                cancelMultiFingerLongPress()
                 cancelOneFingerSwipeHold()
                 clearAllHighlights()
                 activePointers.clear()
@@ -893,9 +909,9 @@ class BrailleKeyboardView @JvmOverloads constructor(
                         listener?.onReadAloudUp()
                     }
                     pointerCount == 2 -> {
-                        // 2本指: キーボード切替
+                        // 2本指: 記号キーボード表示
                         vibrate(40)
-                        listener?.onSwitchKeyboard()
+                        listener?.onShowSymbolKeyboard()
                     }
                     else -> {
                         // 1本指: 変換候補を戻す
