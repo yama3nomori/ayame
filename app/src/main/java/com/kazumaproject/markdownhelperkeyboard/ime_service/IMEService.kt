@@ -8068,7 +8068,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                         physicalKeyboardEnable.replayCache.isEmpty() && (mainView.keyboardView.isVisible ||
                                 mainView.tabletView.isVisible || mainView.qwertyView.isVisible ||
-                                mainView.customLayoutDefault.isVisible) -> {
+                                mainView.customLayoutDefault.isVisible || mainView.brailleView.isVisible) -> {
                             if (!suppressSuggestions) {
                                 animateSuggestionImageViewVisibility(
                                     mainView.suggestionVisibility, true
@@ -8079,7 +8079,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                         (physicalKeyboardEnable.replayCache.isNotEmpty() && !physicalKeyboardEnable.replayCache.first()) &&
                                 (mainView.keyboardView.isVisible || mainView.tabletView.isVisible ||
-                                        mainView.qwertyView.isVisible || mainView.customLayoutDefault.isVisible) -> {
+                                        mainView.qwertyView.isVisible || mainView.customLayoutDefault.isVisible ||
+                                        mainView.brailleView.isVisible) -> {
                             animateSuggestionImageViewVisibility(
                                 mainView.suggestionVisibility, true
                             )

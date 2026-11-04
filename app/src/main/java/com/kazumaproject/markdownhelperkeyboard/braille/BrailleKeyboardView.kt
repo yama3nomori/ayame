@@ -16,6 +16,8 @@ import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
+import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -118,6 +120,8 @@ class BrailleKeyboardView @JvmOverloads constructor(
     private var lastNonAnchorSwipeDx = 0f
     private var lastNonAnchorSwipeDy = 0f
     private var hadAnchorAtPointerUp = false
+    private var isExploringUpperArea = false
+    private var currentUpperHoveredView: View? = null
 
     private val swipeThresholdPx: Float = 40f * context.resources.displayMetrics.density
     private val swipeHoldMoveSlopPx: Float = 12f * context.resources.displayMetrics.density
@@ -592,6 +596,119 @@ class BrailleKeyboardView @JvmOverloads constructor(
         return screenX >= cX && screenX <= cX + cW && screenY >= cY && screenY <= cY + cH
     }
 
+    /**
+     * 座標 (x, y) が変換候補エリア・ショートカットツールバーエリア等のキーボード上部領域に入ったかを判定
+     */
+    private fun isTouchInUpperToolbarOrCandidatesArea(x: Float, y: Float): Boolean {
+        val viewLoc = IntArray(2)
+        getLocationOnScreen(viewLoc)
+        val screenY = viewLoc[1] + y
+        // BrailleKeyboardView の上端（y < 0）より上に出た場合（変換候補エリア・候補タブ・ショートカットツールバーエリア）
+        return screenY < viewLoc[1]
+    }
+
+    /**
+     * 画面座標 (screenX, screenY) の下にある変換候補エリアまたはショートカットツールバー内の操作対象Viewを検索する
+     */
+    private fun findUpperAreaTargetViewAt(screenX: Float, screenY: Float): View? {
+        val root = parent as? ViewGroup ?: return null
+        val targetContainerIds = intArrayOf(
+            R.id.suggestionView_parent,
+            R.id.candidate_tab_layout,
+            R.id.shortcut_toolbar_recyclerview,
+            R.id.candidates_row_view
+        )
+        for (id in targetContainerIds) {
+            val container = root.findViewById<View>(id) ?: continue
+            if (!container.isShown || container.visibility != View.VISIBLE) continue
+            val found = findAccessibleViewAtRecursive(container, screenX, screenY)
+            if (found != null) return found
+        }
+        return null
+    }
+
+    private fun findAccessibleViewAtRecursive(view: View, screenX: Float, screenY: Float): View? {
+        if (!view.isShown || view.visibility != View.VISIBLE) return null
+        val id = view.id
+        if (id == R.id.suggestion_focus_loop_start ||
+            id == R.id.suggestion_focus_loop_end ||
+            id == R.id.accessibility_announcement_view
+        ) {
+            return null
+        }
+
+        val loc = IntArray(2)
+        view.getLocationOnScreen(loc)
+        val left = loc[0].toFloat()
+        val top = loc[1].toFloat()
+        val right = left + view.width
+        val bottom = top + view.height
+        if (screenX < left || screenX > right || screenY < top || screenY > bottom) {
+            return null
+        }
+
+        if (view is ViewGroup) {
+            for (i in view.childCount - 1 downTo 0) {
+                val child = view.getChildAt(i)
+                val found = findAccessibleViewAtRecursive(child, screenX, screenY)
+                if (found != null) return found
+            }
+        }
+
+        // RecyclerView や ConstraintLayout などの大枠コンテナ自体は除外し、実際のアイテム・ボタンを対象とする
+        if (id == R.id.suggestionView_parent ||
+            id == R.id.suggestion_recycler_view ||
+            id == R.id.shortcut_toolbar_recyclerview ||
+            id == R.id.candidates_row_view ||
+            id == R.id.candidate_tab_layout ||
+            id == R.id.empty_icons_container
+        ) {
+            return null
+        }
+
+        val hasA11yContent = !view.contentDescription.isNullOrEmpty() ||
+            (view is TextView && !view.text.isNullOrEmpty())
+        val isInteractiveItem = view.isClickable || view.isFocusable ||
+            (view.importantForAccessibility == View.IMPORTANT_FOR_ACCESSIBILITY_YES && hasA11yContent)
+
+        return if (isInteractiveItem) view else null
+    }
+
+    /**
+     * 上部エリア（変換候補・ショートカットツールバー）への1本指ドラッグ中のTalkBackフォーカス更新
+     */
+    private fun updateUpperAreaExploration(x: Float, y: Float) {
+        val viewLoc = IntArray(2)
+        getLocationOnScreen(viewLoc)
+        val screenX = viewLoc[0] + x
+        val screenY = viewLoc[1] + y
+
+        val targetView = findUpperAreaTargetViewAt(screenX, screenY)
+        if (targetView != currentUpperHoveredView) {
+            currentUpperHoveredView?.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_EXIT)
+            currentUpperHoveredView = targetView
+            if (targetView != null) {
+                targetView.performAccessibilityAction(
+                    AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS,
+                    null
+                )
+                targetView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+                vibrate(15)
+            }
+        }
+    }
+
+    private fun finishUpperAreaExploration() {
+        currentUpperHoveredView?.let { target ->
+            target.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_EXIT)
+            target.performAccessibilityAction(
+                AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS,
+                null
+            )
+        }
+        currentUpperHoveredView = null
+    }
+
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         if (isTouchInKeysArea(ev.x, ev.y)) {
             parent?.requestDisallowInterceptTouchEvent(true)
@@ -602,6 +719,12 @@ class BrailleKeyboardView @JvmOverloads constructor(
     override fun dispatchHoverEvent(event: MotionEvent): Boolean {
         if (isTouchInKeysArea(event.x, event.y)) {
             return onHoverEvent(event)
+        }
+        if (strokeKeySet.isNotEmpty() || hoverKey != 0 || isHoverGestureRecognized) {
+            clearAllHighlights()
+            strokeKeySet.clear()
+            hoverKey = 0
+            isHoverGestureRecognized = false
         }
         return super.dispatchHoverEvent(event)
     }
@@ -616,6 +739,9 @@ class BrailleKeyboardView @JvmOverloads constructor(
     override fun onHoverEvent(event: MotionEvent): Boolean {
         if (!isTouchInKeysArea(event.x, event.y)) {
             clearAllHighlights()
+            strokeKeySet.clear()
+            hoverKey = 0
+            isHoverGestureRecognized = false
             return super.onHoverEvent(event)
         }
 
@@ -669,14 +795,20 @@ class BrailleKeyboardView @JvmOverloads constructor(
 
                 clearAllHighlights()
 
-                if (isHoverGestureRecognized || abs(dx) > swipeThresholdPx || abs(dy) > swipeThresholdPx) {
-                    handleGesture(dx, dy, 1)
-                } else if (strokeKeySet.isNotEmpty()) {
-                    handleTap()
+                val isSlideToUpperArea = event.y <= binding.brailleKeysContainer.top + 8f ||
+                    isTouchInUpperToolbarOrCandidatesArea(event.x, event.y)
+
+                if (!isSlideToUpperArea) {
+                    if (isHoverGestureRecognized || abs(dx) > swipeThresholdPx || abs(dy) > swipeThresholdPx) {
+                        handleGesture(dx, dy, 1)
+                    } else if (strokeKeySet.isNotEmpty()) {
+                        handleTap()
+                    }
                 }
 
                 strokeKeySet.clear()
                 hoverKey = 0
+                isHoverGestureRecognized = false
                 return true
             }
         }
@@ -717,6 +849,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
             MotionEvent.ACTION_DOWN -> {
                 cancelMultiFingerLongPress()
                 cancelOneFingerSwipeHold()
+                finishUpperAreaExploration()
                 activePointers.clear()
                 strokeKeySet.clear()
                 maxPointerCount = 1
@@ -724,6 +857,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
                 isHoldSwipeExecuted = false
                 isLongPressExecuted = false
                 isSwipeHoldExecuted = false
+                isExploringUpperArea = false
                 lastNonAnchorSwipeDx = 0f
                 lastNonAnchorSwipeDy = 0f
                 hadAnchorAtPointerUp = false
@@ -751,6 +885,10 @@ class BrailleKeyboardView @JvmOverloads constructor(
 
             MotionEvent.ACTION_POINTER_DOWN -> {
                 cancelOneFingerSwipeHold()
+                if (isExploringUpperArea) {
+                    finishUpperAreaExploration()
+                    isExploringUpperArea = false
+                }
                 val pointerId = event.getPointerId(actionIndex)
                 val x = event.getX(actionIndex)
                 val y = event.getY(actionIndex)
@@ -794,6 +932,24 @@ class BrailleKeyboardView @JvmOverloads constructor(
                         if (abs(dx) > swipeThresholdPx || abs(dy) > swipeThresholdPx) {
                             isGestureRecognized = true
                             cancelMultiFingerLongPress()
+                        }
+
+                        // キーボードエリアから1本指でドラッグして変換候補エリア・ショートカットツールバーエリアに入った場合、
+                        // 点字キーボードのジェスチャー・入力をキャンセルしてTalkBackのタッチ探索（フォーカス＆読み上げ）に切り替える
+                        if (activePointers.size == 1 && maxPointerCount == 1 &&
+                            !isHoldSwipeExecuted && !isLongPressExecuted && !isSwipeHoldExecuted
+                        ) {
+                            if (!isExploringUpperArea && isTouchInUpperToolbarOrCandidatesArea(tp.lastX, tp.lastY)) {
+                                isExploringUpperArea = true
+                                cancelOneFingerSwipeHold()
+                                cancelMultiFingerLongPress()
+                                strokeKeySet.clear()
+                                clearAllHighlights()
+                            }
+                            if (isExploringUpperArea) {
+                                updateUpperAreaExploration(tp.lastX, tp.lastY)
+                                continue
+                            }
                         }
 
                         // 1本指の左右スワイプ後の長押し判定
@@ -866,7 +1022,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
                 cancelOneFingerSwipeHold()
                 val pointerId = event.getPointerId(actionIndex)
                 val upPointer = activePointers.remove(pointerId)
-                if (isLongPressExecuted || isSwipeHoldExecuted) {
+                if (isLongPressExecuted || isSwipeHoldExecuted || isExploringUpperArea) {
                     return true
                 }
                 if (upPointer != null) {
@@ -918,7 +1074,13 @@ class BrailleKeyboardView @JvmOverloads constructor(
 
                 clearAllHighlights()
 
-                if (isLongPressExecuted || isSwipeHoldExecuted) {
+                if (isExploringUpperArea) {
+                    // 上部エリア探索モードで指を離した場合は、最後に指が乗っていた項目にTalkBackフォーカスを残す
+                    if (tp != null) {
+                        updateUpperAreaExploration(tp.lastX, tp.lastY)
+                    }
+                    finishUpperAreaExploration()
+                } else if (isLongPressExecuted || isSwipeHoldExecuted) {
                     // ロングタップまたはスワイプ後長押しを既に実行済みの場合は何もしない
                 } else if (isHoldSwipeExecuted) {
                     // 既に ACTION_POINTER_UP でホールド＋スワイプを実行済み。
@@ -946,6 +1108,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
                 isHoldSwipeExecuted = false
                 isLongPressExecuted = false
                 isSwipeHoldExecuted = false
+                isExploringUpperArea = false
                 hadAnchorAtPointerUp = false
                 return true
             }
@@ -953,12 +1116,14 @@ class BrailleKeyboardView @JvmOverloads constructor(
             MotionEvent.ACTION_CANCEL -> {
                 cancelMultiFingerLongPress()
                 cancelOneFingerSwipeHold()
+                finishUpperAreaExploration()
                 clearAllHighlights()
                 activePointers.clear()
                 strokeKeySet.clear()
                 isHoldSwipeExecuted = false
                 isLongPressExecuted = false
                 isSwipeHoldExecuted = false
+                isExploringUpperArea = false
                 hadAnchorAtPointerUp = false
                 return true
             }
