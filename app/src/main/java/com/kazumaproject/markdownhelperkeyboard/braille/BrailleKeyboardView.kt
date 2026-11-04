@@ -18,7 +18,9 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.FrameLayout
+import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.kazumaproject.core.domain.braille.BrailleDot
 import com.kazumaproject.core.domain.braille.BrailleInputMode
@@ -30,6 +32,8 @@ import com.kazumaproject.markdownhelperkeyboard.R
 import com.kazumaproject.markdownhelperkeyboard.databinding.BrailleKeyboardLayoutBinding
 import kotlin.math.abs
 import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.roundToInt
 
 interface OnBrailleInputListener {
     fun onInputText(text: String)
@@ -76,6 +80,19 @@ class BrailleKeyboardView @JvmOverloads constructor(
     private var customKeyBgColor: Int? = null
     private var customTextColor: Int? = null
     private var customBgColor: Int? = null
+
+    // カスタムキー位置の保存用
+    private val prefs by lazy {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    }
+    private var hasCustomKeyPositions = false
+    private val customNormX = FloatArray(4)
+    private val customNormY = FloatArray(4)
+
+    companion object {
+        private const val PREFS_NAME = "braille_keyboard_prefs"
+        private const val KEY_HAS_CUSTOM_POS = "has_custom_positions"
+    }
 
     // タッチトラッキング
     private data class TouchPointer(
@@ -127,6 +144,21 @@ class BrailleKeyboardView @JvmOverloads constructor(
         }
     }
 
+    private val fourFingerLongPressRunnable = Runnable {
+        if (activePointers.size == 4 && !isGestureRecognized && !isHoldSwipeExecuted && !isLongPressExecuted && !isSwipeHoldExecuted) {
+            isLongPressExecuted = true
+            strokeKeySet.clear()
+            clearAllHighlights()
+            inputProcessor.resetStroke()
+            updatePreview()
+            calibrateFourKeyPositions()
+            vibrate(70)
+            val message = "点字キーの位置を更新しました"
+            announceForAccessibility(message)
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private val oneFingerLeftSwipeHoldRunnable = Runnable {
         if (activePointers.size == 1 && maxPointerCount == 1 && !isHoldSwipeExecuted && !isLongPressExecuted && !isSwipeHoldExecuted) {
             val tp = activePointers.values.firstOrNull()
@@ -170,6 +202,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
     private fun cancelMultiFingerLongPress() {
         longPressHandler.removeCallbacks(twoFingerLongPressRunnable)
         longPressHandler.removeCallbacks(threeFingerLongPressRunnable)
+        longPressHandler.removeCallbacks(fourFingerLongPressRunnable)
     }
 
     private fun cancelOneFingerSwipeHold() {
@@ -220,8 +253,112 @@ class BrailleKeyboardView @JvmOverloads constructor(
         this.isFocusable = false
         this.isClickable = false
 
+        loadSavedKeyPositions()
         applyTheme()
         updatePreview()
+    }
+
+    /**
+     * 保存済みの4点キー位置を読み込む
+     */
+    private fun loadSavedKeyPositions() {
+        hasCustomKeyPositions = prefs.getBoolean(KEY_HAS_CUSTOM_POS, false)
+        if (hasCustomKeyPositions) {
+            for (i in 0 until 4) {
+                customNormX[i] = prefs.getFloat("key_${i + 1}_norm_x", (i + 0.5f) / 4f)
+                customNormY[i] = prefs.getFloat("key_${i + 1}_norm_y", 0.5f)
+            }
+        }
+    }
+
+    /**
+     * 現在押されている4本指の位置に合わせて点字キー（キー1〜4）の位置を更新・保存する
+     */
+    private fun calibrateFourKeyPositions() {
+        val container = binding.brailleKeysContainer
+        val cW = container.width
+        val cH = container.height
+        if (cW <= 0 || cH <= 0 || activePointers.size != 4) return
+
+        val viewLoc = IntArray(2)
+        getLocationOnScreen(viewLoc)
+        val containerLoc = IntArray(2)
+        container.getLocationOnScreen(containerLoc)
+
+        // X座標の昇順（左から右）にソートしてキー1〜4に割り当てる
+        val sortedPointers = activePointers.values.sortedBy { it.lastX }
+        val editor = prefs.edit()
+        editor.putBoolean(KEY_HAS_CUSTOM_POS, true)
+
+        for (i in 0 until 4) {
+            val tp = sortedPointers[i]
+            val localX = (viewLoc[0] + tp.lastX) - containerLoc[0]
+            val localY = (viewLoc[1] + tp.lastY) - containerLoc[1]
+            val normX = (localX / cW.toFloat()).coerceIn(0.05f, 0.95f)
+            val normY = (localY / cH.toFloat()).coerceIn(0.08f, 0.92f)
+            customNormX[i] = normX
+            customNormY[i] = normY
+            editor.putFloat("key_${i + 1}_norm_x", normX)
+            editor.putFloat("key_${i + 1}_norm_y", normY)
+        }
+        editor.apply()
+        hasCustomKeyPositions = true
+        applyCustomKeyPositions()
+    }
+
+    /**
+     * カスタムキー位置が設定されている場合、4つのキーViewを指定位置に再配置する
+     */
+    private fun applyCustomKeyPositions() {
+        if (!hasCustomKeyPositions) return
+        val container = binding.brailleKeysContainer
+        val cW = container.width
+        val cH = container.height
+        if (cW <= 0 || cH <= 0) return
+
+        val density = resources.displayMetrics.density
+        val keys = listOf(
+            binding.brailleKey1,
+            binding.brailleKey2,
+            binding.brailleKey3,
+            binding.brailleKey4
+        )
+
+        // 隣接キー間の最小X距離から重ならない適切なキー幅を算出
+        var minDx = cW.toFloat()
+        for (i in 0 until 3) {
+            val dx = abs(customNormX[i + 1] - customNormX[i]) * cW
+            if (dx < minDx) minDx = dx
+        }
+        val minKeyWidth = (48f * density).roundToInt()
+        val maxKeyWidth = (cW / 4f - 6f * density).roundToInt().coerceAtLeast(minKeyWidth)
+        val keyWidth = (minDx * 0.88f).roundToInt().coerceIn(minKeyWidth, maxKeyWidth)
+
+        val minKeyHeight = (64f * density).roundToInt()
+        val maxKeyHeight = (cH - (8f * density).roundToInt()).coerceAtLeast(minKeyHeight)
+        val keyHeight = (cH * 0.56f).roundToInt().coerceIn(minKeyHeight, maxKeyHeight)
+
+        for (i in 0 until 4) {
+            val keyView = keys[i]
+            val cx = customNormX[i] * cW
+            val cy = customNormY[i] * cH
+            val left = (cx - keyWidth / 2f).roundToInt().coerceIn(0, max(0, cW - keyWidth))
+            val top = (cy - keyHeight / 2f).roundToInt().coerceIn(0, max(0, cH - keyHeight))
+
+            val lp = keyView.layoutParams as? LinearLayout.LayoutParams
+            if (lp != null && (lp.width != keyWidth || lp.height != keyHeight || lp.weight != 0f)) {
+                lp.width = keyWidth
+                lp.height = keyHeight
+                lp.weight = 0f
+                lp.setMargins(0, 0, 0, 0)
+                keyView.layoutParams = lp
+            }
+            keyView.measure(
+                MeasureSpec.makeMeasureSpec(keyWidth, MeasureSpec.EXACTLY),
+                MeasureSpec.makeMeasureSpec(keyHeight, MeasureSpec.EXACTLY)
+            )
+            keyView.layout(left, top, left + keyWidth, top + keyHeight)
+        }
     }
 
     /**
@@ -379,8 +516,13 @@ class BrailleKeyboardView @JvmOverloads constructor(
      */
     private fun getKeyIndexAtPosition(x: Float, y: Float): Int {
         val container = binding.brailleKeysContainer
-        val location = IntArray(2)
-        container.getLocationOnScreen(location)
+        val containerLoc = IntArray(2)
+        container.getLocationOnScreen(containerLoc)
+
+        val viewLoc = IntArray(2)
+        getLocationOnScreen(viewLoc)
+        val screenX = viewLoc[0] + x
+        val screenY = viewLoc[1] + y
 
         val keys = listOf(
             binding.brailleKey1,
@@ -397,15 +539,34 @@ class BrailleKeyboardView @JvmOverloads constructor(
             val keyW = keys[i].width
             val keyH = keys[i].height
 
-            val viewLoc = IntArray(2)
-            getLocationOnScreen(viewLoc)
-            val screenX = viewLoc[0] + x
-            val screenY = viewLoc[1] + y
-
             if (screenX >= keyX && screenX <= keyX + keyW &&
                 screenY >= keyY && screenY <= keyY + keyH
             ) {
                 return i + 1
+            }
+        }
+
+        // カスタム位置設定時は、キー矩形のすぐ外側をタップした場合でも最も近いキーとして判定する
+        if (hasCustomKeyPositions && isTouchInKeysArea(x, y)) {
+            val cW = container.width
+            val cH = container.height
+            if (cW > 0 && cH > 0) {
+                val localX = screenX - containerLoc[0]
+                val localY = screenY - containerLoc[1]
+                var nearestIndex = 0
+                var minDistSq = Float.MAX_VALUE
+                for (i in 0 until 4) {
+                    val cx = customNormX[i] * cW
+                    val cy = customNormY[i] * cH
+                    val dx = localX - cx
+                    val dy = localY - cy
+                    val distSq = dx * dx + dy * dy
+                    if (distSq < minDistSq) {
+                        minDistSq = distSq
+                        nearestIndex = i + 1
+                    }
+                }
+                return nearestIndex
             }
         }
         return 0
@@ -535,6 +696,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
         super.onLayout(changed, l, t, r, b)
+        applyCustomKeyPositions()
         val container = binding.brailleKeysContainer
         val rect = Rect(container.left, container.top, container.right, container.bottom)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -614,6 +776,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
                     when (activePointers.size) {
                         2 -> longPressHandler.postDelayed(twoFingerLongPressRunnable, longPressTimeoutMs)
                         3 -> longPressHandler.postDelayed(threeFingerLongPressRunnable, longPressTimeoutMs)
+                        4 -> longPressHandler.postDelayed(fourFingerLongPressRunnable, longPressTimeoutMs)
                     }
                 }
                 return true
