@@ -2,6 +2,7 @@ package com.kazumaproject.markdownhelperkeyboard.braille
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.SharedPreferences
 import android.graphics.Color
 import android.graphics.Rect
 import android.graphics.Region
@@ -24,6 +25,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
+import androidx.preference.PreferenceManager
 import com.kazumaproject.core.domain.braille.BrailleDot
 import com.kazumaproject.core.domain.braille.BrailleInputMode
 import com.kazumaproject.core.domain.braille.BrailleInputProcessor
@@ -87,13 +89,26 @@ class BrailleKeyboardView @JvmOverloads constructor(
     private val prefs by lazy {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
+    private val defaultPrefs by lazy {
+        PreferenceManager.getDefaultSharedPreferences(context)
+    }
     private var hasCustomKeyPositions = false
     private val customNormX = FloatArray(4)
     private val customNormY = FloatArray(4)
 
+    // 左から右の4スロットに割り当てられる論理キー番号 (1, 2, 3, 4=ハンスペース)
+    private var keyOrder: IntArray = intArrayOf(1, 2, 3, 4)
+
+    private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == KEY_BRAILLE_KEY_ORDER) {
+            refreshKeyOrder()
+        }
+    }
+
     companion object {
         private const val PREFS_NAME = "braille_keyboard_prefs"
         private const val KEY_HAS_CUSTOM_POS = "has_custom_positions"
+        const val KEY_BRAILLE_KEY_ORDER = "braille_key_order_preference"
     }
 
     // タッチトラッキング
@@ -228,14 +243,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
     }
 
     init {
-        binding.brailleKey1Title.text = "1"
-        binding.brailleKey1Sub.text = "① / ④"
-        binding.brailleKey2Title.text = "2"
-        binding.brailleKey2Sub.text = "② / ⑤"
-        binding.brailleKey3Title.text = "3"
-        binding.brailleKey3Sub.text = "③ / ⑥"
-        binding.brailleKey4Title.text = "半"
-        binding.brailleKey4Sub.text = "ハンスペース"
+        refreshKeyOrder()
 
         // 上部プレビューバー: TalkBack探索で状態を読み上げ可能にする
         binding.braillePreviewBar.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
@@ -260,6 +268,64 @@ class BrailleKeyboardView @JvmOverloads constructor(
         loadSavedKeyPositions()
         applyTheme()
         updatePreview()
+    }
+
+    /**
+     * 設定からキーの並び順（左から右の4スロット）を読み込み、表示ラベルを更新する
+     */
+    fun refreshKeyOrder() {
+        val orderPref = try {
+            defaultPrefs.getString(KEY_BRAILLE_KEY_ORDER, "1_2_3_space")
+        } catch (_: Exception) {
+            "1_2_3_space"
+        }
+        keyOrder = when (orderPref) {
+            "space_3_2_1" -> intArrayOf(4, 3, 2, 1)
+            "3_2_1_space" -> intArrayOf(3, 2, 1, 4)
+            "space_1_2_3" -> intArrayOf(4, 1, 2, 3)
+            else -> intArrayOf(1, 2, 3, 4) // "1_2_3_space"
+        }
+
+        val titleViews = listOf(
+            binding.brailleKey1Title,
+            binding.brailleKey2Title,
+            binding.brailleKey3Title,
+            binding.brailleKey4Title
+        )
+        val subViews = listOf(
+            binding.brailleKey1Sub,
+            binding.brailleKey2Sub,
+            binding.brailleKey3Sub,
+            binding.brailleKey4Sub
+        )
+
+        for (slot in 0 until 4) {
+            val logicalKey = keyOrder[slot]
+            val titleView = titleViews[slot]
+            val subView = subViews[slot]
+            when (logicalKey) {
+                1 -> {
+                    titleView.text = "1"
+                    titleView.textSize = 26f
+                    subView.text = "① / ④"
+                }
+                2 -> {
+                    titleView.text = "2"
+                    titleView.textSize = 26f
+                    subView.text = "② / ⑤"
+                }
+                3 -> {
+                    titleView.text = "3"
+                    titleView.textSize = 26f
+                    subView.text = "③ / ⑥"
+                }
+                4 -> {
+                    titleView.text = "半"
+                    titleView.textSize = 24f
+                    subView.text = "ハンスペース"
+                }
+            }
+        }
     }
 
     /**
@@ -392,6 +458,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
     override fun onVisibilityChanged(changedView: View, visibility: Int) {
         super.onVisibilityChanged(changedView, visibility)
         if (visibility == View.VISIBLE && isShown) {
+            refreshKeyOrder()
             post { syncPassthroughRegion() }
         } else {
             BraillePassthroughAccessibilityService.clearPassthroughRegion()
@@ -401,6 +468,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
     override fun onWindowVisibilityChanged(visibility: Int) {
         super.onWindowVisibilityChanged(visibility)
         if (visibility == View.VISIBLE && isShown) {
+            refreshKeyOrder()
             post { syncPassthroughRegion() }
         } else {
             BraillePassthroughAccessibilityService.clearPassthroughRegion()
@@ -412,10 +480,17 @@ class BrailleKeyboardView @JvmOverloads constructor(
         this.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         this.isFocusable = false
         this.isClickable = false
+        try {
+            defaultPrefs.registerOnSharedPreferenceChangeListener(preferenceChangeListener)
+        } catch (_: Exception) {}
+        refreshKeyOrder()
         post { syncPassthroughRegion() }
     }
 
     override fun onDetachedFromWindow() {
+        try {
+            defaultPrefs.unregisterOnSharedPreferenceChangeListener(preferenceChangeListener)
+        } catch (_: Exception) {}
         BraillePassthroughAccessibilityService.clearPassthroughRegion()
         super.onDetachedFromWindow()
     }
@@ -481,11 +556,12 @@ class BrailleKeyboardView @JvmOverloads constructor(
     }
 
     private fun setKeyHighlight(keyIndex: Int, isPressed: Boolean) {
-        val keyView = when (keyIndex) {
-            1 -> binding.brailleKey1
-            2 -> binding.brailleKey2
-            3 -> binding.brailleKey3
-            4 -> binding.brailleKey4
+        val slotIndex = keyOrder.indexOf(keyIndex)
+        val keyView = when (slotIndex) {
+            0 -> binding.brailleKey1
+            1 -> binding.brailleKey2
+            2 -> binding.brailleKey3
+            3 -> binding.brailleKey4
             else -> return
         }
 
@@ -516,7 +592,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
     }
 
     /**
-     * 座標からキー番号 (1〜4) を判定
+     * 座標から論理キー番号 (1〜4) を判定
      */
     private fun getKeyIndexAtPosition(x: Float, y: Float): Int {
         val container = binding.brailleKeysContainer
@@ -546,7 +622,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
             if (screenX >= keyX && screenX <= keyX + keyW &&
                 screenY >= keyY && screenY <= keyY + keyH
             ) {
-                return i + 1
+                return keyOrder[i]
             }
         }
 
@@ -557,7 +633,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
             if (cW > 0 && cH > 0) {
                 val localX = screenX - containerLoc[0]
                 val localY = screenY - containerLoc[1]
-                var nearestIndex = 0
+                var nearestSlot = -1
                 var minDistSq = Float.MAX_VALUE
                 for (i in 0 until 4) {
                     val cx = customNormX[i] * cW
@@ -567,10 +643,12 @@ class BrailleKeyboardView @JvmOverloads constructor(
                     val distSq = dx * dx + dy * dy
                     if (distSq < minDistSq) {
                         minDistSq = distSq
-                        nearestIndex = i + 1
+                        nearestSlot = i
                     }
                 }
-                return nearestIndex
+                if (nearestSlot in 0..3) {
+                    return keyOrder[nearestSlot]
+                }
             }
         }
         return 0

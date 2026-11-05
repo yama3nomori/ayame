@@ -80,6 +80,9 @@
         <action
             android:id="@+id/action_navigation_setting_to_qwertyPreferenceFragment"
             app:destination="@id/qwertyPreferenceFragment" />
+        <action
+            android:id="@+id/action_navigation_setting_to_braillePreferenceFragment"
+            app:destination="@id/braillePreferenceFragment" />
 
         <action
             android:id="@+id/action_navigation_setting_to_customKeyboardPreferenceFragment"
@@ -289,6 +292,11 @@
         android:id="@+id/customKeyboardPreferenceFragment"
         android:name="com.kazumaproject.markdownhelperkeyboard.setting_activity.ui.setting.CustomKeyboardPreferenceFragment"
         android:label="@string/category_custom_keyboard_title" />
+
+    <fragment
+        android:id="@+id/braillePreferenceFragment"
+        android:name="com.kazumaproject.markdownhelperkeyboard.setting_activity.ui.setting.BraillePreferenceFragment"
+        android:label="@string/category_braille" />
     <fragment
         android:id="@+id/tabletPreferenceFragment"
         android:name="com.kazumaproject.markdownhelperkeyboard.setting_activity.ui.setting.TabletPreferenceFragment"

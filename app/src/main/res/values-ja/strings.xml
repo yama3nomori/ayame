@@ -391,6 +391,7 @@
     <string name="reset_to_default">初期値に戻す</string>
     <string name="preview">プレビュー</string>
     <string name="qwertymarginsettingfragment">QWERTY キーボードの設定</string>
+    <string name="category_braille">点字キーボード設定</string>
     <string name="theme_category_system">システム</string>
     <string name="theme_default">デフォルト</string>
     <string name="theme_light">ライト</string>
@@ -465,6 +466,7 @@
     <string name="setting_category_dictionary_summary">辞書・NGワード・Mozc UTの設定</string>
     <string name="setting_category_kana_summary">テンキー入力のレイアウト設定</string>
     <string name="setting_category_qwerty_summary">QWERTYキーボードの表示・余白の設定</string>
+    <string name="setting_category_braille_summary">点字キーボードの設定</string>
     <string name="setting_category_sumire_summary">アヤメキーボード入力の設定</string>
     <string name="setting_category_custom_summary">カスタムキーボードの動作設定</string>
     <string name="setting_category_tablet_summary">タブレット向けのレイアウト設定</string>

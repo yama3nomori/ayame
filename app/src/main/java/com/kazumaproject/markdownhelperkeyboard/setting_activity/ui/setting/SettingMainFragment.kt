@@ -118,6 +118,12 @@ class SettingMainFragment : Fragment() {
                 summaryRes = R.string.setting_category_qwerty_summary,
                 actionId = R.id.action_navigation_setting_to_qwertyPreferenceFragment,
             ),
+            SettingCategory(
+                iconRes = com.kazumaproject.core.R.drawable.keyboard_24px,
+                titleRes = R.string.category_braille,
+                summaryRes = R.string.setting_category_braille_summary,
+                actionId = R.id.action_navigation_setting_to_braillePreferenceFragment,
+            ),
 
             SettingCategory(
                 iconRes = com.kazumaproject.core.R.drawable.question_mark_24dp,

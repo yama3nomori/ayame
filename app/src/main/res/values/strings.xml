@@ -393,6 +393,7 @@
     <string name="reset_to_default">Reset to Default</string>
     <string name="preview">Preview</string>
     <string name="qwertymarginsettingfragment">QWERTY Keyboard Settings</string>
+    <string name="category_braille">Braille keyboard settings</string>
     <string name="theme_category_system">System</string>
     <string name="theme_default">Default</string>
     <string name="theme_light">Light</string>
@@ -468,6 +469,7 @@
     <string name="setting_category_dictionary_summary">Dictionary, NG words, and Mozc UT settings</string>
     <string name="setting_category_kana_summary">Ten-key input layout settings</string>
     <string name="setting_category_qwerty_summary">QWERTY keyboard display and layout settings</string>
+    <string name="setting_category_braille_summary">Settings for braille keyboard</string>
     <string name="setting_category_sumire_summary">Ayame keyboard input settings</string>
     <string name="setting_category_custom_summary">Custom keyboard behavior settings</string>
     <string name="setting_category_tablet_summary">Tablet layout settings</string>

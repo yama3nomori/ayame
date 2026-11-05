@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="braille_key_order_title">キーの並び順</string>
+    <string name="braille_key_order_dialog_title">キーの並び順を選択（左から右）</string>
+
+    <string-array name="braille_key_order_entries">
+        <item>1 2 3 ハンスペース</item>
+        <item>ハンスペース 3 2 1</item>
+        <item>3 2 1 ハンスペース</item>
+        <item>ハンスペース 1 2 3</item>
+    </string-array>
+
+    <string-array name="braille_key_order_values">
+        <item>1_2_3_space</item>
+        <item>space_3_2_1</item>
+        <item>3_2_1_space</item>
+        <item>space_1_2_3</item>
+    </string-array>
+</resources>
