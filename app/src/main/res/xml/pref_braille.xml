@@ -11,6 +11,12 @@
             android:key="braille_key_order_preference"
             android:title="@string/braille_key_order_title"
             app:useSimpleSummaryProvider="true" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:key="braille_fullscreen_preference"
+            android:summary="@string/braille_fullscreen_summary"
+            android:title="@string/braille_fullscreen_title" />
     </PreferenceCategory>
 
 </PreferenceScreen>

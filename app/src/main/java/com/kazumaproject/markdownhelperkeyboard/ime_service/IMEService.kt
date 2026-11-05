@@ -776,6 +776,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private var initialTouchX = 0f
     private var initialTouchY = 0f
     private var systemBottomInset = 0
+    private var systemTopInset = 0
 
     private var suppressSuggestions: Boolean = false
 
@@ -2788,7 +2789,17 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     }
                     ViewCompat.setOnApplyWindowInsetsListener(mainView.root) { _, windowInsets ->
                         val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
+                        val prevBottom = systemBottomInset
+                        val prevTop = systemTopInset
                         systemBottomInset = insets.bottom
+                        systemTopInset = insets.top
+                        if (prevBottom != systemBottomInset || prevTop != systemTopInset) {
+                            if (inputString.value.isNotEmpty() || fullSuggestionsList.isNotEmpty()) {
+                                setKeyboardHeightWithAdditional(mainView)
+                            } else {
+                                setKeyboardSizeSwitchKeyboard(mainView)
+                            }
+                        }
                         windowInsets
                     }
                     setCandidateTabLayout(mainView)
@@ -7802,6 +7813,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             currentKeyboardOrder = 0
             showKeyboard(keyboardOrder[0])
         }
+        mainLayoutBinding?.let { setKeyboardSizeSwitchKeyboard(it) }
     }
 
     private fun handleLeftCursor(gestureType: GestureType, insertString: String) {
@@ -8359,7 +8371,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                             TenKeyQWERTYMode.Default, emptyList()
                         )
                         mainView.apply {
-                            if (isTablet == true && tabletGojuonLayoutPreference == true) {
+                            if (brailleView.isVisible) {
+                                keyboardView.isVisible = false
+                                tabletView.isVisible = false
+                            } else if (isTablet == true && tabletGojuonLayoutPreference == true) {
                                 tabletView.isVisible = true
                                 keyboardView.isVisible = false
                             } else {
@@ -8757,6 +8772,62 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
     }
 
+    private fun isBrailleFullscreenActive(
+        mainView: MainLayoutBinding,
+        isSymbol: Boolean = keyboardSymbolViewState.value,
+        isFloating: Boolean = isKeyboardFloatingMode == true
+    ): Boolean {
+        val isFullscreenPref = androidx.preference.PreferenceManager
+            .getDefaultSharedPreferences(this)
+            .getBoolean("braille_fullscreen_preference", false)
+        return isFullscreenPref && mainView.brailleView.isVisible && !isSymbol && !isFloating
+    }
+
+    private fun calculateBrailleFullscreenHeights(mainView: MainLayoutBinding): Pair<Int, Int> {
+        val isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+        val density = resources.displayMetrics.density
+        val prefs = getKeyboardSizePreferences()
+
+        val suggestionHeightInDp = if (isPortrait) {
+            candidateViewHeightPreferenceValue ?: 110
+        } else {
+            candidateViewLandScapeHeightPreferenceValue ?: 110
+        }
+        val candidateTabDp = if (candidateTabVisibility == true) {
+            if (mainView.candidateTabLayout.height > 0) {
+                (mainView.candidateTabLayout.height / density).toInt()
+            } else {
+                36
+            }
+        } else {
+            0
+        }
+        val toolbarDp = if (shortcutTollbarVisibility == true) {
+            if (mainView.shortcutToolbarRecyclerview.height > 0) {
+                (mainView.shortcutToolbarRecyclerview.height / density).toInt()
+            } else {
+                60
+            }
+        } else {
+            0
+        }
+
+        val emptyUpperDp = prefs.candidateEmptyHeight + maxOf(candidateTabDp, toolbarDp)
+        val convertingUpperDp = suggestionHeightInDp + candidateTabDp
+        val upperAreaHeight = applicationContext.dpToPx(maxOf(emptyUpperDp, convertingUpperDp, 60))
+
+        val statusBarResId = resources.getIdentifier("status_bar_height", "dimen", "android")
+        val fallbackTopInset = if (statusBarResId > 0) resources.getDimensionPixelSize(statusBarResId) else 0
+        val topInset = if (systemTopInset > 0) systemTopInset else fallbackTopInset
+
+        val totalAvailableHeight = (resources.displayMetrics.heightPixels - topInset)
+            .coerceAtLeast((300 * density).toInt())
+        val heightPx = (totalAvailableHeight - systemBottomInset - upperAreaHeight)
+            .coerceAtLeast((180 * density).toInt())
+        val finalKeyboardHeight = heightPx + upperAreaHeight + systemBottomInset
+        return heightPx to finalKeyboardHeight
+    }
+
     /**
      * キーボードのレイアウトサイズを計算し、ビューに適用する統合関数
      * @param mainView バインディングオブジェクト
@@ -8776,9 +8847,18 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         val density = resources.displayMetrics.density
         val screenWidth = resources.displayMetrics.widthPixels
         val isSymbol = isSymbolOverride ?: keyboardSymbolViewState.value
+        val brailleFullscreen = isBrailleFullscreenActive(mainView, isSymbol, isFloating)
+        val brailleFullscreenHeights = if (brailleFullscreen) {
+            calculateBrailleFullscreenHeights(mainView)
+        } else {
+            null
+        }
 
         // 2. ピクセル値の計算
         val heightPx = when {
+            brailleFullscreenHeights != null -> {
+                brailleFullscreenHeights.first
+            }
 
             isSymbol || keyboardSymbolViewState.value -> {
                 val height = if (isPortrait) 320 else 220
@@ -8828,38 +8908,43 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
 
         val finalKeyboardHeight = when {
+            brailleFullscreenHeights != null -> brailleFullscreenHeights.second
             addCandidateTabHeight && candidateTabVisibility == true -> baseKeyboardHeight + mainView.candidateTabLayout.height
             !addCandidateTabHeight && shortcutTollbarVisibility == true && !isSymbol -> baseKeyboardHeight + mainView.shortcutToolbarRecyclerview.height
             else -> baseKeyboardHeight
         }
 
-        val finalKeyboardWidth =
-            if (qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTY || qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTYRomaji) {
-                qwertyWidthPx
-            } else {
-                widthPx
-            }
+        val finalKeyboardWidth = if (brailleFullscreen) {
+            ViewGroup.LayoutParams.MATCH_PARENT
+        } else if (qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTY || qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTYRomaji) {
+            qwertyWidthPx
+        } else {
+            widthPx
+        }
 
-        val finalStartMargin =
-            if (qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTY || qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTYRomaji) {
-                dpToPx(prefs.qwertyMarginStart)
-            } else {
-                dpToPx(prefs.keyboardMarginStart)
-            }
+        val finalStartMargin = if (brailleFullscreen) {
+            0
+        } else if (qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTY || qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTYRomaji) {
+            dpToPx(prefs.qwertyMarginStart)
+        } else {
+            dpToPx(prefs.keyboardMarginStart)
+        }
 
-        val finalEndMargin =
-            if (qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTY || qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTYRomaji) {
-                dpToPx(prefs.qwertyMarginEnd)
-            } else {
-                dpToPx(prefs.keyboardMarginEnd)
-            }
+        val finalEndMargin = if (brailleFullscreen) {
+            0
+        } else if (qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTY || qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTYRomaji) {
+            dpToPx(prefs.qwertyMarginEnd)
+        } else {
+            dpToPx(prefs.keyboardMarginEnd)
+        }
 
-        val finalBottomMargin =
-            if (qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTY || qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTYRomaji) {
-                prefs.qwertyBottomMargin
-            } else {
-                prefs.bottomMargin
-            }
+        val finalBottomMargin = if (brailleFullscreen) {
+            0
+        } else if (qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTY || qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTYRomaji) {
+            prefs.qwertyBottomMargin
+        } else {
+            prefs.bottomMargin
+        }
 
         val positionIsEnd =
             if (qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTY || qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTYRomaji) {
@@ -8903,6 +8988,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             params.bottomToBottom = ConstraintLayout.LayoutParams.UNSET
             mainView.suggestionVisibility.layoutParams = params
         }
+
+        if (mainView.brailleView.isVisible) {
+            mainView.brailleView.post { mainView.brailleView.syncPassthroughRegion() }
+        }
     }
 
     /**
@@ -8920,7 +9009,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     ) {
         if (shortcutTollbarVisibility == true) {
             (mainView.shortcutToolbarRecyclerview.layoutParams as? FrameLayout.LayoutParams)?.let { param ->
-                param.bottomMargin = heightPx + mainView.suggestionViewParent.height
+                param.bottomMargin = if (isBrailleFullscreenActive(mainView)) {
+                    heightPx
+                } else {
+                    heightPx + mainView.suggestionViewParent.height
+                }
                 param.gravity = gravity
                 mainView.shortcutToolbarRecyclerview.layoutParams = param
             }
@@ -8970,6 +9063,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         val isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
         val screenWidth = resources.displayMetrics.widthPixels
         val density = resources.displayMetrics.density
+        val brailleFullscreen = isBrailleFullscreenActive(mainView)
+        val brailleFullscreenHeights = if (brailleFullscreen) {
+            calculateBrailleFullscreenHeights(mainView)
+        } else {
+            null
+        }
 
         val heightPref = if (isPortrait) {
             tenkeyHeightPreferenceValue ?: 280
@@ -9014,6 +9113,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
 
         val heightPx = when {
+            brailleFullscreenHeights != null -> {
+                brailleFullscreenHeights.first
+            }
+
             keyboardSymbolViewState.value -> {
                 val height = if (isPortrait) 320 else 220
                 (height * density).toInt()
@@ -9066,18 +9169,19 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             )
         }
 
-        val finalKeyboardHeight = if (candidateTabVisibility == true) {
-            keyboardHeight + mainView.candidateTabLayout.height
-        } else {
-            keyboardHeight
+        val finalKeyboardHeight = when {
+            brailleFullscreenHeights != null -> brailleFullscreenHeights.second
+            candidateTabVisibility == true -> keyboardHeight + mainView.candidateTabLayout.height
+            else -> keyboardHeight
         }
 
-        val finalKeyboardWidth =
-            if (qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTY || qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTYRomaji) {
-                qwertyWidthPx
-            } else {
-                widthPx
-            }
+        val finalKeyboardWidth = if (brailleFullscreen) {
+            ViewGroup.LayoutParams.MATCH_PARENT
+        } else if (qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTY || qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTYRomaji) {
+            qwertyWidthPx
+        } else {
+            widthPx
+        }
 
         val gravity =
             if (qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTY || qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTYRomaji) {
@@ -9094,12 +9198,13 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 }
             }
 
-        val finalBottomMargin =
-            if (qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTY || qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTYRomaji) {
-                qwertyKeyboardMarginBottomPref
-            } else {
-                keyboardBottomMargin
-            }
+        val finalBottomMargin = if (brailleFullscreen) {
+            0
+        } else if (qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTY || qwertyMode.value == TenKeyQWERTYMode.TenKeyQWERTYRomaji) {
+            qwertyKeyboardMarginBottomPref
+        } else {
+            keyboardBottomMargin
+        }
 
         listOf(
             mainView.suggestionViewParent,
@@ -9120,6 +9225,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             params.height = finalKeyboardHeight
             params.width = finalKeyboardWidth
             params.bottomMargin = finalBottomMargin
+            if (brailleFullscreen) {
+                params.leftMargin = 0
+                params.rightMargin = 0
+            }
             mainView.root.layoutParams = params
         }
 
@@ -9129,6 +9238,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         mainView.suggestionVisibility.layoutParams = params
 
         mainView.root.setPadding(0, 0, 0, systemBottomInset)
+
+        if (mainView.brailleView.isVisible) {
+            mainView.brailleView.post { mainView.brailleView.syncPassthroughRegion() }
+        }
     }
 
     private fun setKeyboardSizeForHeightPhysicalKeyboard(mainView: MainLayoutBinding) {

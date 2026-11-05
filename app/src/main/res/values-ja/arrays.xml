@@ -2,6 +2,8 @@
 <resources>
     <string name="braille_key_order_title">キーの並び順</string>
     <string name="braille_key_order_dialog_title">キーの並び順を選択（左から右）</string>
+    <string name="braille_fullscreen_title">画面全体をキーボードにする</string>
+    <string name="braille_fullscreen_summary">上部に変換候補・ツールバーを残し、残りの画面全体を点字キーエリアにします</string>
 
     <string-array name="braille_key_order_entries">
         <item>1 2 3 ハンスペース</item>

@@ -2,6 +2,8 @@
 <resources>
     <string name="braille_key_order_title">Key Order</string>
     <string name="braille_key_order_dialog_title">Select key order (left to right)</string>
+    <string name="braille_fullscreen_title">Full-screen keyboard</string>
+    <string name="braille_fullscreen_summary">Expand the Braille key area to fill the screen below the candidate and shortcut bars</string>
 
     <string-array name="braille_key_order_entries">
         <item>1 2 3 ハンスペース</item>
