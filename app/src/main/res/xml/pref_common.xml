@@ -258,20 +258,29 @@
     <PreferenceCategory android:title="@string/category_vibration_title">
         <SwitchPreferenceCompat
             android:defaultValue="true"
-            android:key="vibration_preference"
-            android:summaryOff="@string/vibration_summary_off"
-            android:summaryOn="@string/vibration_summary_on"
-            android:title="@string/vibration_title" />
+            android:key="vibration_key_select_preference"
+            android:summary="@string/vibration_key_select_summary"
+            android:title="@string/vibration_key_select_title" />
 
-        <ListPreference
-            android:defaultValue="@string/vibration_default"
-            android:dependency="vibration_preference"
-            android:dialogTitle="@string/vibration_timing_dialog_title"
-            android:entries="@array/vibration_options"
-            android:entryValues="@array/vibration_values"
-            android:key="vibration_timing"
-            android:summary="@string/vibration_timing_summary"
-            android:title="@string/vibration_timing_title" />
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:key="vibration_key_input_preference"
+            android:summary="@string/vibration_key_input_summary"
+            android:title="@string/vibration_key_input_title" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/category_sound_title">
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:key="sound_key_select_preference"
+            android:summary="@string/sound_key_select_summary"
+            android:title="@string/sound_key_select_title" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            android:key="sound_key_input_preference"
+            android:summary="@string/sound_key_input_summary"
+            android:title="@string/sound_key_input_title" />
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/category_romaji_conversion_title">

@@ -125,6 +125,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
     // External listeners
     private var flickListener: FlickListener? = null
     private var longPressListener: LongPressListener? = null
+    var onKeySelected: (() -> Unit)? = null
 
     private var flickSensitivity: Int = 100
     private var isVelocityFilterEnabled: Boolean = false
@@ -731,12 +732,16 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
     private var lastClickedKey: Key? = null
     private var lastClickedTime: Long = 0L
+    private var lastAccessibilitySelectedKey: Key? = null
+    private var lastAccessibilitySelectedTime: Long = 0L
 
     var isAyameMode: Boolean = false
         set(value) {
             field = value
             lastClickedKey = null
             lastClickedTime = 0L
+            lastAccessibilitySelectedKey = null
+            lastAccessibilitySelectedTime = 0L
             setupAccessibility()
         }
 
@@ -1416,6 +1421,9 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     accessibilityManager.interrupt()
                 }
                 currentHoverKey = key
+                if (key != Key.NotSelected) {
+                    onKeySelected?.invoke()
+                }
                 hoverCurrentKey = key
                 hoverCurrentKeyEntryTime = System.currentTimeMillis()
                 hoverCurrentKeyEntryX = screenX
@@ -1488,6 +1496,9 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
                 if (key != currentHoverKey) {
                     currentHoverKey = key
+                if (key != Key.NotSelected) {
+                    onKeySelected?.invoke()
+                }
 
                     // Slide-in instant read: announce the character immediately when sliding onto a new key
                     val keyInfo = currentInputMode.value.next(keyMap = keyMap, key = key, isTablet = false)
@@ -1503,7 +1514,6 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             announceForAccessibility(charToAnnounce)
                             android.widget.Toast.makeText(context, charToAnnounce, android.widget.Toast.LENGTH_SHORT).show()
                         }
-                        performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                     }
                     // Only send hover enter event if we are not actively dragging to keep focus frame synced
                     if (!isHoverDraggingRightCursor && !isHoverDraggingLeftCursor && !isHoverDraggingDeleteKey && !isHoverDraggingSpaceKey && !isHoverDraggingCharKey && !isHoverDraggingReadAloudKey) {
@@ -5501,11 +5511,24 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             } else {
                                 lastClickedKey = key
                                 lastClickedTime = currentTime
+                                onKeySelected?.invoke()
                             }
                         }
                     }
                 }
                 ViewCompat.setAccessibilityDelegate(view, object : AccessibilityDelegateCompat() {
+                    override fun sendAccessibilityEvent(host: View, eventType: Int) {
+                        super.sendAccessibilityEvent(host, eventType)
+                        if (isAyameMode && (eventType == AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED || eventType == AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)) {
+                            val now = android.os.SystemClock.uptimeMillis()
+                            if (key != lastAccessibilitySelectedKey || now - lastAccessibilitySelectedTime > 150) {
+                                lastAccessibilitySelectedKey = key
+                                lastAccessibilitySelectedTime = now
+                                onKeySelected?.invoke()
+                            }
+                        }
+                    }
+
                     override fun onInitializeAccessibilityNodeInfo(
                         host: View,
                         info: AccessibilityNodeInfoCompat
@@ -5862,7 +5885,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                 if (charToAnnounce != null) {
                     hoverLastAnnouncedChar = charToAnnounce
                     // Do not call announceForAccessibility or Toast to prevent redundant reading of the base key name at 500ms mark.
-                    performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                    onKeySelected?.invoke()
                 }
             }
         }

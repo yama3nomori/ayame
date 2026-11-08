@@ -129,8 +129,11 @@ class TabletKeyboardView @JvmOverloads constructor(
     private var flickSensitivity: Int = 100
     private var velocityTracker: android.view.VelocityTracker? = null
     var isAyameMode: Boolean = false
+    var onKeySelected: (() -> Unit)? = null
     private var lastClickedKey: Key? = null
     private var lastClickedTime: Long = 0L
+    private var lastAccessibilitySelectedKey: Key? = null
+    private var lastAccessibilitySelectedTime: Long = 0L
 
     private val buttonToKeyMap: Map<View, Key> by lazy {
         listKeys.entries.mapNotNull { entry ->
@@ -508,6 +511,7 @@ class TabletKeyboardView @JvmOverloads constructor(
                             } else {
                                 lastClickedKey = key
                                 lastClickedTime = currentTime
+                                onKeySelected?.invoke()
                             }
                         }
                     }
@@ -515,6 +519,19 @@ class TabletKeyboardView @JvmOverloads constructor(
             }
 
             ViewCompat.setAccessibilityDelegate(view, object : AccessibilityDelegateCompat() {
+                override fun sendAccessibilityEvent(host: View, eventType: Int) {
+                    super.sendAccessibilityEvent(host, eventType)
+                    val k = buttonToKeyMap[host]
+                    if (isAyameMode && k != null && (eventType == AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED || eventType == AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)) {
+                        val now = android.os.SystemClock.uptimeMillis()
+                        if (k != lastAccessibilitySelectedKey || now - lastAccessibilitySelectedTime > 150) {
+                            lastAccessibilitySelectedKey = k
+                            lastAccessibilitySelectedTime = now
+                            onKeySelected?.invoke()
+                        }
+                    }
+                }
+
                 override fun onInitializeAccessibilityNodeInfo(host: View, info: AccessibilityNodeInfoCompat) {
                     super.onInitializeAccessibilityNodeInfo(host, info)
                     val key = buttonToKeyMap[host]

@@ -26,6 +26,10 @@ object AppPreference {
     private val FLICK_VELOCITY_FILTER = Pair("flick_velocity_filter_preference", true)
     private val VIBRATION_PREFERENCE = Pair("vibration_preference", true)
     private val VIBRATION_TIMING_PREFERENCE = Pair("vibration_timing", "both")
+    private val VIBRATION_KEY_SELECT_PREFERENCE = Pair("vibration_key_select_preference", true)
+    private val VIBRATION_KEY_INPUT_PREFERENCE = Pair("vibration_key_input_preference", false)
+    private val SOUND_KEY_SELECT_PREFERENCE = Pair("sound_key_select_preference", false)
+    private val SOUND_KEY_INPUT_PREFERENCE = Pair("sound_key_input_preference", true)
     private val LEARN_DICTIONARY_PREFERENCE = Pair("learn_dictionary_preference", true)
     private val USER_DICTIONARY_PREFERENCE = Pair("user_dictionary_preference", true)
     private val USER_DICTIONARY_PREFIX_PREFERENCE = Pair("user_dictionary_prefix_match_number", 2)
@@ -553,6 +557,38 @@ object AppPreference {
         )
         set(value) = preferences.edit {
             it.putString(VIBRATION_TIMING_PREFERENCE.first, value ?: "both")
+        }
+
+    var vibration_key_select_preference: Boolean?
+        get() = preferences.getBoolean(
+            VIBRATION_KEY_SELECT_PREFERENCE.first, VIBRATION_KEY_SELECT_PREFERENCE.second
+        )
+        set(value) = preferences.edit {
+            it.putBoolean(VIBRATION_KEY_SELECT_PREFERENCE.first, value ?: true)
+        }
+
+    var vibration_key_input_preference: Boolean?
+        get() = preferences.getBoolean(
+            VIBRATION_KEY_INPUT_PREFERENCE.first, VIBRATION_KEY_INPUT_PREFERENCE.second
+        )
+        set(value) = preferences.edit {
+            it.putBoolean(VIBRATION_KEY_INPUT_PREFERENCE.first, value ?: false)
+        }
+
+    var sound_key_select_preference: Boolean?
+        get() = preferences.getBoolean(
+            SOUND_KEY_SELECT_PREFERENCE.first, SOUND_KEY_SELECT_PREFERENCE.second
+        )
+        set(value) = preferences.edit {
+            it.putBoolean(SOUND_KEY_SELECT_PREFERENCE.first, value ?: false)
+        }
+
+    var sound_key_input_preference: Boolean?
+        get() = preferences.getBoolean(
+            SOUND_KEY_INPUT_PREFERENCE.first, SOUND_KEY_INPUT_PREFERENCE.second
+        )
+        set(value) = preferences.edit {
+            it.putBoolean(SOUND_KEY_INPUT_PREFERENCE.first, value ?: true)
         }
 
     var flick_sensitivity_preference: Int?

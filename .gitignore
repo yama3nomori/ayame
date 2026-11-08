@@ -41,3 +41,7 @@ ayame-release-key.jks
 
 # Assets zip backup
 assets_backup_zips/
+# Local shortcuts and temporary
+*.lnk
+Microsoft/
+sound/temp/

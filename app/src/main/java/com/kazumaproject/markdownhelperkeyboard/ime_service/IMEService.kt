@@ -15,6 +15,7 @@ import android.hardware.input.InputManager
 import android.inputmethodservice.InputMethodService
 import android.net.Uri
 import android.media.AudioManager
+import android.media.SoundPool
 import android.media.AudioFocusRequest
 import android.os.Build
 import android.os.Bundle
@@ -302,6 +303,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private lateinit var audioManager: AudioManager
     private var focusRequest: Any? = null // AudioFocusRequest
     private var silentAudioTrack: AudioTrack? = null
+    private var soundPool: SoundPool? = null
+    private var typeSoundId: Int = 0
+    private var isTypeSoundLoaded: Boolean = false
 
     private var isClipboardHistoryFeatureEnabled: Boolean = false
     private val clipboardMutex = Mutex()
@@ -471,6 +475,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private var showCandidateInPasswordPreference: Boolean? = true
     private var tabletGojuonLayoutPreference: Boolean? = true
     private var isVibration: Boolean? = true
+    private var isVibrationKeySelect: Boolean? = true
+    private var isVibrationKeyInput: Boolean? = false
+    private var isSoundKeySelect: Boolean? = false
+    private var isSoundKeyInput: Boolean? = true
     private var vibrationTimingStr: String? = "both"
     private var mozcUTPersonName: Boolean? = false
     private var mozcUTPlaces: Boolean? = false
@@ -1091,6 +1099,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         initializeMediaSession()
+        initSoundPool()
 
         lifecycleRegistry = LifecycleRegistry(this)
         lifecycleRegistry.currentState = Lifecycle.State.CREATED
@@ -1325,7 +1334,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             customKeyboardSuggestionPreference = custom_keyboard_suggestion_preference ?: true
             userDictionaryPrefixMatchNumber = user_dictionary_prefix_match_number_preference ?: 2
             isVibration = vibration_preference ?: true
+            isVibrationKeySelect = vibration_key_select_preference ?: true
+            isVibrationKeyInput = vibration_key_input_preference ?: false
             vibrationTimingStr = vibration_timing_preference ?: "both"
+            isSoundKeySelect = sound_key_select_preference ?: false
+            isSoundKeyInput = sound_key_input_preference ?: true
 
             candidateColumns = candidate_column_preference
             candidateColumnsLandscape = candidate_column_landscape_preference
@@ -1640,7 +1653,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     borderWidth = customKeyBorderWidth ?: 1
                 )
                 floatingKeyboardLayoutBinding.keyboardViewFloating.apply {
-                    setOnFlickListener(object : FlickListener {
+                    onKeySelected = {
+                        playSoundKeySelect()
+                        vibrateKeySelect()
+                    }
+            setOnFlickListener(object : FlickListener {
                         override fun onFlick(gestureType: GestureType, key: Key, char: Char?) {
                             val insertString = inputString.value
                             val sb = StringBuilder()
@@ -1651,22 +1668,13 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                                 }
 
                                 GestureType.Down -> {
-                                    when (vibrationTimingStr) {
-                                        "both" -> {
-                                            vibrate()
-                                        }
-
-                                        "press" -> {
-                                            vibrate()
-                                        }
-
-                                        "release" -> {
-
-                                        }
-                                    }
+                                    playSoundKeySelect()
+                                    vibrateKeySelect()
                                 }
 
                                 GestureType.Tap -> {
+                                    playSoundKeyInput()
+                                    vibrateKeyInput()
                                     handleTapAndFlickFloating(
                                         key = key,
                                         char = char,
@@ -1681,6 +1689,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
 
                                 else -> {
+                                    playSoundKeyInput()
+                                    vibrateKeyInput()
                                     handleTapAndFlickFloating(
                                         key = key,
                                         char = char,
@@ -2152,6 +2162,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         showCandidateInPasswordPreference = null
         tabletGojuonLayoutPreference = null
         isVibration = null
+        isVibrationKeySelect = null
+        isVibrationKeyInput = null
+        isSoundKeySelect = null
+        isSoundKeyInput = null
         tenkeyHeightPreferenceValue = null
         tenkeyWidthPreferenceValue = null
         qwertyHeightPreferenceValue = null
@@ -2267,6 +2281,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         actionInDestroy()
         speechRecognizer?.destroy()
         speechRecognizer = null
+        releaseSoundPool()
         System.gc()
         dismissFloatingDock()
     }
@@ -4156,6 +4171,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         mainView.brailleView.apply {
             listener = object : OnBrailleInputListener {
                 override fun onInputText(text: String) {
+                    playSoundKeyInput()
+                    vibrateKeyInput()
                     clearDeletedBuffer()
                     suggestionAdapter?.setUndoEnabled(false)
                     when (inputProcessor.inputMode) {
@@ -4179,6 +4196,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 }
 
                 override fun onDelete() {
+                    playSoundKeyInput()
+                    vibrateKeyInput()
                     val insertString = inputString.value
                     val suggestions = suggestionAdapter?.suggestions ?: emptyList()
                     handleDeleteKeyTap(insertString, suggestions)
@@ -4194,6 +4213,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 }
 
                 override fun onSpace() {
+                    playSoundKeyInput()
+                    vibrateKeyInput()
                     val insertString = inputString.value
                     val suggestions = suggestionAdapter?.suggestions ?: emptyList()
                     if (insertString.isNotEmpty()) {
@@ -4209,6 +4230,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 }
 
                 override fun onEnter() {
+                    playSoundKeyInput()
+                    vibrateKeyInput()
                     val insertString = inputString.value
                     val suggestions = suggestionAdapter?.suggestions ?: emptyList()
                     if (insertString.isNotEmpty()) {
@@ -4314,6 +4337,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         mainView: MainLayoutBinding
     ) {
         mainView.keyboardView.apply {
+            onKeySelected = {
+                playSoundKeySelect()
+                vibrateKeySelect()
+            }
             applyKeyboardTheme(
                 themeMode = keyboardThemeMode ?: "default",
                 currentNightMode = currentNightMode,
@@ -4341,22 +4368,13 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                         }
 
                         GestureType.Down -> {
-                            when (vibrationTimingStr) {
-                                "both" -> {
-                                    vibrate()
-                                }
-
-                                "press" -> {
-                                    vibrate()
-                                }
-
-                                "release" -> {
-
-                                }
-                            }
+                            playSoundKeySelect()
+                            vibrateKeySelect()
                         }
 
                         GestureType.Tap -> {
+                            playSoundKeyInput()
+                            vibrateKeyInput()
                             handleTapAndFlick(
                                 key = key,
                                 char = char,
@@ -4371,6 +4389,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
 
                         else -> {
+                            playSoundKeyInput()
+                            vibrateKeyInput()
                             handleTapAndFlick(
                                 key = key,
                                 char = char,
@@ -4467,6 +4487,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         mainView: MainLayoutBinding
     ) {
         mainView.tabletView.apply {
+            onKeySelected = {
+                playSoundKeySelect()
+                vibrateKeySelect()
+            }
             applyKeyboardTheme(
                 themeMode = keyboardThemeMode ?: "default",
                 currentNightMode = currentNightMode,
@@ -4494,22 +4518,13 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                         }
 
                         GestureType.Down -> {
-                            when (vibrationTimingStr) {
-                                "both" -> {
-                                    vibrate()
-                                }
-
-                                "press" -> {
-                                    vibrate()
-                                }
-
-                                "release" -> {
-
-                                }
-                            }
+                            playSoundKeySelect()
+                            vibrateKeySelect()
                         }
 
                         GestureType.Tap -> {
+                            playSoundKeyInput()
+                            vibrateKeyInput()
                             handleTapAndFlick(
                                 key = key,
                                 char = char,
@@ -4523,6 +4538,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                         }
 
                         else -> {
+                            playSoundKeyInput()
+                            vibrateKeyInput()
                             handleTapAndFlick(
                                 key = key,
                                 char = char,
@@ -4556,19 +4573,6 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         suggestions: List<Candidate>,
         mainView: MainLayoutBinding
     ) {
-        when (vibrationTimingStr) {
-            "both" -> {
-                vibrate()
-            }
-
-            "press" -> {
-
-            }
-
-            "release" -> {
-                vibrate()
-            }
-        }
         if (deletedBuffer.isNotEmpty() && !selectMode.value && key != Key.SideKeyDelete) {
             clearDeletedBuffer()
             suggestionAdapter?.setUndoEnabled(false)
@@ -4867,19 +4871,6 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         suggestions: List<Candidate>,
         floatingKeyboardLayoutBinding: FloatingKeyboardLayoutBinding
     ) {
-        when (vibrationTimingStr) {
-            "both" -> {
-                vibrate()
-            }
-
-            "press" -> {
-
-            }
-
-            "release" -> {
-                vibrate()
-            }
-        }
         if (deletedBuffer.isNotEmpty() && !selectMode.value && key != Key.SideKeyDelete) {
             clearDeletedBuffer()
             suggestionAdapter?.setUndoEnabled(false)
@@ -10207,6 +10198,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 val insertString = inputString.value
                 val currentInputMode: InputMode =
                     if (isTablet == true) mainView.tabletView.currentInputMode.get() else mainView.keyboardView.currentInputMode.value
+                playSoundKeyInput()
                 vibrate()
                 setCandidateClick(
                     candidate = candidate,
@@ -10337,6 +10329,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 val insertString = inputString.value
                 val currentInputMode: InputMode =
                     if (isTablet == true) mainView.tabletView.currentInputMode.get() else mainView.keyboardView.currentInputMode.value
+                playSoundKeyInput()
                 vibrate()
                 setCandidateClick(
                     candidate = candidate,
@@ -10723,40 +10716,18 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
             setOnQWERTYKeyListener(object : QWERTYKeyListener {
                 override fun onPressedQWERTYKey(qwertyKey: QWERTYKey) {
+                    playSoundKeySelect()
+                    vibrateKeySelect()
                     Timber.d("Pressed Key: $qwertyKey")
-                    when (vibrationTimingStr) {
-                        "both" -> {
-                            vibrate()
-                        }
-
-                        "press" -> {
-                            vibrate()
-                        }
-
-                        "release" -> {
-
-                        }
-                    }
                     deleteLongPressJob?.cancel()
                 }
 
                 override fun onReleasedQWERTYKey(
                     qwertyKey: QWERTYKey, tap: Char?, variations: List<Char>?
                 ) {
+                    playSoundKeyInput()
+                    vibrateKeyInput()
                     Timber.d("onReleasedQWERTYKey: $qwertyKey")
-                    when (vibrationTimingStr) {
-                        "both" -> {
-                            vibrate()
-                        }
-
-                        "press" -> {
-
-                        }
-
-                        "release" -> {
-
-                        }
-                    }
                     val insertString = inputString.value
                     val sb = StringBuilder()
                     val suggestionList = suggestionAdapter?.suggestions ?: emptyList()
@@ -11281,19 +11252,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     qwertyKey: QWERTYKey, tap: Char?, variations: List<Char>?
                 ) {
                     Timber.d("onFlickUPQWERTYKey: $qwertyKey, $tap, $variations")
-                    when (vibrationTimingStr) {
-                        "both" -> {
-                            vibrate()
-                        }
-
-                        "press" -> {
-
-                        }
-
-                        "release" -> {
-
-                        }
-                    }
+                    playSoundKeyInput()
+                    vibrateKeyInput()
                     val insertString = inputString.value
                     val sb = StringBuilder()
 
@@ -11327,15 +11287,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     character: Char
                 ) {
                     Timber.d("onFlickDownQWERTYKey: $qwertyKey, $character")
-                    when (vibrationTimingStr) {
-                        "both" -> {
-                            vibrate()
-                        }
-
-                        "press" -> {}
-
-                        "release" -> {}
-                    }
+                    playSoundKeyInput()
+                    vibrateKeyInput()
                     if (qwertyKey != QWERTYKey.QWERTYKeyDelete) {
                         clearDeletedBuffer()
                         suggestionAdapter?.setUndoEnabled(false)
@@ -15352,14 +15305,87 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         } else null
     }
 
-    private fun vibrate() {
-        if (isVibration == false) return
+    private fun triggerVibration() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val vibrationEffect = VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK)
             val combinedVibration = CombinedVibration.createParallel(vibrationEffect)
             vibratorManager?.vibrate(combinedVibration)
         } else {
             vibrator?.vibrate(2)
+        }
+    }
+
+    private fun vibrate() {
+        vibrateKeyInput()
+    }
+
+    private fun vibrateKeySelect() {
+        if (isVibrationKeySelect != true) return
+        triggerVibration()
+    }
+
+    private fun vibrateKeyInput() {
+        if (isVibrationKeyInput != true) return
+        triggerVibration()
+    }
+
+    private fun initSoundPool() {
+        try {
+            val audioAttributes = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
+
+            val pool = SoundPool.Builder()
+                .setMaxStreams(5)
+                .setAudioAttributes(audioAttributes)
+                .build()
+
+            pool.setOnLoadCompleteListener { _, sampleId, status ->
+                if (status == 0 && sampleId == typeSoundId) {
+                    isTypeSoundLoaded = true
+                    Timber.d("type.mp3 loaded successfully into SoundPool")
+                }
+            }
+
+            try {
+                val afd = assets.openFd("sound/type.mp3")
+                typeSoundId = pool.load(afd, 1)
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to load sound/type.mp3 from assets, trying res/raw")
+                try {
+                    typeSoundId = pool.load(this, com.kazumaproject.markdownhelperkeyboard.R.raw.type, 1)
+                } catch (e2: Exception) {
+                    Timber.e(e2, "Failed to load type.mp3 from raw")
+                }
+            }
+            soundPool = pool
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to initialize SoundPool")
+        }
+    }
+
+    private fun releaseSoundPool() {
+        soundPool?.release()
+        soundPool = null
+        typeSoundId = 0
+        isTypeSoundLoaded = false
+    }
+
+    private fun playSoundKeySelect() {
+        if (!::audioManager.isInitialized) return
+        if (isSoundKeySelect != true) return
+        audioManager.playSoundEffect(AudioManager.FX_FOCUS_NAVIGATION_UP, 1.0f)
+    }
+
+    private fun playSoundKeyInput() {
+        if (isSoundKeyInput != true) return
+        if (isTypeSoundLoaded && typeSoundId != 0) {
+            soundPool?.play(typeSoundId, 1.0f, 1.0f, 1, 0, 1.0f)
+        } else {
+            if (::audioManager.isInitialized) {
+                audioManager.playSoundEffect(AudioManager.FX_KEY_CLICK, 1.0f)
+            }
         }
     }
 

@@ -47,6 +47,7 @@
     <string name="category_sumire_input_keyboard_title">Ayame Keyboard Input</string>
     <string name="category_operation_title">Operation</string>
     <string name="category_vibration_title">Vibration</string>
+    <string name="category_sound_title">Sound</string>
     <string name="category_ng_word_title">NG Words</string>
     <string name="category_ng_word_summary">You can register words by long-pressing a conversion candidate.</string>
     <string name="category_learning_dictionary_title">Learning Dictionary</string>
@@ -114,6 +115,14 @@
     <string name="vibration_timing_title">Vibration Timing</string>
     <string name="vibration_timing_summary">Select when to trigger vibration</string>
     <string name="vibration_timing_dialog_title">Please select</string>
+    <string name="vibration_key_select_title">On key selection</string>
+    <string name="vibration_key_select_summary">Vibrate when a key is selected</string>
+    <string name="vibration_key_input_title">On key input</string>
+    <string name="vibration_key_input_summary">Vibrate when a key is inputted</string>
+    <string name="sound_key_select_title">On key selection</string>
+    <string name="sound_key_select_summary">Play sound when a key is selected</string>
+    <string name="sound_key_input_title">On key input</string>
+    <string name="sound_key_input_summary">Play sound when a key is inputted</string>
 
     <string name="ng_word_list_title">List of words to hide</string>
     <string name="ng_word_list_summary">Display the list of words to hide</string>
