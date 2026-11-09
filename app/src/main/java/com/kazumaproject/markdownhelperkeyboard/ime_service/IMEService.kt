@@ -10698,6 +10698,14 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         mainView: MainLayoutBinding
     ) {
         mainView.qwertyView.apply {
+            onKeySelected = {
+                playSoundKeySelect()
+                vibrateKeySelect()
+            }
+            onKeyInput = {
+                playSoundKeyInput()
+                vibrateKeyInput()
+            }
             applyKeyboardTheme(
                 themeMode = keyboardThemeMode ?: "default",
                 currentNightMode = currentNightMode,

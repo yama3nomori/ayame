@@ -210,11 +210,18 @@ class QWERTYKeyboardView @JvmOverloads constructor(
         isVelocityFilterEnabled = enabled
     }
 
+    var onKeySelected: (() -> Unit)? = null
+    var onKeyInput: (() -> Unit)? = null
+    private var lastAccessibilitySelectedKey: QWERTYKey? = null
+    private var lastAccessibilitySelectedTime: Long = 0L
+
     var isAyameMode: Boolean = false
         set(value) {
             field = value
             lastClickedKey = null
             lastClickedTime = 0L
+            lastAccessibilitySelectedKey = null
+            lastAccessibilitySelectedTime = 0L
             setupAccessibilityDelegates(this)
         }
 
@@ -310,30 +317,6 @@ class QWERTYKeyboardView @JvmOverloads constructor(
         // 全てのボタン部品を検索してアクセシビリティ設定を強制適用（漏れを防止）
         setupAccessibilityDelegates(this)
 
-        // TalkBack support for Double Tap
-        qwertyButtonMap.forEach { (view, key) ->
-            view.isClickable = true
-            view.isFocusable = true
-            view.setOnClickListener {
-                if (isAyameMode) {
-                    if (accessibilityManager.isTouchExplorationEnabled) {
-                        performKeyInput(view, key)
-                    } else {
-                        val currentTime = SystemClock.uptimeMillis()
-                        if (key == lastClickedKey && currentTime - lastClickedTime < 500) {
-                            performKeyInput(view, key)
-                            lastClickedKey = null
-                            lastClickedTime = 0L
-                        } else {
-                            lastClickedKey = key
-                            lastClickedTime = currentTime
-                        }
-                    }
-                } else if (accessibilityManager.isTouchExplorationEnabled) {
-                    performKeyInput(view, key)
-                }
-            }
-        }
         updateShiftKeyAppearance()
         setEmojiKeyMode(false)
     }
@@ -357,13 +340,28 @@ class QWERTYKeyboardView @JvmOverloads constructor(
                             } else {
                                 lastClickedKey = key
                                 lastClickedTime = currentTime
+                                onKeySelected?.invoke()
                             }
                         }
+                    } else if (accessibilityManager.isTouchExplorationEnabled) {
+                        performKeyInput(view, key)
                     }
                 }
             }
 
             androidx.core.view.ViewCompat.setAccessibilityDelegate(view, object : androidx.core.view.AccessibilityDelegateCompat() {
+                override fun sendAccessibilityEvent(host: View, eventType: Int) {
+                    super.sendAccessibilityEvent(host, eventType)
+                    if (isAyameMode && key != null && (eventType == AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED || eventType == AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)) {
+                        val now = SystemClock.uptimeMillis()
+                        if (key != lastAccessibilitySelectedKey || now - lastAccessibilitySelectedTime > 150) {
+                            lastAccessibilitySelectedKey = key
+                            lastAccessibilitySelectedTime = now
+                            onKeySelected?.invoke()
+                        }
+                    }
+                }
+
                 override fun onInitializeAccessibilityNodeInfo(host: View, info: androidx.core.view.accessibility.AccessibilityNodeInfoCompat) {
                     super.onInitializeAccessibilityNodeInfo(host, info)
                     
@@ -639,10 +637,12 @@ class QWERTYKeyboardView @JvmOverloads constructor(
         if (currentMode is QWERTYMode.Number) {
             setQwertyMode(QWERTYMode.Symbol)
             announceForAccessibility("他の記号を表示")
+            onKeyInput?.invoke()
             return
         } else if (currentMode is QWERTYMode.Symbol) {
             setQwertyMode(QWERTYMode.Number)
             announceForAccessibility("数字と記号を表示")
+            onKeyInput?.invoke()
             return
         }
 
@@ -663,6 +663,7 @@ class QWERTYKeyboardView @JvmOverloads constructor(
             accessibilityManager.interrupt()
         }
         announceForAccessibility(announceText)
+        onKeyInput?.invoke()
     }
 
     private fun updateShiftKeyAppearance() {
