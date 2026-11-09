@@ -1296,7 +1296,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         _suggestionViewStatus.update { true }
         appPreference.apply {
             val devKeyboards = if (com.kazumaproject.markdownhelperkeyboard.BuildConfig.DEBUG) listOf(KeyboardType.BRAILLE) else emptyList()
-            keyboardOrder = keyboard_order + KeyboardType.NUMERIC + KeyboardType.AYAME_NUMERIC + devKeyboards
+            keyboardOrder = (keyboard_order + devKeyboards).distinct()
             candidateTabOrder = candidate_tab_order
             mozcUTPersonName = mozc_ut_person_names_preference ?: false
             mozcUTPlaces = mozc_ut_places_preference ?: false
@@ -14719,7 +14719,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         for (i in 1..keyboardOrder.size) {
             val idx = (currentKeyboardOrder + i) % keyboardOrder.size
             val type = keyboardOrder[idx]
-            if (type != KeyboardType.NUMERIC && type != KeyboardType.AYAME_NUMERIC && type != KeyboardType.CUSTOM) {
+            if (type != KeyboardType.CUSTOM) {
                 nextIndex = idx
                 nextType = type
                 break

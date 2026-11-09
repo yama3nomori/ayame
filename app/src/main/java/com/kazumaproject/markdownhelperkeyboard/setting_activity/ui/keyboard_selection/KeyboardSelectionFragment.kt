@@ -254,7 +254,7 @@ class KeyboardSelectionFragment : Fragment() {
 
     private fun showAddKeyboardDialog() {
         val allKeyboardTypes = KeyboardType.entries.filter {
-            it != KeyboardType.NUMERIC && it != KeyboardType.AYAME_NUMERIC && it != KeyboardType.CUSTOM &&
+            it != KeyboardType.CUSTOM &&
                     (com.kazumaproject.markdownhelperkeyboard.BuildConfig.DEBUG || (it != KeyboardType.TABLET_KANA && it != KeyboardType.AYAME_TABLET_KANA && it != KeyboardType.BRAILLE))
         }.toTypedArray()
         val currentKeyboards = viewModel.uiState.value.keyboards

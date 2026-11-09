@@ -485,7 +485,7 @@ object AppPreference {
             val type = object : TypeToken<List<KeyboardType>>() {}.type
             val list: List<KeyboardType> = gson.fromJson(json, type) ?: emptyList()
             val filtered = list.filter {
-                it != KeyboardType.NUMERIC && it != KeyboardType.AYAME_NUMERIC && it != KeyboardType.CUSTOM &&
+                it != KeyboardType.CUSTOM &&
                         (BuildConfig.DEBUG || (it != KeyboardType.TABLET_KANA && it != KeyboardType.AYAME_TABLET_KANA && it != KeyboardType.BRAILLE))
             }
             cachedKeyboardOrder = filtered
