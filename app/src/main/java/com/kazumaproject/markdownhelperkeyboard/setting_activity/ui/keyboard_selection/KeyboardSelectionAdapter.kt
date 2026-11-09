@@ -185,7 +185,7 @@ class KeyboardSelectionAdapter(
             KeyboardType.AYAME_NUMERIC -> "アヤメ数字専用キーボード"
             KeyboardType.TABLET_KANA -> "タブレット用かなレイアウト"
             KeyboardType.AYAME_TABLET_KANA -> "アヤメタブレット用かなレイアウト"
-            KeyboardType.BRAILLE -> "点字キーボード"
+            KeyboardType.BRAILLE -> "点字キーボード(開発中)"
         }
     }
 }
