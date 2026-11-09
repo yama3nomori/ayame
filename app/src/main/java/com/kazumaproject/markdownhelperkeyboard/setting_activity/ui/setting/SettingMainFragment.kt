@@ -12,6 +12,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.kazumaproject.markdownhelperkeyboard.BuildConfig
 import com.kazumaproject.markdownhelperkeyboard.R
 import com.kazumaproject.markdownhelperkeyboard.databinding.FragmentSettingMainBinding
 import com.kazumaproject.markdownhelperkeyboard.repository.RomajiMapRepository
@@ -81,57 +82,74 @@ class SettingMainFragment : Fragment() {
         }
 
         // 設定カテゴリ一覧を定義
-        val categories = listOf(
-            SettingCategory(
-                iconRes = com.kazumaproject.core.R.drawable.keyboard_24px,
-                titleRes = R.string.keyboard_selection_preference_title,
-                summaryRes = R.string.keyboard_selection_summary,
-                actionId = R.id.action_navigation_setting_to_keyboardSelectionFragment,
-            ),
-            SettingCategory(
-                iconRes = com.kazumaproject.core.R.drawable.baseline_settings_24,
-                titleRes = R.string.category_common,
-                summaryRes = R.string.setting_category_common_summary,
-                actionId = R.id.action_navigation_setting_to_commonPreferenceFragment,
-            ),
-            SettingCategory(
-                iconRes = com.kazumaproject.core.R.drawable.keyboard_24px,
-                titleRes = R.string.keyboardthemefragment,
-                summaryRes = R.string.setting_category_theme_summary,
-                actionId = R.id.action_navigation_setting_to_keyboardThemeFragment,
-            ),
-            SettingCategory(
-                iconRes = com.kazumaproject.core.R.drawable.dictionary_24px,
-                titleRes = R.string.category_dictionary,
-                summaryRes = R.string.setting_category_dictionary_summary,
-                actionId = R.id.action_navigation_setting_to_dictionaryPreferenceFragment,
-            ),
-            SettingCategory(
-                iconRes = com.kazumaproject.core.R.drawable.language_japanese_kana_24px,
-                titleRes = R.string.category_kana,
-                summaryRes = R.string.setting_category_kana_summary,
-                actionId = R.id.action_navigation_setting_to_kanaPreferenceFragment,
-            ),
-            SettingCategory(
-                iconRes = com.kazumaproject.core.R.drawable.keyboard_24px,
-                titleRes = R.string.qwertymarginsettingfragment,
-                summaryRes = R.string.setting_category_qwerty_summary,
-                actionId = R.id.action_navigation_setting_to_qwertyPreferenceFragment,
-            ),
-            SettingCategory(
-                iconRes = com.kazumaproject.core.R.drawable.keyboard_24px,
-                titleRes = R.string.category_braille,
-                summaryRes = R.string.setting_category_braille_summary,
-                actionId = R.id.action_navigation_setting_to_braillePreferenceFragment,
-            ),
-
-            SettingCategory(
-                iconRes = com.kazumaproject.core.R.drawable.question_mark_24dp,
-                titleRes = R.string.category_about_app_title,
-                summaryRes = R.string.setting_category_about_app_summary,
-                actionId = R.id.action_navigation_setting_to_aboutPreferenceFragment,
-            ),
-        )
+        val categories = buildList {
+            add(
+                SettingCategory(
+                    iconRes = com.kazumaproject.core.R.drawable.keyboard_24px,
+                    titleRes = R.string.keyboard_selection_preference_title,
+                    summaryRes = R.string.keyboard_selection_summary,
+                    actionId = R.id.action_navigation_setting_to_keyboardSelectionFragment,
+                )
+            )
+            add(
+                SettingCategory(
+                    iconRes = com.kazumaproject.core.R.drawable.baseline_settings_24,
+                    titleRes = R.string.category_common,
+                    summaryRes = R.string.setting_category_common_summary,
+                    actionId = R.id.action_navigation_setting_to_commonPreferenceFragment,
+                )
+            )
+            add(
+                SettingCategory(
+                    iconRes = com.kazumaproject.core.R.drawable.keyboard_24px,
+                    titleRes = R.string.keyboardthemefragment,
+                    summaryRes = R.string.setting_category_theme_summary,
+                    actionId = R.id.action_navigation_setting_to_keyboardThemeFragment,
+                )
+            )
+            add(
+                SettingCategory(
+                    iconRes = com.kazumaproject.core.R.drawable.dictionary_24px,
+                    titleRes = R.string.category_dictionary,
+                    summaryRes = R.string.setting_category_dictionary_summary,
+                    actionId = R.id.action_navigation_setting_to_dictionaryPreferenceFragment,
+                )
+            )
+            add(
+                SettingCategory(
+                    iconRes = com.kazumaproject.core.R.drawable.language_japanese_kana_24px,
+                    titleRes = R.string.category_kana,
+                    summaryRes = R.string.setting_category_kana_summary,
+                    actionId = R.id.action_navigation_setting_to_kanaPreferenceFragment,
+                )
+            )
+            add(
+                SettingCategory(
+                    iconRes = com.kazumaproject.core.R.drawable.keyboard_24px,
+                    titleRes = R.string.qwertymarginsettingfragment,
+                    summaryRes = R.string.setting_category_qwerty_summary,
+                    actionId = R.id.action_navigation_setting_to_qwertyPreferenceFragment,
+                )
+            )
+            if (BuildConfig.DEBUG) {
+                add(
+                    SettingCategory(
+                        iconRes = com.kazumaproject.core.R.drawable.keyboard_24px,
+                        titleRes = R.string.category_braille,
+                        summaryRes = R.string.setting_category_braille_summary,
+                        actionId = R.id.action_navigation_setting_to_braillePreferenceFragment,
+                    )
+                )
+            }
+            add(
+                SettingCategory(
+                    iconRes = com.kazumaproject.core.R.drawable.question_mark_24dp,
+                    titleRes = R.string.category_about_app_title,
+                    summaryRes = R.string.setting_category_about_app_summary,
+                    actionId = R.id.action_navigation_setting_to_aboutPreferenceFragment,
+                )
+            )
+        }
 
         val adapter = SettingCategoryAdapter(categories) { category ->
             findNavController().navigate(category.actionId)

@@ -6,10 +6,10 @@
     <string name="braille_fullscreen_summary">Expand the Braille key area to fill the screen below the candidate and shortcut bars</string>
 
     <string-array name="braille_key_order_entries">
-        <item>1 2 3 ハンスペース</item>
-        <item>ハンスペース 3 2 1</item>
-        <item>3 2 1 ハンスペース</item>
-        <item>ハンスペース 1 2 3</item>
+        <item>Right hand Typewriter (1 2 3 Space)</item>
+        <item>Left hand Typewriter (Space 3 2 1)</item>
+        <item>Right hand Kana Type (3 2 1 Space)</item>
+        <item>Left hand Kana Type (Space 1 2 3)</item>
     </string-array>
 
     <string-array name="braille_key_order_values">

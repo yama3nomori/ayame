@@ -6,10 +6,10 @@
     <string name="braille_fullscreen_summary">上部に変換候補・ツールバーを残し、残りの画面全体を点字キーエリアにします</string>
 
     <string-array name="braille_key_order_entries">
-        <item>1 2 3 ハンスペース</item>
-        <item>ハンスペース 3 2 1</item>
-        <item>3 2 1 ハンスペース</item>
-        <item>ハンスペース 1 2 3</item>
+        <item>右手 タイプライター（1 2 3 ハンスペース）</item>
+        <item>左手 タイプライター（ハンスペース 3 2 1）</item>
+        <item>右手 かなタイプ（3 2 1 ハンスペース）</item>
+        <item>左手 かなタイプ（ハンスペース 1 2 3）</item>
     </string-array>
 
     <string-array name="braille_key_order_values">
