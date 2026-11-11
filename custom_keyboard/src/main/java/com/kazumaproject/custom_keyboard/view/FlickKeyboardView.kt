@@ -155,6 +155,13 @@ class FlickKeyboardView @JvmOverloads constructor(
     // アヤメモードフラグ（IMEServiceからセットされる）
     var isAyameMode = false
 
+    var onKeySelected: (() -> Unit)? = null
+    var onKeyInput: (() -> Unit)? = null
+    private var lastClickedKeyView: View? = null
+    private var lastClickedTime: Long = 0L
+    private var lastAccessibilitySelectedView: View? = null
+    private var lastAccessibilitySelectedTime: Long = 0L
+
     // 日本語モードフラグ（IMEServiceからセットされる。英語・数字モード時にスペースの右フリック等を無効化するため）
     var isJapaneseMode = true
 
@@ -1583,16 +1590,41 @@ class FlickKeyboardView @JvmOverloads constructor(
         view.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
         view.isFocusable = true
         
-        // TalkBackのダブルタップを有効にするために常にクリック可能にしてリスナーを設定する
+        // TalkBackのダブルタップおよび通常ダブルタップを有効にするために常にクリック可能にしてリスナーを設定する
         view.isClickable = true
         view.setOnClickListener {
-            if (isTouchExplorationEnabled() && isAyameMode) {
-                handleKeyClick(view)
+            if (isAyameMode) {
+                if (isTouchExplorationEnabled()) {
+                    handleKeyClick(view)
+                } else {
+                    val currentTime = android.os.SystemClock.uptimeMillis()
+                    if (view == lastClickedKeyView && currentTime - lastClickedTime < 500) {
+                        handleKeyClick(view)
+                        lastClickedKeyView = null
+                        lastClickedTime = 0L
+                    } else {
+                        lastClickedKeyView = view
+                        lastClickedTime = currentTime
+                        onKeySelected?.invoke()
+                    }
+                }
             }
         }
 
         // TenKey.kt と同様のアクセシビリティデリゲートを設定
         ViewCompat.setAccessibilityDelegate(view, object : AccessibilityDelegateCompat() {
+            override fun sendAccessibilityEvent(host: View, eventType: Int) {
+                super.sendAccessibilityEvent(host, eventType)
+                if (eventType == AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED || eventType == AccessibilityEvent.TYPE_VIEW_HOVER_ENTER) {
+                    val now = android.os.SystemClock.uptimeMillis()
+                    if (host != lastAccessibilitySelectedView || now - lastAccessibilitySelectedTime > 150) {
+                        lastAccessibilitySelectedView = host
+                        lastAccessibilitySelectedTime = now
+                        onKeySelected?.invoke()
+                    }
+                }
+            }
+
             override fun onInitializeAccessibilityNodeInfo(
                 host: View,
                 info: AccessibilityNodeInfoCompat
@@ -2645,6 +2677,7 @@ class FlickKeyboardView @JvmOverloads constructor(
 
                 targetView?.let {
                     motionTargets[pointerId] = it
+                    onKeySelected?.invoke()
 
                     // 元のeventから複製することで、rawX/rawY座標等の属性を正しく保持する
                     val newEvent = MotionEvent.obtain(event).apply {
@@ -2737,6 +2770,7 @@ class FlickKeyboardView @JvmOverloads constructor(
 
                 targetView?.let {
                     motionTargets[newPointerId] = it
+                    onKeySelected?.invoke()
                     // この指専用の「ACTION_DOWN」イベントを自作する
                     val newEvent = MotionEvent.obtain(
                         event.eventTime, // 新しいジェスチャーなのでdownTimeは現在のeventTime

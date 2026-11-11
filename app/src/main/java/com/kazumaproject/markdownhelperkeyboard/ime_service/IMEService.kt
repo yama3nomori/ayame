@@ -6434,6 +6434,17 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     }
 
     private fun setupCustomKeyboardListeners(mainView: MainLayoutBinding) {
+        mainView.customLayoutDefault.apply {
+            onKeySelected = {
+                playSoundKeySelect()
+                vibrateKeySelect()
+            }
+            onKeyInput = {
+                playSoundKeyInput()
+                vibrateKeyInput()
+            }
+        }
+
         mainView.customLayoutDefault.applyKeyboardTheme(
             themeMode = keyboardThemeMode ?: "default",
             currentNightMode = currentNightMode,
@@ -6462,7 +6473,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 // 通常の文字が入力された場合（変更なし）
                 clearDeleteBufferWithView()
                 Timber.d("onKey: [$text] [${qwertyMode.value}] [$isDefaultRomajiHenkanMap]")
-                vibrate()
+                playSoundKeyInput()
+                vibrateKeyInput()
 
                 when (qwertyMode.value) {
                     TenKeyQWERTYMode.Custom -> {
@@ -6534,7 +6546,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             }
 
             override fun onActionLongPress(action: KeyAction) {
-                vibrate()
+                playSoundKeyInput()
+                vibrateKeyInput()
                 clearDeleteBufferWithView()
                 Timber.d("onActionLongPress: $action")
                 when (action) {
@@ -6777,13 +6790,15 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             }
 
             override fun onFlickDirectionChanged(direction: FlickDirection) {
-                vibrate()
+                playSoundKeySelect()
+                vibrateKeySelect()
                 Timber.d("onFlickDirectionChanged: $direction")
             }
 
             override fun onFlickActionLongPress(action: KeyAction) {
                 Timber.d("onFlickActionLongPress: $action")
-                vibrate()
+                playSoundKeyInput()
+                vibrateKeyInput()
                 when (action) {
                     KeyAction.Backspace -> {}
                     KeyAction.ChangeInputMode -> {}
@@ -6915,7 +6930,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             }
 
             override fun onFlickActionUpAfterLongPress(action: KeyAction, isFlick: Boolean) {
-                vibrate()
+                playSoundKeyInput()
+                vibrateKeyInput()
                 Timber.d("onFlickActionUpAfterLongPress: $action $isFlick")
                 when (action) {
                     KeyAction.Backspace -> {}
@@ -7063,7 +7079,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             }
 
             override fun onAction(action: KeyAction, view: View, isFlick: Boolean) {
-                vibrate()
+                playSoundKeyInput()
+                vibrateKeyInput()
 
                 Timber.d("onAction: $action $isFlick")
                 if (action != KeyAction.Delete) {
@@ -15350,19 +15367,24 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 .build()
 
             pool.setOnLoadCompleteListener { _, sampleId, status ->
+                Timber.d("SoundPool onLoadComplete: sampleId=$sampleId, status=$status, expected inputSoundId=$inputSoundId")
                 if (status == 0 && sampleId == inputSoundId) {
                     isInputSoundLoaded = true
-                    Timber.d("enter.mp3 loaded successfully into SoundPool")
+                    Timber.d("enter.mp3 loaded successfully into SoundPool (sampleId=$sampleId)")
+                } else if (status != 0) {
+                    Timber.e("SoundPool failed to load sampleId=$sampleId, status=$status")
                 }
             }
 
             try {
                 val afd = assets.openFd("sound/enter.mp3")
                 inputSoundId = pool.load(afd, 1)
+                Timber.d("initSoundPool: loaded from assets sound/enter.mp3, inputSoundId=$inputSoundId")
             } catch (e: Exception) {
                 Timber.e(e, "Failed to load sound/enter.mp3 from assets, trying res/raw")
                 try {
                     inputSoundId = pool.load(this, com.kazumaproject.markdownhelperkeyboard.R.raw.enter, 1)
+                    Timber.d("initSoundPool: loaded from raw enter.mp3, inputSoundId=$inputSoundId")
                 } catch (e2: Exception) {
                     Timber.e(e2, "Failed to load enter.mp3 from raw")
                 }
@@ -15383,14 +15405,20 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private fun playSoundKeySelect() {
         if (!::audioManager.isInitialized) return
         if (isSoundKeySelect != true) return
+        Timber.d("playSoundKeySelect called: playing FX_FOCUS_NAVIGATION_UP")
         audioManager.playSoundEffect(AudioManager.FX_FOCUS_NAVIGATION_UP, 1.0f)
     }
 
     private fun playSoundKeyInput() {
-        if (isSoundKeyInput != true) return
+        if (isSoundKeyInput != true) {
+            Timber.d("playSoundKeyInput skipped: isSoundKeyInput=$isSoundKeyInput")
+            return
+        }
         if (isInputSoundLoaded && inputSoundId != 0) {
-            soundPool?.play(inputSoundId, 1.0f, 1.0f, 1, 0, 1.0f)
+            val streamId = soundPool?.play(inputSoundId, 1.0f, 1.0f, 1, 0, 1.0f) ?: 0
+            Timber.d("playSoundKeyInput: SoundPool.play(id=$inputSoundId) -> streamId=$streamId")
         } else {
+            Timber.w("playSoundKeyInput fallback: isInputSoundLoaded=$isInputSoundLoaded, inputSoundId=$inputSoundId. Playing FX_KEY_CLICK")
             if (::audioManager.isInitialized) {
                 audioManager.playSoundEffect(AudioManager.FX_KEY_CLICK, 1.0f)
             }
