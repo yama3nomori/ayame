@@ -304,8 +304,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private var focusRequest: Any? = null // AudioFocusRequest
     private var silentAudioTrack: AudioTrack? = null
     private var soundPool: SoundPool? = null
-    private var typeSoundId: Int = 0
-    private var isTypeSoundLoaded: Boolean = false
+    private var inputSoundId: Int = 0
+    private var isInputSoundLoaded: Boolean = false
 
     private var isClipboardHistoryFeatureEnabled: Boolean = false
     private val clipboardMutex = Mutex()
@@ -15350,21 +15350,21 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 .build()
 
             pool.setOnLoadCompleteListener { _, sampleId, status ->
-                if (status == 0 && sampleId == typeSoundId) {
-                    isTypeSoundLoaded = true
-                    Timber.d("type.mp3 loaded successfully into SoundPool")
+                if (status == 0 && sampleId == inputSoundId) {
+                    isInputSoundLoaded = true
+                    Timber.d("enter.mp3 loaded successfully into SoundPool")
                 }
             }
 
             try {
-                val afd = assets.openFd("sound/type.mp3")
-                typeSoundId = pool.load(afd, 1)
+                val afd = assets.openFd("sound/enter.mp3")
+                inputSoundId = pool.load(afd, 1)
             } catch (e: Exception) {
-                Timber.e(e, "Failed to load sound/type.mp3 from assets, trying res/raw")
+                Timber.e(e, "Failed to load sound/enter.mp3 from assets, trying res/raw")
                 try {
-                    typeSoundId = pool.load(this, com.kazumaproject.markdownhelperkeyboard.R.raw.type, 1)
+                    inputSoundId = pool.load(this, com.kazumaproject.markdownhelperkeyboard.R.raw.enter, 1)
                 } catch (e2: Exception) {
-                    Timber.e(e2, "Failed to load type.mp3 from raw")
+                    Timber.e(e2, "Failed to load enter.mp3 from raw")
                 }
             }
             soundPool = pool
@@ -15376,8 +15376,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private fun releaseSoundPool() {
         soundPool?.release()
         soundPool = null
-        typeSoundId = 0
-        isTypeSoundLoaded = false
+        inputSoundId = 0
+        isInputSoundLoaded = false
     }
 
     private fun playSoundKeySelect() {
@@ -15388,8 +15388,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
     private fun playSoundKeyInput() {
         if (isSoundKeyInput != true) return
-        if (isTypeSoundLoaded && typeSoundId != 0) {
-            soundPool?.play(typeSoundId, 1.0f, 1.0f, 1, 0, 1.0f)
+        if (isInputSoundLoaded && inputSoundId != 0) {
+            soundPool?.play(inputSoundId, 1.0f, 1.0f, 1, 0, 1.0f)
         } else {
             if (::audioManager.isInitialized) {
                 audioManager.playSoundEffect(AudioManager.FX_KEY_CLICK, 1.0f)
