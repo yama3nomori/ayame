@@ -8569,6 +8569,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
         launch {
             shortCurRepository.enabledShortcutsFlow.collectLatest {
+                Timber.d("enabledShortcutsFlow emitted: ${it.map { type -> type.name }}")
                 shortcutAdapter?.submitList(it)
             }
         }
@@ -10544,6 +10545,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     val text = if (newSetting) "カーソル移動時 読み上げオン" else "カーソル移動時 読み上げオフ"
                     announceTextForce(text)
                     android.widget.Toast.makeText(this, text, android.widget.Toast.LENGTH_SHORT).show()
+                }
+
+                ShortcutType.CLOSE_KEYBOARD -> {
+                    Timber.d("ShortcutType.CLOSE_KEYBOARD clicked: calling requestHideSelf(0)")
+                    vibrate()
+                    requestHideSelf(0)
                 }
             }
         }

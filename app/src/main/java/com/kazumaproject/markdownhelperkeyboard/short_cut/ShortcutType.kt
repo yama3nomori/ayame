@@ -30,6 +30,11 @@ enum class ShortcutType(
         "force_read_aloud",
         com.kazumaproject.core.R.drawable.volume_up_24px,
         "読み上げ切替"
+    ),
+    CLOSE_KEYBOARD(
+        "close_keyboard",
+        com.kazumaproject.core.R.drawable.keyboard_hide_24px,
+        "キーボードを閉じる"
     ),;
 
     companion object {
