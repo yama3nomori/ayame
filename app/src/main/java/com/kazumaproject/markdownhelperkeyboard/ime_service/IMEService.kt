@@ -2042,6 +2042,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         resetDirectInputEnglishChar()
         Timber.d("onFinishInputView: finishingInput=$finishingInput")
         mediaSession?.isActive = false
+        com.kazumaproject.markdownhelperkeyboard.braille.BraillePassthroughAccessibilityService.clearPassthroughRegion()
 
         val targetView = if (isKeyboardFloatingMode == true) floatingKeyboardBinding?.root else mainLayoutBinding?.root
         targetView?.let { view ->
@@ -2294,6 +2295,14 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             outInsets?.contentTopInsets = inputHeight
             outInsets?.visibleTopInsets = inputHeight
             outInsets?.touchableInsets = Insets.TOUCHABLE_INSETS_CONTENT
+        } else if (mainLayoutBinding?.let { isBrailleFullscreenActive(it) } == true) {
+            // 全画面点字キーボード時は、背後アプリのコンテンツ高さを0に潰さないよう
+            // contentTopInsets / visibleTopInsets を下端に設定しつつ、タッチイベントはフレーム全体で受ける
+            val inputHeight = window.window?.decorView?.height ?: 0
+            outInsets?.contentTopInsets = inputHeight
+            outInsets?.visibleTopInsets = inputHeight
+            outInsets?.touchableRegion?.setEmpty()
+            outInsets?.touchableInsets = Insets.TOUCHABLE_INSETS_FRAME
         }
     }
 
@@ -2805,10 +2814,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     ViewCompat.setOnApplyWindowInsetsListener(mainView.root) { _, windowInsets ->
                         val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
                         val prevBottom = systemBottomInset
-                        val prevTop = systemTopInset
                         systemBottomInset = insets.bottom
                         systemTopInset = insets.top
-                        if (prevBottom != systemBottomInset || prevTop != systemTopInset) {
+                        if (prevBottom != systemBottomInset && isIMEWindowShown) {
                             if (inputString.value.isNotEmpty() || fullSuggestionsList.isNotEmpty()) {
                                 setKeyboardHeightWithAdditional(mainView)
                             } else {
@@ -3150,6 +3158,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
 
     private fun moveCursorLeft() {
+        if (selectMode.value) {
+            extendOrShrinkLeftOneChar()
+            return
+        }
         if (!hasTextBeforeCursor()) return
         interruptTalkBack()
         lastVolumeKeyCursorMoveTime = android.os.SystemClock.uptimeMillis()
@@ -3158,6 +3170,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     }
 
     private fun moveCursorRight() {
+        if (selectMode.value) {
+            extendOrShrinkSelectionRight()
+            return
+        }
         if (!hasTextAfterCursor()) return
         interruptTalkBack()
         lastVolumeKeyCursorMoveTime = android.os.SystemClock.uptimeMillis()
@@ -3169,20 +3185,26 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         interruptTalkBack()
         val ic = currentInputConnection ?: return
         Timber.d("moveCursorToStartOfLine: start")
+        announceTextForce("行頭", allowSameText = true)
         Toast.makeText(this, "行頭", Toast.LENGTH_SHORT).show()
         val before = ic.getTextBeforeCursor(2048, 0)
         if (before != null) {
             val lastNewLine = before.lastIndexOf('\n')
             val jumpDist = if (lastNewLine == -1) before.length else before.length - lastNewLine - 1
-            if (jumpDist > 0) {
-                val req = ExtractedTextRequest()
-                val et = ic.getExtractedText(req, 0)
-                if (et != null) {
-                    val newPos = (et.selectionStart - jumpDist).coerceAtLeast(0)
+            val req = ExtractedTextRequest()
+            val et = ic.getExtractedText(req, 0)
+            if (et != null) {
+                val newPos = (et.selectionStart - jumpDist).coerceAtLeast(0)
+                if (selectMode.value) {
+                    if (anchorPos == -1) anchorPos = et.selectionEnd
+                    val selStart = minOf(anchorPos, newPos)
+                    val selEnd = maxOf(anchorPos, newPos)
+                    ic.setSelection(selStart, selEnd)
+                } else {
                     ic.setSelection(newPos, newPos)
-                    Timber.d("moveCursorToStartOfLine: jump to $newPos (dist $jumpDist)")
-                    return
                 }
+                Timber.d("moveCursorToStartOfLine: jump to $newPos (dist $jumpDist)")
+                return
             }
         }
         // Fallback to key event if context reading fails
@@ -3195,26 +3217,74 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         interruptTalkBack()
         val ic = currentInputConnection ?: return
         Timber.d("moveCursorToEndOfLine: start")
+        announceTextForce("行末", allowSameText = true)
         Toast.makeText(this, "行末", Toast.LENGTH_SHORT).show()
         val after = ic.getTextAfterCursor(2048, 0)
         if (after != null) {
             val nextNewLine = after.indexOf('\n')
             val jumpDist = if (nextNewLine == -1) after.length else nextNewLine
-            if (jumpDist > 0) {
-                val req = ExtractedTextRequest()
-                val et = ic.getExtractedText(req, 0)
-                if (et != null) {
-                    val newPos = et.selectionStart + jumpDist
+            val req = ExtractedTextRequest()
+            val et = ic.getExtractedText(req, 0)
+            if (et != null) {
+                val newPos = et.selectionEnd + jumpDist
+                if (selectMode.value) {
+                    if (anchorPos == -1) anchorPos = et.selectionStart
+                    val selStart = minOf(anchorPos, newPos)
+                    val selEnd = maxOf(anchorPos, newPos)
+                    ic.setSelection(selStart, selEnd)
+                } else {
                     ic.setSelection(newPos, newPos)
-                    Timber.d("moveCursorToEndOfLine: jump to $newPos (dist $jumpDist)")
-                    return
                 }
+                Timber.d("moveCursorToEndOfLine: jump to $newPos (dist $jumpDist)")
+                return
             }
         }
         // Fallback to key event
         Timber.d("moveCursorToEndOfLine: fallback to KEYCODE_MOVE_END")
         ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MOVE_END))
         ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MOVE_END))
+    }
+
+    private fun moveCursorToStartOfText() {
+        interruptTalkBack()
+        val ic = currentInputConnection ?: return
+        Timber.d("moveCursorToStartOfText: start")
+        announceTextForce("文頭", allowSameText = true)
+        Toast.makeText(this, "文頭", Toast.LENGTH_SHORT).show()
+        val et = ic.getExtractedText(ExtractedTextRequest(), 0)
+        if (et != null) {
+            if (selectMode.value) {
+                if (anchorPos == -1) anchorPos = et.selectionEnd
+                ic.setSelection(0, anchorPos.coerceAtLeast(0))
+            } else {
+                ic.setSelection(0, 0)
+            }
+            return
+        }
+        ic.setSelection(0, 0)
+    }
+
+    private fun moveCursorToEndOfText() {
+        interruptTalkBack()
+        val ic = currentInputConnection ?: return
+        Timber.d("moveCursorToEndOfText: start")
+        announceTextForce("文末", allowSameText = true)
+        Toast.makeText(this, "文末", Toast.LENGTH_SHORT).show()
+        val et = ic.getExtractedText(ExtractedTextRequest(), 0)
+        if (et != null) {
+            val textLen = et.text?.length ?: 0
+            if (selectMode.value) {
+                if (anchorPos == -1) anchorPos = et.selectionStart
+                ic.setSelection(anchorPos.coerceIn(0, textLen), textLen)
+            } else {
+                ic.setSelection(textLen, textLen)
+            }
+            return
+        }
+        val beforeLen = ic.getTextBeforeCursor(10000, 0)?.length ?: 0
+        val afterLen = ic.getTextAfterCursor(10000, 0)?.length ?: 0
+        val totalLen = beforeLen + afterLen
+        ic.setSelection(totalLen, totalLen)
     }
 
     private fun moveCursorToPrevLineAndReadAloud() {
@@ -4310,6 +4380,22 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     moveCursorToNextLineAndReadAloud()
                 }
 
+                override fun onCursorStartOfLine() {
+                    moveCursorToStartOfLine()
+                }
+
+                override fun onCursorEndOfLine() {
+                    moveCursorToEndOfLine()
+                }
+
+                override fun onCursorStartOfText() {
+                    moveCursorToStartOfText()
+                }
+
+                override fun onCursorEndOfText() {
+                    moveCursorToEndOfText()
+                }
+
                 override fun onReadAloudTap() {
                     readAloudCurrentText()
                 }
@@ -4328,6 +4414,24 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                 override fun onReadAloudDown() {
                     readAloudCursorPosition()
+                }
+
+                override fun onToggleSelectMode() {
+                    playSoundKeyInput()
+                    vibrateKeyInput()
+                    val newSelectMode = !_selectMode.value
+                    if (newSelectMode) {
+                        if (inputString.value.isNotEmpty() || stringInTail.get().isNotEmpty()) {
+                            finishComposingText()
+                            _inputString.update { "" }
+                            stringInTail.set("")
+                        }
+                    }
+                    anchorPos = -1
+                    _selectMode.update { newSelectMode }
+                    val message = if (newSelectMode) "文字選択モード オン" else "文字選択モード オフ"
+                    announceTextForce(message, allowSameText = true)
+                    Toast.makeText(this@IMEService, message, Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -6179,7 +6283,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                 KeyboardType.BRAILLE -> {
                     brailleView.isVisible = true
-                    brailleView.post { brailleView.syncPassthroughRegion() }
+                    if (isIMEWindowShown) {
+                        brailleView.post { brailleView.syncPassthroughRegion() }
+                    }
                     keyboardView.isVisible = false
                     qwertyView.isVisible = false
                     tabletView.isVisible = false
@@ -7821,7 +7927,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             currentKeyboardOrder = 0
             showKeyboard(keyboardOrder[0])
         }
-        mainLayoutBinding?.let { setKeyboardSizeSwitchKeyboard(it) }
+        if (isIMEWindowShown) {
+            mainLayoutBinding?.let { setKeyboardSizeSwitchKeyboard(it) }
+        }
     }
 
     private fun handleLeftCursor(gestureType: GestureType, insertString: String) {
@@ -7886,11 +7994,13 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
             // 前のグラフェムクラスタ開始位置を取得して選択開始
             val newStart = previousGraphemeOffset(textStr, selStart)
+            val selectedChar = textStr.substring(newStart, selStart)
 
             beginBatchEdit()
             finishComposingText()
             setSelection(newStart, selEnd)
             endBatchEdit()
+            announceCursorDetailedReading(selectedChar, textStr.substring(0, newStart))
             return
         }
 
@@ -7903,15 +8013,18 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             cursorOnLeft -> {
                 if (selStart == 0) return
                 val newStart = previousGraphemeOffset(textStr, selStart)
+                val selectedChar = textStr.substring(newStart, selStart)
                 beginBatchEdit()
                 finishComposingText()
                 setSelection(newStart, selEnd)
                 endBatchEdit()
+                announceCursorDetailedReading(selectedChar, textStr.substring(0, newStart))
             }
 
             // 1-B: カーソルが右端 → 右端を1文字（グラフェム）分縮める
             cursorOnRight -> {
                 val newEnd = previousGraphemeOffset(textStr, selEnd)
+                val unselectedChar = textStr.substring(newEnd.coerceAtLeast(selStart), selEnd)
                 if (newEnd <= selStart) {
                     // 選択範囲がなくなるのでキャレットのみの状態に戻す
                     beginBatchEdit()
@@ -7925,11 +8038,23 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     setSelection(selStart, newEnd)
                     endBatchEdit()
                 }
+                if (unselectedChar.isNotEmpty()) {
+                    announceTextForce("${unselectedChar} 選択解除", allowSameText = true)
+                }
             }
 
             else -> {
                 // 状態不整合ならアンカーをリセット
-                anchorPos = -1
+                anchorPos = selStart
+                val newStart = previousGraphemeOffset(textStr, selStart)
+                if (newStart < selStart) {
+                    val selectedChar = textStr.substring(newStart, selStart)
+                    beginBatchEdit()
+                    finishComposingText()
+                    setSelection(newStart, selEnd)
+                    endBatchEdit()
+                    announceCursorDetailedReading(selectedChar, textStr.substring(0, newStart))
+                }
             }
         }
     }
@@ -7949,10 +8074,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             anchorPos = selStart
             if (selEnd < textLen) {
                 val newEnd = nextGraphemeOffset(textStr, selEnd)
+                val selectedChar = textStr.substring(selEnd, newEnd)
                 beginBatchEdit()
                 finishComposingText()
                 setSelection(selStart, newEnd)
                 endBatchEdit()
+                announceCursorDetailedReading(selectedChar, textStr.substring(0, selEnd))
             }
             return
         }
@@ -7963,14 +8090,17 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             // 1-A: カーソルが右端 → さらに右へ1文字（グラフェム）分伸ばす
             if (selEnd < textLen) {
                 val newEnd = nextGraphemeOffset(textStr, selEnd)
+                val selectedChar = textStr.substring(selEnd, newEnd)
                 beginBatchEdit()
                 finishComposingText()
                 setSelection(anchorPos, newEnd)
                 endBatchEdit()
+                announceCursorDetailedReading(selectedChar, textStr.substring(0, selEnd))
             }
         } else {
             // 1-B: カーソルが左端 → 左端を1文字（グラフェム）分縮める
             val newStart = nextGraphemeOffset(textStr, selStart)
+            val unselectedChar = textStr.substring(selStart, newStart.coerceAtMost(selEnd))
             if (newStart >= selEnd) {
                 // 選択範囲がなくなるのでキャレットのみの状態に戻す
                 beginBatchEdit()
@@ -7983,6 +8113,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 finishComposingText()
                 setSelection(newStart, selEnd)
                 endBatchEdit()
+            }
+            if (unselectedChar.isNotEmpty()) {
+                announceTextForce("${unselectedChar} 選択解除", allowSameText = true)
             }
         }
     }
@@ -8358,6 +8491,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         launch {
             selectMode.collectLatest { selectMode ->
                 mainView.keyboardView.setTextToAllButtonsFromSelectMode(selectMode)
+                mainView.brailleView.isSelectMode = selectMode
             }
         }
 
@@ -8783,13 +8917,12 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
     private fun isBrailleFullscreenActive(
         mainView: MainLayoutBinding,
-        isSymbol: Boolean = keyboardSymbolViewState.value,
-        isFloating: Boolean = isKeyboardFloatingMode == true
+        isSymbol: Boolean = keyboardSymbolViewState.value
     ): Boolean {
         val isFullscreenPref = androidx.preference.PreferenceManager
             .getDefaultSharedPreferences(this)
             .getBoolean("braille_fullscreen_preference", false)
-        return isFullscreenPref && mainView.brailleView.isVisible && !isSymbol && !isFloating
+        return isFullscreenPref && mainView.brailleView.isVisible && !isSymbol && isKeyboardFloatingMode != true
     }
 
     private fun calculateBrailleFullscreenHeights(mainView: MainLayoutBinding): Pair<Int, Int> {
@@ -8856,7 +8989,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         val density = resources.displayMetrics.density
         val screenWidth = resources.displayMetrics.widthPixels
         val isSymbol = isSymbolOverride ?: keyboardSymbolViewState.value
-        val brailleFullscreen = isBrailleFullscreenActive(mainView, isSymbol, isFloating)
+        val brailleFullscreen = isBrailleFullscreenActive(mainView, isSymbol)
         val brailleFullscreenHeights = if (brailleFullscreen) {
             calculateBrailleFullscreenHeights(mainView)
         } else {
@@ -8998,7 +9131,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             mainView.suggestionVisibility.layoutParams = params
         }
 
-        if (mainView.brailleView.isVisible) {
+        if (isIMEWindowShown && mainView.brailleView.isVisible) {
             mainView.brailleView.post { mainView.brailleView.syncPassthroughRegion() }
         }
     }
@@ -9248,7 +9381,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
         mainView.root.setPadding(0, 0, 0, systemBottomInset)
 
-        if (mainView.brailleView.isVisible) {
+        if (isIMEWindowShown && mainView.brailleView.isVisible) {
             mainView.brailleView.post { mainView.brailleView.syncPassthroughRegion() }
         }
     }
