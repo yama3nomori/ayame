@@ -186,6 +186,7 @@ class KeyboardSelectionAdapter(
             KeyboardType.TABLET_KANA -> "タブレット用かなレイアウト"
             KeyboardType.AYAME_TABLET_KANA -> "アヤメタブレット用かなレイアウト"
             KeyboardType.BRAILLE -> "点字キーボード(開発中)"
+            KeyboardType.TENKEY_BETA -> "テンキーベータ"
         }
     }
 }

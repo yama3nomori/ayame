@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.graphics.Color
+import android.graphics.Rect
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
@@ -745,6 +746,85 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
             setupAccessibility()
         }
 
+    var onPassthroughRegionChanged: ((Rect?) -> Unit)? = null
+    var isPassthroughServiceConnected: (() -> Boolean)? = null
+    var onUpperAreaExploreMove: ((screenX: Float, screenY: Float) -> Unit)? = null
+    var onUpperAreaExploreFinish: (() -> Unit)? = null
+
+    private var passthroughActivePointerId: Int = MotionEvent.INVALID_POINTER_ID
+    private var isExploringUpperArea: Boolean = false
+    private var hasSplitTapInputOccurred: Boolean = false
+
+    var isPassthroughMode: Boolean = false
+        set(value) {
+            val changed = field != value
+            field = value
+            if (changed) {
+                resetPassthroughExploreState()
+                updateSystemGestureExclusion()
+                setupAccessibility()
+                if (value) {
+                    post { syncPassthroughRegion() }
+                } else {
+                    onPassthroughRegionChanged?.invoke(null)
+                }
+            } else if (value) {
+                post { syncPassthroughRegion() }
+            }
+        }
+
+    fun isPassthroughActive(): Boolean {
+        return isPassthroughMode &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+            (isPassthroughServiceConnected?.invoke() == true)
+    }
+
+    fun onPassthroughServiceStateChanged() {
+        if (!isPassthroughMode) return
+        setupAccessibility()
+        syncPassthroughRegion()
+    }
+
+    fun syncPassthroughRegion() {
+        if (!isPassthroughMode) return
+        if (!isShown || visibility != View.VISIBLE || windowVisibility != View.VISIBLE || width <= 0 || height <= 0) {
+            onPassthroughRegionChanged?.invoke(null)
+            return
+        }
+        val loc = IntArray(2)
+        getLocationOnScreen(loc)
+        onPassthroughRegionChanged?.invoke(
+            Rect(loc[0], loc[1], loc[0] + width, loc[1] + height)
+        )
+    }
+
+    private fun updateSystemGestureExclusion() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            systemGestureExclusionRects = if (isPassthroughMode && width > 0 && height > 0) {
+                listOf(Rect(0, 0, width, height))
+            } else {
+                emptyList()
+            }
+        }
+    }
+
+    private fun resetPassthroughExploreState() {
+        if (isExploringUpperArea) {
+            onUpperAreaExploreFinish?.invoke()
+            isExploringUpperArea = false
+        }
+        passthroughActivePointerId = MotionEvent.INVALID_POINTER_ID
+        hasSplitTapInputOccurred = false
+        hoverVelocityTracker?.recycle()
+        hoverVelocityTracker = null
+        resetHoverDragStates()
+        currentHoverKey = Key.NotSelected
+        hoverCurrentKey = Key.NotSelected
+        isHoverDragActive = false
+        wasFlickingGesture = false
+        resetAllKeys()
+    }
+
     fun setLanguageEnableKeyState(state: Boolean) {
         this.isLanguageIconEnabled = state
     }
@@ -1361,10 +1441,64 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
         scope.coroutineContext.cancelChildren()
     }
 
+    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+        super.onLayout(changed, left, top, right, bottom)
+        if (changed) {
+            cachedKeyRects = null
+        }
+        updateSystemGestureExclusion()
+        if (isPassthroughMode) {
+            post { syncPassthroughRegion() }
+        }
+    }
+
+    override fun onVisibilityChanged(changedView: View, visibility: Int) {
+        super.onVisibilityChanged(changedView, visibility)
+        if (isPassthroughMode) {
+            if (visibility == View.VISIBLE && isShown) {
+                post { syncPassthroughRegion() }
+            } else {
+                resetPassthroughExploreState()
+                onPassthroughRegionChanged?.invoke(null)
+            }
+        }
+    }
+
+    override fun onWindowVisibilityChanged(visibility: Int) {
+        super.onWindowVisibilityChanged(visibility)
+        if (isPassthroughMode) {
+            if (visibility == View.VISIBLE && isShown) {
+                post { syncPassthroughRegion() }
+            } else {
+                resetPassthroughExploreState()
+                onPassthroughRegionChanged?.invoke(null)
+            }
+        }
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        if (isPassthroughMode) {
+            setupAccessibility()
+            post { syncPassthroughRegion() }
+        }
+    }
+
     override fun onDetachedFromWindow() {
+        if (isPassthroughMode) {
+            resetPassthroughExploreState()
+            onPassthroughRegionChanged?.invoke(null)
+        }
         super.onDetachedFromWindow()
         Log.d("TenKey: onDetachedFromWindow", "called")
         release()
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (isPassthroughActive() && accessibilityManager.isTouchExplorationEnabled) {
+            parent?.requestDisallowInterceptTouchEvent(true)
+        }
+        return super.dispatchTouchEvent(ev)
     }
 
     /** Intercept all touch events so we can handle them manually in onTouch **/
@@ -1395,34 +1529,132 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
         if (!accessibilityManager.isTouchExplorationEnabled || event.pointerCount != 1) {
             return super.onHoverEvent(event)
         }
+        return handleExploreEvent(event, isPassthroughTouch = false)
+    }
 
-        // Hover event x/y are view-relative; convert to screen-absolute for key detection
-        if (event.action == MotionEvent.ACTION_HOVER_ENTER) {
+    private fun handleExploreEvent(event: MotionEvent, isPassthroughTouch: Boolean): Boolean {
+        val actionMasked = event.actionMasked
+        if (actionMasked == MotionEvent.ACTION_CANCEL) {
+            resetPassthroughExploreState()
+            return true
+        }
+
+        val pointerIndex: Int
+        val normalizedAction: Int
+        if (isPassthroughTouch) {
+            when (actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    passthroughActivePointerId = event.getPointerId(0)
+                    hasSplitTapInputOccurred = false
+                    pointerIndex = 0
+                    normalizedAction = MotionEvent.ACTION_HOVER_ENTER
+                }
+                MotionEvent.ACTION_POINTER_DOWN -> {
+                    if (passthroughActivePointerId != MotionEvent.INVALID_POINTER_ID && !isExploringUpperArea) {
+                        performSplitTapInput()
+                    }
+                    return true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    if (passthroughActivePointerId == MotionEvent.INVALID_POINTER_ID) return true
+                    if (event.pointerCount > 1) return true
+                    val idx = event.findPointerIndex(passthroughActivePointerId)
+                    if (idx < 0) return true
+                    pointerIndex = idx
+                    normalizedAction = MotionEvent.ACTION_HOVER_MOVE
+                }
+                MotionEvent.ACTION_POINTER_UP -> {
+                    val liftedId = event.getPointerId(event.actionIndex)
+                    if (liftedId != passthroughActivePointerId) {
+                        val activeIdx = event.findPointerIndex(passthroughActivePointerId)
+                        if (activeIdx >= 0) {
+                            val ax = event.getX(activeIdx)
+                            val ay = event.getY(activeIdx)
+                            val loc = IntArray(2)
+                            this.getLocationOnScreen(loc)
+                            hoverCurrentKeyEntryX = ax + loc[0]
+                            hoverCurrentKeyEntryY = ay + loc[1]
+                            hoverCurrentKeyEntryTime = System.currentTimeMillis()
+                            hoverVelocityTracker?.recycle()
+                            hoverVelocityTracker = VelocityTracker.obtain()
+                            val tempEvent = MotionEvent.obtain(
+                                event.downTime,
+                                event.eventTime,
+                                MotionEvent.ACTION_DOWN,
+                                ax,
+                                ay,
+                                event.metaState
+                            )
+                            hoverVelocityTracker?.addMovement(tempEvent)
+                            tempEvent.recycle()
+                        }
+                        return true
+                    }
+                    pointerIndex = event.actionIndex
+                    normalizedAction = MotionEvent.ACTION_HOVER_EXIT
+                    passthroughActivePointerId = MotionEvent.INVALID_POINTER_ID
+                }
+                MotionEvent.ACTION_UP -> {
+                    if (passthroughActivePointerId == MotionEvent.INVALID_POINTER_ID) return true
+                    pointerIndex = event.findPointerIndex(passthroughActivePointerId).takeIf { it >= 0 } ?: 0
+                    normalizedAction = MotionEvent.ACTION_HOVER_EXIT
+                    passthroughActivePointerId = MotionEvent.INVALID_POINTER_ID
+                }
+                else -> return true
+            }
+        } else {
+            pointerIndex = 0
+            normalizedAction = event.action
+        }
+
+        val evX = event.getX(pointerIndex)
+        val evY = event.getY(pointerIndex)
+
+        // Hover/touch x/y are view-relative; convert to screen-absolute for key detection
+        if (normalizedAction == MotionEvent.ACTION_HOVER_ENTER) {
             hoverVelocityTracker?.recycle()
             hoverVelocityTracker = VelocityTracker.obtain()
         }
-        val tempEvent = MotionEvent.obtain(event)
-        if (event.action == MotionEvent.ACTION_HOVER_MOVE) {
-            tempEvent.action = MotionEvent.ACTION_MOVE
-        } else if (event.action == MotionEvent.ACTION_HOVER_ENTER) {
-            tempEvent.action = MotionEvent.ACTION_DOWN
+        if (normalizedAction == MotionEvent.ACTION_HOVER_ENTER || normalizedAction == MotionEvent.ACTION_HOVER_MOVE) {
+            val tempAction = if (normalizedAction == MotionEvent.ACTION_HOVER_ENTER) {
+                MotionEvent.ACTION_DOWN
+            } else {
+                MotionEvent.ACTION_MOVE
+            }
+            val tempEvent = MotionEvent.obtain(
+                event.downTime,
+                event.eventTime,
+                tempAction,
+                evX,
+                evY,
+                event.metaState
+            )
+            hoverVelocityTracker?.addMovement(tempEvent)
+            tempEvent.recycle()
         }
-        hoverVelocityTracker?.addMovement(tempEvent)
-        tempEvent.recycle()
         val location = IntArray(2)
         this.getLocationOnScreen(location)
-        val screenX = event.x + location[0]
-        val screenY = event.y + location[1]
+        val screenX = evX + location[0]
+        val screenY = evY + location[1]
         val key = pressedKeyByScreenCoordinates(screenX, screenY)
 
-        when (event.action) {
+        when (normalizedAction) {
             MotionEvent.ACTION_HOVER_ENTER -> {
+                if (isExploringUpperArea) {
+                    onUpperAreaExploreFinish?.invoke()
+                    isExploringUpperArea = false
+                }
+                wasFlickingGesture = false
+                resetHoverDragStates()
                 if (accessibilityManager.isTouchExplorationEnabled) {
                     accessibilityManager.interrupt()
                 }
                 currentHoverKey = key
                 if (key != Key.NotSelected) {
                     onKeySelected?.invoke()
+                    if (isPassthroughTouch) {
+                        setKeyPressedForKey(key)
+                    }
                 }
                 hoverCurrentKey = key
                 hoverCurrentKeyEntryTime = System.currentTimeMillis()
@@ -1430,10 +1662,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                 hoverCurrentKeyEntryY = screenY
                 isHoverDragActive = false
 
-                val targetView = getButtonFromKey(key) as? View
-                if (targetView is View) {
-                    targetView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
-                }
+                announceHoveredKey(key, isPassthroughTouch)
             }
             MotionEvent.ACTION_HOVER_MOVE -> {
                 val density = context.resources.displayMetrics.density
@@ -1443,11 +1672,40 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                 val yVel = hoverVelocityTracker?.getYVelocity(0) ?: 0f
                 val speed = kotlin.math.sqrt(xVel * xVel + yVel * yVel)
                 val isFlicking = speed > swipeThreshold
-                wasFlickingGesture = isFlicking
+                if (isPassthroughTouch) {
+                    if (isFlicking) {
+                        wasFlickingGesture = true
+                    }
+                } else {
+                    wasFlickingGesture = isFlicking
+                }
+
+                // パススルー時にキーボード領域から上部（変換候補・ツールバー）へゆっくりドラッグした場合、
+                // キー入力をキャンセルして上部エリアのTalkBack探索に切り替える
+                if (isPassthroughTouch) {
+                    if (isExploringUpperArea) {
+                        if (evY >= 0f) {
+                            onUpperAreaExploreFinish?.invoke()
+                            isExploringUpperArea = false
+                        } else {
+                            onUpperAreaExploreMove?.invoke(screenX, screenY)
+                            return true
+                        }
+                    } else if (!isHoverDragActive && !isFlicking && evY < 0f) {
+                        isExploringUpperArea = true
+                        resetAllKeys()
+                        resetHoverDragStates()
+                        currentHoverKey = Key.NotSelected
+                        hoverCurrentKey = Key.NotSelected
+                        onUpperAreaExploreMove?.invoke(screenX, screenY)
+                        return true
+                    }
+                }
 
                 val shouldSwitchKey = key != hoverCurrentKey && !isFlicking
 
                 if (shouldSwitchKey) {
+                    wasFlickingGesture = false
                     hoverCurrentKey = key
                     hoverCurrentKeyEntryTime = System.currentTimeMillis()
                     hoverCurrentKeyEntryX = screenX
@@ -1455,13 +1713,13 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     isHoverDragActive = false
                     resetHoverDragStates()
 
-                    val targetView = getButtonFromKey(key) as? View
-                    if (targetView is View) {
-                        if (accessibilityManager.isTouchExplorationEnabled) {
-                            accessibilityManager.interrupt()
-                        }
-                        targetView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+                    if (isPassthroughTouch) {
+                        setKeyPressedForKey(key)
                     }
+                    if (accessibilityManager.isTouchExplorationEnabled) {
+                        accessibilityManager.interrupt()
+                    }
+                    announceHoveredKey(key, isPassthroughTouch)
                 } else {
                     if (!isHoverDragActive) {
                         if (isFlicking) {
@@ -1516,7 +1774,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         }
                     }
                     // Only send hover enter event if we are not actively dragging to keep focus frame synced
-                    if (!isHoverDraggingRightCursor && !isHoverDraggingLeftCursor && !isHoverDraggingDeleteKey && !isHoverDraggingSpaceKey && !isHoverDraggingCharKey && !isHoverDraggingReadAloudKey) {
+                    if (!isPassthroughTouch && !isHoverDraggingRightCursor && !isHoverDraggingLeftCursor && !isHoverDraggingDeleteKey && !isHoverDraggingSpaceKey && !isHoverDraggingCharKey && !isHoverDraggingReadAloudKey) {
                         val targetView = getButtonFromKey(key) as? View
                         if (targetView is View) {
                             targetView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
@@ -2111,10 +2369,10 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             isHoverDragActive = false
                             
                             // Immediately announce the currently hovered key
-                            val targetView = getButtonFromKey(key)
-                            if (targetView is View) {
-                                targetView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+                            if (isPassthroughTouch) {
+                                setKeyPressedForKey(key)
                             }
+                            announceHoveredKey(key, isPassthroughTouch)
                         } else {
                             val charToAnnounce = when (nextGesture) {
                                 GestureType.Tap -> activeKeyInfo.tap?.toAccessibilityName()
@@ -2143,15 +2401,35 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
             MotionEvent.ACTION_HOVER_EXIT -> {
                 hoverVelocityTracker?.recycle()
                 hoverVelocityTracker = null
+                if (isPassthroughTouch) {
+                    announceTextRunnable?.let { removeCallbacks(it) }
+                    resetAllKeys()
+                }
+                if (isExploringUpperArea) {
+                    onUpperAreaExploreFinish?.invoke()
+                    isExploringUpperArea = false
+                    hasSplitTapInputOccurred = false
+                    resetHoverDragStates()
+                    currentHoverKey = Key.NotSelected
+                    hoverCurrentKey = Key.NotSelected
+                    isHoverDragActive = false
+                    wasFlickingGesture = false
+                    return true
+                }
+                val suppressPlainTapOnExit = isPassthroughTouch && hasSplitTapInputOccurred
+                hasSplitTapInputOccurred = false
+                val wasFlickingAtExit = wasFlickingGesture
+                wasFlickingGesture = false
+                isHoverDragActive = false
                 // Prevent accidental input when sliding off the keyboard edge.
                 val buffer = 2f // Tolerance pixels for the view boundary
                 val viewWidth = width.toFloat()
                 val viewHeight = height.toFloat()
                 
-                val isSlideOff = event.x <= buffer || 
-                               event.x >= (viewWidth - buffer) || 
-                               event.y <= buffer || 
-                               event.y >= (viewHeight - buffer)
+                val isSlideOff = evX <= buffer || 
+                               evX >= (viewWidth - buffer) || 
+                               evY <= buffer || 
+                               evY >= (viewHeight - buffer)
 
                 if (isHoverDraggingRightCursor) {
                     isHoverDraggingRightCursor = false
@@ -2184,7 +2462,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
                     if (triggerLineStart) {
                         isLineStartAnnounced = false
-                        if (!isSlideOff || wasFlickingGesture) {
+                        if (!isSlideOff || wasFlickingAtExit || isPassthroughTouch) {
                             flickListener?.onFlick(
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyCursorRight,
@@ -2195,7 +2473,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         return true
                     } else if (triggerLineEnd) {
                         isLineEndAnnounced = false
-                        if (!isSlideOff || wasFlickingGesture) {
+                        if (!isSlideOff || wasFlickingAtExit || isPassthroughTouch) {
                             flickListener?.onFlick(
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyCursorRight,
@@ -2206,7 +2484,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         return true
                     } else if (triggerLineUp) {
                         isLineUpAnnounced = false
-                        if (!isSlideOff || wasFlickingGesture) {
+                        if (!isSlideOff || wasFlickingAtExit || isPassthroughTouch) {
                             flickListener?.onFlick(
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyCursorRight,
@@ -2217,7 +2495,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         return true
                     } else if (triggerLineDown) {
                         isLineDownAnnounced = false
-                        if (!isSlideOff || wasFlickingGesture) {
+                        if (!isSlideOff || wasFlickingAtExit || isPassthroughTouch) {
                             flickListener?.onFlick(
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyCursorRight,
@@ -2260,7 +2538,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
                     if (triggerLineStart) {
                         isLeftLineStartAnnounced = false
-                        if (!isSlideOff || wasFlickingGesture) {
+                        if (!isSlideOff || wasFlickingAtExit || isPassthroughTouch) {
                             flickListener?.onFlick(
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyCursorLeft,
@@ -2271,7 +2549,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         return true
                     } else if (triggerLineEnd) {
                         isLeftLineEndAnnounced = false
-                        if (!isSlideOff || wasFlickingGesture) {
+                        if (!isSlideOff || wasFlickingAtExit || isPassthroughTouch) {
                             flickListener?.onFlick(
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyCursorLeft,
@@ -2282,7 +2560,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         return true
                     } else if (triggerLineUp) {
                         isLeftLineUpAnnounced = false
-                        if (!isSlideOff || wasFlickingGesture) {
+                        if (!isSlideOff || wasFlickingAtExit || isPassthroughTouch) {
                             flickListener?.onFlick(
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyCursorLeft,
@@ -2293,7 +2571,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         return true
                     } else if (triggerLineDown) {
                         isLeftLineDownAnnounced = false
-                        if (!isSlideOff || wasFlickingGesture) {
+                        if (!isSlideOff || wasFlickingAtExit || isPassthroughTouch) {
                             flickListener?.onFlick(
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyCursorLeft,
@@ -2331,7 +2609,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
                     if (triggerDeleteLeft) {
                         isDeleteLeftAnnounced = false
-                        if (!isSlideOff || wasFlickingGesture) {
+                        if (!isSlideOff || wasFlickingAtExit || isPassthroughTouch) {
                             flickListener?.onFlick(
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyDelete,
@@ -2342,7 +2620,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         return true
                     } else if (triggerDeleteRight) {
                         isDeleteRightAnnounced = false
-                        if (!isSlideOff || wasFlickingGesture) {
+                        if (!isSlideOff || wasFlickingAtExit || isPassthroughTouch) {
                             flickListener?.onFlick(
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyDelete,
@@ -2385,7 +2663,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
                     if (triggerLeft) {
                         isReadAloudLeftAnnounced = false
-                        if (!isSlideOff || wasFlickingGesture) {
+                        if (!isSlideOff || wasFlickingAtExit || isPassthroughTouch) {
                             flickListener?.onFlick(
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyReadAloud,
@@ -2396,7 +2674,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         return true
                     } else if (triggerUp) {
                         isReadAloudUpAnnounced = false
-                        if (!isSlideOff || wasFlickingGesture) {
+                        if (!isSlideOff || wasFlickingAtExit || isPassthroughTouch) {
                             flickListener?.onFlick(
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyReadAloud,
@@ -2407,7 +2685,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         return true
                     } else if (triggerRight) {
                         isReadAloudRightAnnounced = false
-                        if (!isSlideOff || wasFlickingGesture) {
+                        if (!isSlideOff || wasFlickingAtExit || isPassthroughTouch) {
                             flickListener?.onFlick(
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyReadAloud,
@@ -2418,7 +2696,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                         return true
                     } else if (triggerDown) {
                         isReadAloudDownAnnounced = false
-                        if (!isSlideOff || wasFlickingGesture) {
+                        if (!isSlideOff || wasFlickingAtExit || isPassthroughTouch) {
                             flickListener?.onFlick(
                                 gestureType = GestureType.Tap,
                                 key = Key.SideKeyReadAloud,
@@ -2470,7 +2748,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                                          gestureType == GestureType.FlickRight ||
                                          gestureType == GestureType.FlickBottom
 
-                    if (gestureType != GestureType.Null && (!isSlideOff || (isSpaceFlickGesture && wasFlickingGesture))) {
+                    if (gestureType != GestureType.Null && (!suppressPlainTapOnExit || isSpaceFlickGesture) && (!isSlideOff || (isSpaceFlickGesture && (wasFlickingAtExit || isPassthroughTouch)))) {
                         flickListener?.onFlick(
                             gestureType = gestureType,
                             key = Key.SideKeySpace,
@@ -2485,11 +2763,30 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     isHoverDraggingCharKey = false
                     val activeKey = hoverCharKey
                     hoverCharKey = Key.NotSelected
-                    Log.d("TenKeyDrag", "ACTION_HOVER_EXIT: hover Char drag finished on $activeKey. hoverActiveGesture=$hoverActiveGesture")
+                    var finalGesture = hoverActiveGesture
+                    if (finalGesture == GestureType.Tap) {
+                        val dx = screenX - hoverCharKeyDragStartX
+                        val dy = screenY - hoverCharKeyDragStartY
+                        val button = getButtonFromKey(activeKey) as? View
+                        val threshold = if (button != null && button.width > 0) {
+                            button.width.toFloat() / 6f
+                        } else {
+                            flickSensitivity.toFloat()
+                        }
+                        finalGesture = when {
+                            abs(dx) < threshold && abs(dy) < threshold -> GestureType.Tap
+                            abs(dx) > abs(dy) && dx < -threshold -> GestureType.FlickLeft
+                            abs(dx) <= abs(dy) && dy < -threshold -> GestureType.FlickTop
+                            abs(dx) > abs(dy) && dx > threshold -> GestureType.FlickRight
+                            abs(dx) <= abs(dy) && dy > threshold -> GestureType.FlickBottom
+                            else -> GestureType.Tap
+                        }
+                    }
+                    Log.d("TenKeyDrag", "ACTION_HOVER_EXIT: hover Char drag finished on $activeKey. finalGesture=$finalGesture (hoverActiveGesture=$hoverActiveGesture)")
                     
                     val activeKeyInfo = currentInputMode.value.next(keyMap = keyMap, key = activeKey, isTablet = false)
                     if (activeKeyInfo is KeyInfo.KeyTapFlickInfo) {
-                        val finalChar = when (hoverActiveGesture) {
+                        val finalChar = when (finalGesture) {
                             GestureType.Tap -> activeKeyInfo.tap
                             GestureType.FlickLeft -> activeKeyInfo.flickLeft
                             GestureType.FlickTop -> activeKeyInfo.flickTop
@@ -2498,15 +2795,15 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                             else -> null
                         }
                         
-                        val isCharFlickGesture = hoverActiveGesture == GestureType.FlickLeft ||
-                                             hoverActiveGesture == GestureType.FlickTop ||
-                                             hoverActiveGesture == GestureType.FlickRight ||
-                                             hoverActiveGesture == GestureType.FlickBottom
+                        val isCharFlickGesture = finalGesture == GestureType.FlickLeft ||
+                                             finalGesture == GestureType.FlickTop ||
+                                             finalGesture == GestureType.FlickRight ||
+                                             finalGesture == GestureType.FlickBottom
 
-                        if (finalChar != null && (!isSlideOff || (isCharFlickGesture && wasFlickingGesture))) {
-                            Log.d("TenKeyDrag", "ACTION_HOVER_EXIT: Dispatching flick event for $activeKey: $hoverActiveGesture -> $finalChar")
+                        if (finalChar != null && (!suppressPlainTapOnExit || isCharFlickGesture) && (!isSlideOff || (isCharFlickGesture && (wasFlickingAtExit || isPassthroughTouch)))) {
+                            Log.d("TenKeyDrag", "ACTION_HOVER_EXIT: Dispatching flick event for $activeKey: $finalGesture -> $finalChar")
                             flickListener?.onFlick(
-                                gestureType = hoverActiveGesture,
+                                gestureType = finalGesture,
                                 key = activeKey,
                                 char = finalChar
                             )
@@ -2516,7 +2813,7 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                     }
                 }
 
-                if (!isSlideOff) {
+                if (!isSlideOff && !suppressPlainTapOnExit) {
                     if (currentHoverKey != Key.NotSelected) {
                         performKeyInput(currentHoverKey)
                     }
@@ -2579,6 +2876,9 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
             return false
         }
         if (view != null && event != null) {
+            if (isPassthroughActive() && accessibilityManager.isTouchExplorationEnabled) {
+                return handleExploreEvent(event, isPassthroughTouch = true)
+            }
             if (accessibilityManager.isTouchExplorationEnabled && !isCalledFromHoverEvent) {
                 return true
             }
@@ -5493,6 +5793,22 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
 
     /** Mark all key Views as non‐focusable so touches go directly to onTouch **/
     private fun setupAccessibility() {
+        if (isPassthroughActive()) {
+            this.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            this.isFocusable = false
+            this.isClickable = false
+            listKeys.values.forEach { view ->
+                if (view is View) {
+                    view.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+                    view.isClickable = false
+                    view.isFocusable = false
+                    view.setOnClickListener(null)
+                    ViewCompat.setAccessibilityDelegate(view, null)
+                }
+            }
+            return
+        }
+        this.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
         listKeys.forEach { (key, view) ->
             if (view is View) {
                 view.isClickable = true
@@ -5714,7 +6030,25 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
         }
     }
 
-    private fun performKeyInput(key: Key) {
+    private fun performSplitTapInput() {
+        if (isExploringUpperArea) return
+        val targetKey = if (hoverCurrentKey != Key.NotSelected) hoverCurrentKey else currentHoverKey
+        if (targetKey == Key.NotSelected) return
+
+        announceTextRunnable?.let { removeCallbacks(it) }
+        hasSplitTapInputOccurred = true
+        wasFlickingGesture = false
+        isHoverDragActive = false
+        resetHoverDragStates()
+        hoverCurrentKeyEntryTime = System.currentTimeMillis()
+        hoverCurrentKey = targetKey
+        currentHoverKey = targetKey
+        setKeyPressedForKey(targetKey)
+
+        performKeyInput(targetKey, resetHoverState = false)
+    }
+
+    private fun performKeyInput(key: Key, resetHoverState: Boolean = true) {
         val keyInfo = currentInputMode.value
             .next(keyMap = keyMap, key = key, isTablet = false)
 
@@ -5733,13 +6067,60 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
             )
         }
         // Reset hover state after input
-        currentHoverKey = Key.NotSelected
-        isCalledFromHoverEvent = false
+        if (resetHoverState) {
+            currentHoverKey = Key.NotSelected
+            isCalledFromHoverEvent = false
+        }
+    }
+
+    private fun getKeyAccessibilityDescription(key: Key): String? {
+        val host = getButtonFromKey(key) as? View ?: return null
+        var description = host.contentDescription ?: (host as? TextView)?.text
+
+        if (key == Key.KeyDakutenSmall && currentInputMode.value == InputMode.ModeNumber) {
+            description = "かっこ とじかっこ かくかっこ とじかくかっこ"
+        }
+
+        return if (!description.isNullOrEmpty()) {
+            buildTenKeyAccessibilityDescription(
+                description = description,
+                key = key,
+                inputMode = currentInputMode.value
+            ).toString()
+        } else {
+            when (host) {
+                binding.sideKeyReadAloud -> host.context.getString(com.kazumaproject.core.R.string.read_aloud)
+                binding.sideKeySymbol -> host.context.getString(com.kazumaproject.core.R.string.symbol)
+                else -> null
+            }
+        }
+    }
+
+    private fun announceHoveredKey(key: Key, isPassthroughTouch: Boolean) {
+        if (key == Key.NotSelected) return
+        if (isPassthroughTouch || isPassthroughActive()) {
+            val desc = getKeyAccessibilityDescription(key)
+            if (!desc.isNullOrEmpty()) {
+                announceForAccessibility(desc)
+            }
+        } else {
+            val targetView = getButtonFromKey(key) as? View
+            targetView?.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+        }
+    }
+
+    private fun setKeyPressedForKey(targetKey: Key) {
+        listKeys.forEach { (keyEnum, viewObj) ->
+            when (viewObj) {
+                is InputModeSwitch -> viewObj.isPressed = (keyEnum == targetKey)
+                is AppCompatButton -> viewObj.isPressed = (keyEnum == targetKey)
+                is AppCompatImageButton -> viewObj.isPressed = (keyEnum == targetKey)
+            }
+        }
     }
 
     private fun announceKey(key: Key) {
-        val targetView = getButtonFromKey(key) as? View ?: return
-        targetView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+        announceHoveredKey(key, isPassthroughTouch = isPassthroughActive())
     }
 
     private fun setViewsNotFocusable() {
@@ -5885,7 +6266,9 @@ class TenKey(context: Context, attributeSet: AttributeSet) :
                 if (charToAnnounce != null) {
                     hoverLastAnnouncedChar = charToAnnounce
                     // Do not call announceForAccessibility or Toast to prevent redundant reading of the base key name at 500ms mark.
-                    onKeySelected?.invoke()
+                    if (!hasSplitTapInputOccurred) {
+                        onKeySelected?.invoke()
+                    }
                 }
             }
         }

@@ -255,7 +255,7 @@ class KeyboardSelectionFragment : Fragment() {
     private fun showAddKeyboardDialog() {
         val allKeyboardTypes = KeyboardType.entries.filter {
             it != KeyboardType.CUSTOM &&
-                    (com.kazumaproject.markdownhelperkeyboard.BuildConfig.DEBUG || (it != KeyboardType.TABLET_KANA && it != KeyboardType.AYAME_TABLET_KANA && it != KeyboardType.BRAILLE))
+                    (com.kazumaproject.markdownhelperkeyboard.BuildConfig.DEBUG || (it != KeyboardType.TABLET_KANA && it != KeyboardType.AYAME_TABLET_KANA && it != KeyboardType.BRAILLE && it != KeyboardType.TENKEY_BETA))
         }.toTypedArray()
         val currentKeyboards = viewModel.uiState.value.keyboards
         val availableKeyboards = allKeyboardTypes.filter { it !in currentKeyboards }
@@ -332,5 +332,6 @@ fun getKeyboardDisplayName(keyboardType: KeyboardType): String {
         KeyboardType.TABLET_KANA -> "タブレット用かなレイアウト"
         KeyboardType.AYAME_TABLET_KANA -> "アヤメタブレット用かなレイアウト"
         KeyboardType.BRAILLE -> "点字キーボード(開発中)"
+        KeyboardType.TENKEY_BETA -> "テンキーベータ"
     }
 }

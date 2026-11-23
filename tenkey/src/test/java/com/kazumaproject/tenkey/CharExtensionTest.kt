@@ -125,4 +125,19 @@ class CharExtensionTest {
         assertEquals('ぽ', 'ほ'.getDakutenFlickRight())
         assertEquals('っ', 'つ'.getDakutenFlickTop())
     }
+
+    @Test
+    fun testYaRowMultiTapIncludesParentheses() {
+        assertEquals('ゆ', 'や'.getNextInputChar('や'))
+        assertEquals('よ', 'ゆ'.getNextInputChar('や'))
+        assertEquals('（', 'よ'.getNextInputChar('や'))
+        assertEquals('）', '（'.getNextInputChar('や'))
+        assertEquals('や', '）'.getNextInputChar('や'))
+
+        assertEquals('）', 'や'.getNextReturnInputChar())
+        assertEquals('（', '）'.getNextReturnInputChar())
+        assertEquals('よ', '（'.getNextReturnInputChar())
+        assertEquals('ゆ', 'よ'.getNextReturnInputChar())
+        assertEquals('や', 'ゆ'.getNextReturnInputChar())
+    }
 }

@@ -62,10 +62,9 @@ private fun Char.getNextInputCharInternal(charAtInsertPosition: Char): Char? {
 
         this == 'や' && charAtInsertPosition == 'や' -> 'ゆ'
         this == 'ゆ' && charAtInsertPosition == 'や' -> 'よ'
-        this == 'よ' && charAtInsertPosition == 'や' -> 'ゃ'
-        this == 'ゃ' && charAtInsertPosition == 'や' -> 'ゅ'
-        this == 'ゅ' && charAtInsertPosition == 'や' -> 'ょ'
-        this == 'ょ' && charAtInsertPosition == 'や' -> 'や'
+        this == 'よ' && charAtInsertPosition == 'や' -> '（'
+        this == '（' && charAtInsertPosition == 'や' -> '）'
+        this == '）' && charAtInsertPosition == 'や' -> 'や'
 
         this == 'ら' && charAtInsertPosition == 'ら' -> 'り'
         this == 'り' && charAtInsertPosition == 'ら' -> 'る'
@@ -232,12 +231,11 @@ fun Char.getNextReturnInputChar(): Char? {
         'め' -> 'む'
         'も' -> 'め'
 
-        'や' -> 'ょ'
+        'や' -> '）'
         'ゆ' -> 'や'
         'よ' -> 'ゆ'
-        'ゃ' -> 'よ'
-        'ゅ' -> 'ゃ'
-        'ょ' -> 'ゅ'
+        '（' -> 'よ'
+        '）' -> '（'
 
         'ら' -> 'ろ'
         'り' -> 'ら'

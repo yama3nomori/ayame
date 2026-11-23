@@ -3,36 +3,63 @@ package com.kazumaproject.markdownhelperkeyboard.braille
 import android.accessibilityservice.AccessibilityService
 import android.graphics.Region
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.view.Display
 import android.view.accessibility.AccessibilityEvent
 import timber.log.Timber
 
 /**
- * 点字キーボードの4点タッチエリア限定でTalkBackのタッチ探索およびジェスチャー検出をパススルーし、
- * キーボード自身のマルチタッチ・スワイプジェスチャーをダイレクトに動作させるためのユーザー補助サービス。
+ * キーボードの指定タッチエリア限定でTalkBackのタッチ探索およびジェスチャー検出をパススルーし、
+ * キーボード自身のマルチタッチ・フリック・スワイプジェスチャーをダイレクトに動作させるためのユーザー補助サービス。
  */
 class BraillePassthroughAccessibilityService : AccessibilityService() {
 
     companion object {
+        const val OWNER_BRAILLE = "braille"
+        const val OWNER_TENKEY_BETA = "tenkey_beta"
+
         @Volatile
         private var instance: BraillePassthroughAccessibilityService? = null
 
         @Volatile
         private var currentPassthroughRegion: Region = Region()
 
+        @Volatile
+        private var currentOwner: String? = null
+
+        @Volatile
+        var onConnectionChanged: ((Boolean) -> Unit)? = null
+
+        private val mainHandler = Handler(Looper.getMainLooper())
+
         /**
-         * 点字キーボードの4点タッチエリアの画面上領域を更新する。
+         * パススルー対応のユーザー補助サービスが接続済みかつOSサポート対象(API 30+)かを返す
+         */
+        fun isServiceConnected(): Boolean {
+            return instance != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+        }
+
+        /**
+         * パススルー対象エリアの画面上領域を更新する。
          * 空の Region() を渡すとパススルーを解除し、画面全体でTalkBackジェスチャーが通常動作する。
          */
-        fun updatePassthroughRegion(region: Region) {
+        fun updatePassthroughRegion(region: Region, owner: String = OWNER_BRAILLE) {
+            currentOwner = if (region.isEmpty) null else owner
             currentPassthroughRegion = Region(region)
             instance?.applyRegion(currentPassthroughRegion)
         }
 
         /**
-         * パススルー領域を即座にクリア（解除）する
+         * パススルー領域を即座にクリア（解除）する。
+         * owner を指定した場合は、その owner が現在保持中の領域である場合のみクリアする。
+         * owner が null の場合は無条件にクリアする。
          */
-        fun clearPassthroughRegion() {
+        fun clearPassthroughRegion(owner: String? = null) {
+            if (owner != null && currentOwner != null && currentOwner != owner) {
+                return
+            }
+            currentOwner = null
             currentPassthroughRegion = Region()
             instance?.applyRegion(Region())
         }
@@ -43,6 +70,7 @@ class BraillePassthroughAccessibilityService : AccessibilityService() {
         instance = this
         Timber.d("BraillePassthroughAccessibilityService connected")
         applyRegion(currentPassthroughRegion)
+        mainHandler.post { onConnectionChanged?.invoke(isServiceConnected()) }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -58,6 +86,7 @@ class BraillePassthroughAccessibilityService : AccessibilityService() {
         if (instance === this) {
             instance = null
         }
+        mainHandler.post { onConnectionChanged?.invoke(false) }
         super.onDestroy()
     }
 

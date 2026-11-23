@@ -10,6 +10,7 @@ import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Matrix
+import android.graphics.Region
 import android.graphics.drawable.Drawable
 import android.hardware.input.InputManager
 import android.inputmethodservice.InputMethodService
@@ -294,6 +295,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
     private var zenzEngine: ZenzEngine? = null
 
     private var announceRunnable: Runnable? = null
+    private var announceInterruptRunnable: Runnable? = null
 
     private var shortcutAdapter: ShortcutAdapter? = null
 
@@ -1160,6 +1162,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 }
                 val handler = targetView?.handler ?: android.os.Handler(android.os.Looper.getMainLooper())
                 announceRunnable?.let { handler.removeCallbacks(it) }
+                announceInterruptRunnable?.let { handler.removeCallbacks(it) }
                 announceTextRunnable?.let { targetView?.removeCallbacks(it) }
 
                 isSuggestionConfirming = true
@@ -1295,7 +1298,11 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         physicalKeyboardFloatingYPosition = 150
         _suggestionViewStatus.update { true }
         appPreference.apply {
-            val devKeyboards = if (com.kazumaproject.markdownhelperkeyboard.BuildConfig.DEBUG) listOf(KeyboardType.BRAILLE) else emptyList()
+            val devKeyboards = if (com.kazumaproject.markdownhelperkeyboard.BuildConfig.DEBUG) {
+                listOf(KeyboardType.BRAILLE, KeyboardType.TENKEY_BETA)
+            } else {
+                emptyList()
+            }
             keyboardOrder = (keyboard_order + devKeyboards).distinct()
             candidateTabOrder = candidate_tab_order
             mozcUTPersonName = mozc_ut_person_names_preference ?: false
@@ -1959,6 +1966,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         mainLayoutBinding?.brailleView?.post {
             mainLayoutBinding?.brailleView?.syncPassthroughRegion()
         }
+        mainLayoutBinding?.keyboardView?.post {
+            mainLayoutBinding?.keyboardView?.syncPassthroughRegion()
+        }
         // hijackWindowCallback() // Remove potentially conflicting hijacking
         val isTalkBackEnabled = isTalkBackActive()
         if (volumeKeyCursorMovePreference == true || isTalkBackEnabled) {
@@ -2048,6 +2058,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         targetView?.let { view ->
             announceTextRunnable?.let { view.removeCallbacks(it) }
             announceRunnable?.let { view.removeCallbacks(it) }
+            announceInterruptRunnable?.let { view.removeCallbacks(it) }
         }
 
         val recyclerView = if (isKeyboardFloatingMode == true) floatingKeyboardBinding?.suggestionRecyclerView else mainLayoutBinding?.suggestionRecyclerView
@@ -2086,12 +2097,15 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         scope.cancel()
         ioScope.cancel()
         isIMEWindowShown = false
+        com.kazumaproject.markdownhelperkeyboard.braille.BraillePassthroughAccessibilityService.onConnectionChanged = null
+        com.kazumaproject.markdownhelperkeyboard.braille.BraillePassthroughAccessibilityService.clearPassthroughRegion()
         Timber.d("onUpdate onDestroy")
 
         val targetView = if (isKeyboardFloatingMode == true) floatingKeyboardBinding?.root else mainLayoutBinding?.root
         targetView?.let { view ->
             announceTextRunnable?.let { view.removeCallbacks(it) }
             announceRunnable?.let { view.removeCallbacks(it) }
+            announceInterruptRunnable?.let { view.removeCallbacks(it) }
         }
 
         val recyclerView = if (isKeyboardFloatingMode == true) floatingKeyboardBinding?.suggestionRecyclerView else mainLayoutBinding?.suggestionRecyclerView
@@ -2645,6 +2659,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         mainLayoutBinding?.let { mainView ->
             val currentKeyboard = keyboardOrder.getOrNull(currentKeyboardOrder)
             val isTabletGojuonFallback = isTablet == true && tabletGojuonLayoutPreference == true
+            mainView.keyboardView.isPassthroughMode = currentKeyboard == KeyboardType.TENKEY_BETA
             mainView.keyboardView.isAyameMode = currentKeyboard == KeyboardType.AYAME_TENKEY && !isTabletGojuonFallback
             mainView.qwertyView.isAyameMode = currentKeyboard == KeyboardType.AYAME_QWERTY || currentKeyboard == KeyboardType.AYAME_ROMAJI
             mainView.customLayoutDefault.isAyameMode = currentKeyboard == KeyboardType.AYAME_NUMERIC
@@ -2655,6 +2670,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
         floatingKeyboardBinding?.let { floatingKeyboardLayoutBinding ->
             val currentKeyboard = keyboardOrder.getOrNull(currentKeyboardOrder)
+            floatingKeyboardLayoutBinding.keyboardViewFloating.isPassthroughMode = false
             floatingKeyboardLayoutBinding.keyboardViewFloating.isAyameMode = currentKeyboard == KeyboardType.AYAME_TENKEY
             setFloatingKeyboardListeners(floatingKeyboardLayoutBinding = floatingKeyboardLayoutBinding)
             val heightPref = tenkeyHeightPreferenceValue ?: 280
@@ -3056,7 +3072,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         // Obsolete: 明示的な割り込みはTalkBackの音切れやハングアップをフリーズを避けるため廃止
     }
 
-    private fun announceChar(char: Char?, delayOverride: Long? = null) {
+    private fun announceChar(char: Char?, delayOverride: Long? = null, isReplacement: Boolean = false) {
         if (char == null) return
         
         val currentKeyboard = keyboardOrder.getOrNull(currentKeyboardOrder)
@@ -3117,13 +3133,60 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 mainLayoutBinding?.root
             }
             val isPassword = isCurrentInputTypePassword()
-            val delay = delayOverride ?: if (isPassword) 50L else 10L
+            val isTenKeyBeta = currentKeyboard == KeyboardType.TENKEY_BETA
+            val isAyameTenkeyMultiTap = currentKeyboard == KeyboardType.AYAME_TENKEY && isReplacement
             val handler = targetView?.handler ?: android.os.Handler(android.os.Looper.getMainLooper())
             
-            // 以前にスケジュールされていた未実行の読み上げをキャンセル（デバウンス）
+            // 以前にスケジュールされていた未実行の読み上げ・割り込みをキャンセル（デバウンス）
+            announceInterruptRunnable?.let {
+                handler.removeCallbacks(it)
+            }
             announceRunnable?.let {
                 handler.removeCallbacks(it)
             }
+
+            if (isTenKeyBeta || isAyameTenkeyMultiTap) {
+                // テンキーベータおよびアヤメテンキーのマルチタップ（文字置換）では、
+                // am.interrupt() と TYPE_ANNOUNCEMENT を同時実行すると TalkBack/TTS 側で
+                // 音切れ（読み上げ欠落）が起きることがあるため、
+                // 割り込みと読み上げ送信の間に間隔（35〜40ms）を空けて確実に読み上げる。
+                val interruptDelay = if (isReplacement || isPassword) 70L else 40L
+                val announceDelay = delayOverride ?: if (isReplacement || isPassword) 110L else 75L
+
+                val interruptRunnable = Runnable {
+                    try {
+                        am.interrupt()
+                    } catch (e: Exception) {
+                        Timber.e(e, "Failed to interrupt TalkBack")
+                    }
+                }
+                val runnable = Runnable {
+                    try {
+                        android.util.Log.d("IMEServiceAccessibility", "announceChar posting announcement: '$announcement' (delay=$announceDelay, interruptDelay=$interruptDelay, isReplacement=$isReplacement, isTenKeyBeta=$isTenKeyBeta, isAyameTenkeyMultiTap=$isAyameTenkeyMultiTap)")
+                        val event = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT)
+                        event.text.add(announcement)
+                        event.packageName = packageName
+                        event.className = javaClass.name
+                        event.isEnabled = true
+
+                        if (targetView != null) {
+                            targetView.sendAccessibilityEventUnchecked(event)
+                        } else {
+                            am.sendAccessibilityEvent(event)
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("IMEServiceAccessibility", "Failed to send accessibility announcement", e)
+                    }
+                }
+
+                announceInterruptRunnable = interruptRunnable
+                announceRunnable = runnable
+                handler.postDelayed(interruptRunnable, interruptDelay)
+                handler.postDelayed(runnable, announceDelay)
+                return
+            }
+
+            val delay = delayOverride ?: if (isPassword) 50L else 10L
             
             val runnable = Runnable {
                 try {
@@ -4437,14 +4500,129 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
     }
 
+    private var currentTenKeyUpperHoveredView: View? = null
+
+    private fun findUpperAreaTargetViewAt(mainView: MainLayoutBinding, screenX: Float, screenY: Float): View? {
+        val targetContainers = listOf<View>(
+            mainView.suggestionViewParent,
+            mainView.candidateTabLayout,
+            mainView.shortcutToolbarRecyclerview,
+            mainView.candidatesRowView
+        )
+        for (container in targetContainers) {
+            if (!container.isShown || container.visibility != View.VISIBLE) continue
+            val found = findAccessibleViewAtRecursive(container, screenX, screenY)
+            if (found != null) return found
+        }
+        return null
+    }
+
+    private fun findAccessibleViewAtRecursive(view: View, screenX: Float, screenY: Float): View? {
+        if (!view.isShown || view.visibility != View.VISIBLE) return null
+        val id = view.id
+        if (id == R.id.suggestion_focus_loop_start ||
+            id == R.id.suggestion_focus_loop_end ||
+            id == R.id.accessibility_announcement_view
+        ) {
+            return null
+        }
+
+        val loc = IntArray(2)
+        view.getLocationOnScreen(loc)
+        val left = loc[0].toFloat()
+        val top = loc[1].toFloat()
+        val right = left + view.width
+        val bottom = top + view.height
+        if (screenX < left || screenX > right || screenY < top || screenY > bottom) {
+            return null
+        }
+
+        if (view is ViewGroup) {
+            for (i in view.childCount - 1 downTo 0) {
+                val child = view.getChildAt(i)
+                val found = findAccessibleViewAtRecursive(child, screenX, screenY)
+                if (found != null) return found
+            }
+        }
+
+        if (id == R.id.suggestionView_parent ||
+            id == R.id.suggestion_recycler_view ||
+            id == R.id.shortcut_toolbar_recyclerview ||
+            id == R.id.candidates_row_view ||
+            id == R.id.candidate_tab_layout ||
+            id == R.id.empty_icons_container
+        ) {
+            return null
+        }
+
+        val hasA11yContent = !view.contentDescription.isNullOrEmpty() ||
+            (view is TextView && !view.text.isNullOrEmpty())
+        val isInteractiveItem = view.isClickable || view.isFocusable ||
+            (view.importantForAccessibility == View.IMPORTANT_FOR_ACCESSIBILITY_YES && hasA11yContent)
+
+        return if (isInteractiveItem) view else null
+    }
+
+    private fun updateUpperAreaExplorationFromTenKey(mainView: MainLayoutBinding, screenX: Float, screenY: Float) {
+        val targetView = findUpperAreaTargetViewAt(mainView, screenX, screenY)
+        if (targetView != currentTenKeyUpperHoveredView) {
+            currentTenKeyUpperHoveredView?.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_EXIT)
+            currentTenKeyUpperHoveredView = targetView
+            if (targetView != null) {
+                targetView.performAccessibilityAction(
+                    AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS,
+                    null
+                )
+                targetView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+                vibrateKeySelect()
+            }
+        }
+    }
+
+    private fun finishUpperAreaExplorationFromTenKey() {
+        currentTenKeyUpperHoveredView?.let { target ->
+            target.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_EXIT)
+            target.performAccessibilityAction(
+                AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS,
+                null
+            )
+        }
+        currentTenKeyUpperHoveredView = null
+    }
+
     private fun setTenKeyListeners(
         mainView: MainLayoutBinding
     ) {
+        com.kazumaproject.markdownhelperkeyboard.braille.BraillePassthroughAccessibilityService.onConnectionChanged = {
+            mainLayoutBinding?.keyboardView?.onPassthroughServiceStateChanged()
+        }
         mainView.keyboardView.apply {
             onKeySelected = {
                 playSoundKeySelect()
                 vibrateKeySelect()
             }
+            onPassthroughRegionChanged = { rect ->
+                if (rect != null) {
+                    com.kazumaproject.markdownhelperkeyboard.braille.BraillePassthroughAccessibilityService.updatePassthroughRegion(
+                        Region(rect),
+                        com.kazumaproject.markdownhelperkeyboard.braille.BraillePassthroughAccessibilityService.OWNER_TENKEY_BETA
+                    )
+                } else {
+                    com.kazumaproject.markdownhelperkeyboard.braille.BraillePassthroughAccessibilityService.clearPassthroughRegion(
+                        com.kazumaproject.markdownhelperkeyboard.braille.BraillePassthroughAccessibilityService.OWNER_TENKEY_BETA
+                    )
+                }
+            }
+            isPassthroughServiceConnected = {
+                com.kazumaproject.markdownhelperkeyboard.braille.BraillePassthroughAccessibilityService.isServiceConnected()
+            }
+            onUpperAreaExploreMove = { screenX, screenY ->
+                updateUpperAreaExplorationFromTenKey(mainView, screenX, screenY)
+            }
+            onUpperAreaExploreFinish = {
+                finishUpperAreaExplorationFromTenKey()
+            }
+            onPassthroughServiceStateChanged()
             applyKeyboardTheme(
                 themeMode = keyboardThemeMode ?: "default",
                 currentNightMode = currentNightMode,
@@ -5339,19 +5517,22 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             } else {
                 it
             }
+            val prevInput = inputString.value
             sendCharTap(
                 charToSend = finalChar, insertString = insertString, sb = sb
             )
+            val newInput = inputString.value
+            val isCharReplaced = prevInput.isNotEmpty() && newInput.length == prevInput.length && newInput != prevInput
             val currentKeyboard = keyboardOrder.getOrNull(currentKeyboardOrder)
-            if (currentKeyboard == KeyboardType.AYAME_TENKEY || currentKeyboard == KeyboardType.TENKEY) {
-                val lastChar = inputString.value.lastOrNull()
+            if (currentKeyboard == KeyboardType.AYAME_TENKEY || currentKeyboard == KeyboardType.TENKEY || currentKeyboard == KeyboardType.TENKEY_BETA) {
+                val lastChar = newInput.lastOrNull()
                 if (lastChar != null) {
-                    announceChar(lastChar)
+                    announceChar(lastChar, isReplacement = isCharReplaced)
                 } else {
-                    announceChar(finalChar)
+                    announceChar(finalChar, isReplacement = isCharReplaced)
                 }
             } else {
-                announceChar(finalChar)
+                announceChar(finalChar, isReplacement = isCharReplaced)
             }
             if (isEnglish && isCurrentInputTypePassword()) {
                 lastDirectInputEnglishChar = finalChar
@@ -5380,19 +5561,22 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             } else {
                 it
             }
+            val prevInput = inputString.value
             sendCharTap(
                 charToSend = finalChar, insertString = insertString, sb = sb
             )
+            val newInput = inputString.value
+            val isCharReplaced = prevInput.isNotEmpty() && newInput.length == prevInput.length && newInput != prevInput
             val currentKeyboard = keyboardOrder.getOrNull(currentKeyboardOrder)
-            if (currentKeyboard == KeyboardType.AYAME_TENKEY || currentKeyboard == KeyboardType.TENKEY) {
-                val lastChar = inputString.value.lastOrNull()
+            if (currentKeyboard == KeyboardType.AYAME_TENKEY || currentKeyboard == KeyboardType.TENKEY || currentKeyboard == KeyboardType.TENKEY_BETA) {
+                val lastChar = newInput.lastOrNull()
                 if (lastChar != null) {
-                    announceChar(lastChar)
+                    announceChar(lastChar, isReplacement = isCharReplaced)
                 } else {
-                    announceChar(finalChar)
+                    announceChar(finalChar, isReplacement = isCharReplaced)
                 }
             } else {
-                announceChar(finalChar)
+                announceChar(finalChar, isReplacement = isCharReplaced)
             }
             if (isEnglish && isCurrentInputTypePassword()) {
                 lastDirectInputEnglishChar = finalChar
@@ -5578,7 +5762,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             listView.choiceMode = ListView.CHOICE_MODE_SINGLE
 
             // --- 1) 行データを構築（内部→外部の順） ---
-            val internalOrder = appPreference.keyboard_order
+            val internalOrder = keyboardOrder.ifEmpty { appPreference.keyboard_order }
             val internalRows: List<RowItem.Internal> = internalOrder.map { type ->
                 val title = when (type) {
                     KeyboardType.TENKEY -> "テンキー"
@@ -5594,6 +5778,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     KeyboardType.TABLET_KANA -> "タブレット用かなレイアウト"
                     KeyboardType.AYAME_TABLET_KANA -> "アヤメタブレット用かなレイアウト"
                     KeyboardType.BRAILLE -> "点字キーボード"
+                    KeyboardType.TENKEY_BETA -> "テンキーベータ"
                 }
                 RowItem.Internal(type = type, title = title)
             }
@@ -5685,7 +5870,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
                         val nextType = row.type
                         when (nextType) {
-                            KeyboardType.TENKEY, KeyboardType.AYAME_TENKEY, KeyboardType.TABLET_KANA, KeyboardType.AYAME_TABLET_KANA -> {
+                            KeyboardType.TENKEY, KeyboardType.AYAME_TENKEY, KeyboardType.TENKEY_BETA, KeyboardType.TABLET_KANA, KeyboardType.AYAME_TABLET_KANA -> {
                                 mainView.keyboardView.setCurrentMode(InputMode.ModeJapanese)
                             }
 
@@ -6160,6 +6345,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             val isTabletGojuonFallback = isTablet == true && tabletGojuonLayoutPreference == true
             val isAyame = type == KeyboardType.AYAME_TENKEY || type == KeyboardType.AYAME_QWERTY || type == KeyboardType.AYAME_ROMAJI || type == KeyboardType.AYAME_NUMERIC || type == KeyboardType.AYAME_TABLET_KANA
             Timber.d("showKeyboard: isAyame=$isAyame, type=$type")
+            keyboardView.isPassthroughMode = type == KeyboardType.TENKEY_BETA
+            floatingKeyboardBinding?.keyboardViewFloating?.isPassthroughMode = false
             keyboardView.isAyameMode = type == KeyboardType.AYAME_TENKEY && !isTabletGojuonFallback
             floatingKeyboardBinding?.keyboardViewFloating?.isAyameMode = type == KeyboardType.AYAME_TENKEY && !isTabletGojuonFallback
             qwertyView.isAyameMode = type == KeyboardType.AYAME_QWERTY || type == KeyboardType.AYAME_ROMAJI
@@ -6292,6 +6479,27 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     customLayoutDefault.isVisible = false
                     _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Default }
                 }
+
+                KeyboardType.TENKEY_BETA -> {
+                    if (qwertyMode.value != TenKeyQWERTYMode.Number) {
+                        keyboardView.isVisible = true
+                        tabletView.isVisible = false
+                        qwertyView.isVisible = false
+                        customLayoutDefault.isVisible = false
+                        brailleView.isVisible = false
+                        _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Default }
+                        if (isIMEWindowShown) {
+                            keyboardView.post { keyboardView.syncPassthroughRegion() }
+                        }
+                    } else {
+                        customKeyboardMode = KeyboardInputMode.HIRAGANA
+                        customLayoutDefault.isVisible = true
+                        keyboardView.setCurrentMode(InputMode.ModeNumber)
+                        setNumericKeyboardForInputConnection()
+                        qwertyView.isVisible = false
+                        keyboardView.isVisible = false
+                    }
+                }
             }
             suggestionRecyclerView.isVisible = true
 
@@ -6310,6 +6518,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 KeyboardType.TABLET_KANA -> "タブレット用かなレイアウト"
                 KeyboardType.AYAME_TABLET_KANA -> "アヤメタブレット用かなレイアウト"
                 KeyboardType.BRAILLE -> "点字キーボード"
+                KeyboardType.TENKEY_BETA -> "テンキーベータ"
             }
             announceText(announcement, delayMs = 150)
         }
@@ -8448,6 +8657,10 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                                     tabletView.isVisible = true
                                 }
 
+                                keyboardView.isInvisible -> {
+                                    keyboardView.isVisible = true
+                                }
+
                                 qwertyView.isInvisible -> {
                                     qwertyView.isVisible = true
                                 }
@@ -9134,6 +9347,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         if (isIMEWindowShown && mainView.brailleView.isVisible) {
             mainView.brailleView.post { mainView.brailleView.syncPassthroughRegion() }
         }
+        if (isIMEWindowShown && mainView.keyboardView.isVisible && mainView.keyboardView.isPassthroughMode) {
+            mainView.keyboardView.post { mainView.keyboardView.syncPassthroughRegion() }
+        }
     }
 
     /**
@@ -9383,6 +9599,9 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
 
         if (isIMEWindowShown && mainView.brailleView.isVisible) {
             mainView.brailleView.post { mainView.brailleView.syncPassthroughRegion() }
+        }
+        if (isIMEWindowShown && mainView.keyboardView.isVisible && mainView.keyboardView.isPassthroughMode) {
+            mainView.keyboardView.post { mainView.keyboardView.syncPassthroughRegion() }
         }
     }
 
@@ -10222,6 +10441,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 KeyboardType.TABLET_KANA -> _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Default }
                 KeyboardType.AYAME_TABLET_KANA -> _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Default }
                 KeyboardType.BRAILLE -> _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Default }
+                KeyboardType.TENKEY_BETA -> _tenKeyQWERTYMode.update { TenKeyQWERTYMode.Default }
             }
         }
     }
@@ -10343,6 +10563,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 }
                 val handler = targetView?.handler ?: android.os.Handler(android.os.Looper.getMainLooper())
                 announceRunnable?.let { handler.removeCallbacks(it) }
+                announceInterruptRunnable?.let { handler.removeCallbacks(it) }
                 announceTextRunnable?.let { targetView?.removeCallbacks(it) }
 
                 isSuggestionConfirming = true
@@ -10474,6 +10695,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 }
                 val handler = targetView?.handler ?: android.os.Handler(android.os.Looper.getMainLooper())
                 announceRunnable?.let { handler.removeCallbacks(it) }
+                announceInterruptRunnable?.let { handler.removeCallbacks(it) }
                 announceTextRunnable?.let { targetView?.removeCallbacks(it) }
 
                 isSuggestionConfirming = true
@@ -14737,13 +14959,13 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             _inputString.update {
                 sb.toString()
             }
-            announceChar(inputChar)
+            announceChar(inputChar, isReplacement = true)
         } else {
             sb.append(insertString).deleteAt(insertString.length - 1).append(inputChar)
             _inputString.update {
                 sb.toString()
             }
-            announceChar(inputChar)
+            announceChar(inputChar, isReplacement = true)
         }
 
     }
@@ -14889,7 +15111,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
         }
 
         when (nextType) {
-            KeyboardType.TENKEY, KeyboardType.AYAME_TENKEY, KeyboardType.TABLET_KANA, KeyboardType.AYAME_TABLET_KANA -> {
+            KeyboardType.TENKEY, KeyboardType.AYAME_TENKEY, KeyboardType.TENKEY_BETA, KeyboardType.TABLET_KANA, KeyboardType.AYAME_TABLET_KANA -> {
                 mainLayoutBinding?.keyboardView?.setCurrentMode(InputMode.ModeJapanese)
             }
 
@@ -14937,6 +15159,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 KeyboardType.TABLET_KANA -> TenKeyQWERTYMode.Default
                 KeyboardType.AYAME_TABLET_KANA -> TenKeyQWERTYMode.Default
                 KeyboardType.BRAILLE -> TenKeyQWERTYMode.Default
+                KeyboardType.TENKEY_BETA -> TenKeyQWERTYMode.Default
             }
             _tenKeyQWERTYMode.update { type }
         }
@@ -14995,7 +15218,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
             sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL)
             sendKeyChar(convertedChar)
         }
-        announceChar(convertedChar)
+        announceChar(convertedChar, isReplacement = true)
         lastDirectInputEnglishChar = convertedChar
         return true
     }

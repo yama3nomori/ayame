@@ -504,12 +504,16 @@ class BrailleKeyboardView @JvmOverloads constructor(
      */
     fun syncPassthroughRegion() {
         if (!isShown || visibility != View.VISIBLE || windowVisibility != View.VISIBLE) {
-            BraillePassthroughAccessibilityService.clearPassthroughRegion()
+            BraillePassthroughAccessibilityService.clearPassthroughRegion(
+                BraillePassthroughAccessibilityService.OWNER_BRAILLE
+            )
             return
         }
         val container = binding.brailleKeysContainer
         if (container.width <= 0 || container.height <= 0) {
-            BraillePassthroughAccessibilityService.clearPassthroughRegion()
+            BraillePassthroughAccessibilityService.clearPassthroughRegion(
+                BraillePassthroughAccessibilityService.OWNER_BRAILLE
+            )
             return
         }
         val loc = IntArray(2)
@@ -520,7 +524,10 @@ class BrailleKeyboardView @JvmOverloads constructor(
             loc[0] + container.width,
             loc[1] + container.height
         )
-        BraillePassthroughAccessibilityService.updatePassthroughRegion(Region(rect))
+        BraillePassthroughAccessibilityService.updatePassthroughRegion(
+            Region(rect),
+            BraillePassthroughAccessibilityService.OWNER_BRAILLE
+        )
     }
 
     override fun onVisibilityChanged(changedView: View, visibility: Int) {
@@ -529,7 +536,9 @@ class BrailleKeyboardView @JvmOverloads constructor(
             refreshKeyOrder()
             post { syncPassthroughRegion() }
         } else {
-            BraillePassthroughAccessibilityService.clearPassthroughRegion()
+            BraillePassthroughAccessibilityService.clearPassthroughRegion(
+                BraillePassthroughAccessibilityService.OWNER_BRAILLE
+            )
         }
     }
 
@@ -539,7 +548,9 @@ class BrailleKeyboardView @JvmOverloads constructor(
             refreshKeyOrder()
             post { syncPassthroughRegion() }
         } else {
-            BraillePassthroughAccessibilityService.clearPassthroughRegion()
+            BraillePassthroughAccessibilityService.clearPassthroughRegion(
+                BraillePassthroughAccessibilityService.OWNER_BRAILLE
+            )
         }
     }
 
@@ -559,7 +570,9 @@ class BrailleKeyboardView @JvmOverloads constructor(
         try {
             defaultPrefs.unregisterOnSharedPreferenceChangeListener(preferenceChangeListener)
         } catch (_: Exception) {}
-        BraillePassthroughAccessibilityService.clearPassthroughRegion()
+        BraillePassthroughAccessibilityService.clearPassthroughRegion(
+            BraillePassthroughAccessibilityService.OWNER_BRAILLE
+        )
         super.onDetachedFromWindow()
     }
 
