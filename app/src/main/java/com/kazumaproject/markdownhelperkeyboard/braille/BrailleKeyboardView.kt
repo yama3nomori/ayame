@@ -66,6 +66,11 @@ interface OnBrailleInputListener {
     fun onReadAloudRight()
     fun onReadAloudDown()
     fun onToggleSelectMode()
+    fun onCloseKeyboard()
+    fun onSelectAll()
+    fun onCut()
+    fun onCopy()
+    fun onPaste()
 }
 
 class BrailleKeyboardView @JvmOverloads constructor(
@@ -87,6 +92,14 @@ class BrailleKeyboardView @JvmOverloads constructor(
         }
 
     var isSelectMode: Boolean = false
+        set(value) {
+            if (field != value) {
+                field = value
+                updatePreview()
+            }
+        }
+
+    var isKatakanaMode: Boolean = false
         set(value) {
             if (field != value) {
                 field = value
@@ -152,6 +165,9 @@ class BrailleKeyboardView @JvmOverloads constructor(
     private var holdTapCount = 0
     private var lastHoldTapUpTime = 0L
     private var isSecondHoldTapDown = false
+    private var secondHoldTapPointerId = MotionEvent.INVALID_POINTER_ID
+    private var isHoldDoubleTapHoldExecuted = false
+    private var isHoldTwoFingerSwipeExecuted = false
     private var pendingHoldSwipeHoldDir = 0 // 0=なし, 1=左(行頭), 2=右(行末), 3=上(文頭), 4=下(文末)
     private var pendingHoldSwipePointerId = MotionEvent.INVALID_POINTER_ID
     private var holdSwipeHoldAnchorX = 0f
@@ -278,6 +294,35 @@ class BrailleKeyboardView @JvmOverloads constructor(
                 }
             }
         }
+    }
+
+    private val holdDoubleTapHoldRunnable = Runnable {
+        if (activePointers.size == 2 && isSecondHoldTapDown && !isHoldDoubleTapHoldExecuted && !isLongPressExecuted && !isSwipeHoldExecuted) {
+            val anchorPointer = activePointers[holdAnchorPointerId]
+            val tapPointer = activePointers[secondHoldTapPointerId]
+            val isAnchorStationary = anchorPointer != null &&
+                abs(anchorPointer.lastX - anchorPointer.startX) <= swipeThresholdPx &&
+                abs(anchorPointer.lastY - anchorPointer.startY) <= swipeThresholdPx
+            val isTapStationary = tapPointer != null &&
+                abs(tapPointer.lastX - tapPointer.startX) <= swipeThresholdPx &&
+                abs(tapPointer.lastY - tapPointer.startY) <= swipeThresholdPx
+            if (isAnchorStationary && isTapStationary) {
+                isHoldDoubleTapHoldExecuted = true
+                isHoldSwipeExecuted = true
+                holdTapCount = 0
+                isSecondHoldTapDown = false
+                secondHoldTapPointerId = MotionEvent.INVALID_POINTER_ID
+                strokeKeySet.clear()
+                clearAllHighlights()
+                vibrate(50)
+                listener?.onSelectAll()
+            }
+        }
+    }
+
+    private fun cancelHoldDoubleTapHold() {
+        secondHoldTapPointerId = MotionEvent.INVALID_POINTER_ID
+        longPressHandler.removeCallbacks(holdDoubleTapHoldRunnable)
     }
 
     private fun cancelHoldAndSwipeHold() {
@@ -1009,6 +1054,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
                 cancelMultiFingerLongPress()
                 cancelOneFingerSwipeHold()
                 cancelHoldAndSwipeHold()
+                cancelHoldDoubleTapHold()
                 finishUpperAreaExploration()
                 activePointers.clear()
                 strokeKeySet.clear()
@@ -1016,6 +1062,8 @@ class BrailleKeyboardView @JvmOverloads constructor(
                 isGestureRecognized = false
                 isHoldSwipeExecuted = false
                 isCurrentHoldSwipeHoldExecuted = false
+                isHoldDoubleTapHoldExecuted = false
+                isHoldTwoFingerSwipeExecuted = false
                 isLongPressExecuted = false
                 isSwipeHoldExecuted = false
                 isExploringUpperArea = false
@@ -1051,6 +1099,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
             MotionEvent.ACTION_POINTER_DOWN -> {
                 cancelOneFingerSwipeHold()
                 cancelHoldAndSwipeHold()
+                cancelHoldDoubleTapHold()
                 isCurrentHoldSwipeHoldExecuted = false
                 if (isExploringUpperArea) {
                     finishUpperAreaExploration()
@@ -1071,6 +1120,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
                 maxPointerCount = max(maxPointerCount, event.pointerCount)
 
                 if (activePointers.size == 2) {
+                    isHoldTwoFingerSwipeExecuted = false
                     val otherPointer = activePointers.values.firstOrNull { it.pointerId != pointerId }
                     val isOtherStationary = otherPointer != null &&
                         abs(otherPointer.lastX - otherPointer.startX) <= swipeThresholdPx &&
@@ -1081,6 +1131,8 @@ class BrailleKeyboardView @JvmOverloads constructor(
                             (now - lastHoldTapUpTime) <= holdDoubleTapIntervalMs
                         ) {
                             isSecondHoldTapDown = true
+                            secondHoldTapPointerId = pointerId
+                            longPressHandler.postDelayed(holdDoubleTapHoldRunnable, swipeHoldTimeoutMs)
                         } else {
                             holdAnchorPointerId = otherPointer.pointerId
                             holdTapCount = 0
@@ -1090,7 +1142,20 @@ class BrailleKeyboardView @JvmOverloads constructor(
                         holdTapCount = 0
                         isSecondHoldTapDown = false
                     }
-                } else if (activePointers.size >= 3) {
+                } else if (activePointers.size == 3) {
+                    holdTapCount = 0
+                    isSecondHoldTapDown = false
+                    val existingStationary = activePointers.values.firstOrNull { p ->
+                        p.pointerId != pointerId &&
+                            abs(p.lastX - p.startX) <= swipeThresholdPx &&
+                            abs(p.lastY - p.startY) <= swipeThresholdPx
+                    }
+                    if (holdAnchorPointerId == MotionEvent.INVALID_POINTER_ID ||
+                        !activePointers.containsKey(holdAnchorPointerId)
+                    ) {
+                        holdAnchorPointerId = existingStationary?.pointerId ?: MotionEvent.INVALID_POINTER_ID
+                    }
+                } else if (activePointers.size >= 4) {
                     holdTapCount = 0
                     isSecondHoldTapDown = false
                     holdAnchorPointerId = MotionEvent.INVALID_POINTER_ID
@@ -1104,7 +1169,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
                 vibrate(15)
 
                 cancelMultiFingerLongPress()
-                if (!isGestureRecognized && !isHoldSwipeExecuted && !isLongPressExecuted && !isSwipeHoldExecuted) {
+                if (!isGestureRecognized && !isHoldSwipeExecuted && !isLongPressExecuted && !isSwipeHoldExecuted && !isSecondHoldTapDown) {
                     when (activePointers.size) {
                         2 -> longPressHandler.postDelayed(twoFingerLongPressRunnable, longPressTimeoutMs)
                         3 -> longPressHandler.postDelayed(threeFingerLongPressRunnable, longPressTimeoutMs)
@@ -1126,6 +1191,9 @@ class BrailleKeyboardView @JvmOverloads constructor(
                         if (abs(dx) > swipeThresholdPx || abs(dy) > swipeThresholdPx) {
                             isGestureRecognized = true
                             cancelMultiFingerLongPress()
+                            if (pId == holdAnchorPointerId || pId == secondHoldTapPointerId) {
+                                cancelHoldDoubleTapHold()
+                            }
                         }
 
                         // キーボードエリアから1本指でドラッグして変換候補エリア・ショートカットツールバーエリアに入った場合、
@@ -1267,19 +1335,16 @@ class BrailleKeyboardView @JvmOverloads constructor(
                 cancelMultiFingerLongPress()
                 cancelOneFingerSwipeHold()
                 cancelHoldAndSwipeHold()
+                cancelHoldDoubleTapHold()
                 val pointerId = event.getPointerId(actionIndex)
                 val upPointer = activePointers.remove(pointerId)
-                if (isLongPressExecuted || isSwipeHoldExecuted || isExploringUpperArea) {
+                if (isLongPressExecuted || isSwipeHoldExecuted || isExploringUpperArea || isHoldDoubleTapHoldExecuted) {
                     return true
                 }
                 if (isCurrentHoldSwipeHoldExecuted) {
                     // 既に「1本指ホールド + もう1本指でスワイプしてホールド」を実行済みの場合は、
                     // 指を離したときに通常の1文字/1行カーソル移動が重複実行されないようにする
-                    if (activePointers.isEmpty()) {
-                        isCurrentHoldSwipeHoldExecuted = false
-                    } else {
-                        isCurrentHoldSwipeHoldExecuted = false
-                    }
+                    isCurrentHoldSwipeHoldExecuted = false
                     hadAnchorAtPointerUp = false
                     return true
                 }
@@ -1290,10 +1355,11 @@ class BrailleKeyboardView @JvmOverloads constructor(
                     val dy = upPointer.lastY - upPointer.startY
 
                     // 残っているポインタの中に静止しているホールド指があるか判定
-                    val hasStationaryAnchor = activePointers.values.any { p ->
+                    val stationaryPointers = activePointers.values.filter { p ->
                         abs(p.lastX - p.startX) <= swipeThresholdPx &&
                             abs(p.lastY - p.startY) <= swipeThresholdPx
                     }
+                    val hasStationaryAnchor = stationaryPointers.isNotEmpty()
                     val now = System.currentTimeMillis()
                     val tapDuration = now - upPointer.startTime
                     val isTapMovement = abs(dx) <= swipeThresholdPx && abs(dy) <= swipeThresholdPx
@@ -1302,10 +1368,30 @@ class BrailleKeyboardView @JvmOverloads constructor(
                         holdTapCount = 0
                         isSecondHoldTapDown = false
                         if (hasStationaryAnchor) {
-                            // 1本指ホールド + もう1本指スワイプが確定
-                            isHoldSwipeExecuted = true
-                            strokeKeySet.clear()
-                            handleHoldAndSwipe(dx, dy)
+                            if (activePointers.size >= 2) {
+                                // 3本指（1本指ホールド + 2本指スワイプ）でのスワイプ指の1本目が離れたケース
+                                val otherSwipingPointer = activePointers.values.firstOrNull { p ->
+                                    p.pointerId != holdAnchorPointerId &&
+                                        !stationaryPointers.any { it.pointerId == p.pointerId }
+                                } ?: activePointers.values.firstOrNull { p ->
+                                    p.pointerId != stationaryPointers.first().pointerId
+                                }
+                                if (!isHoldTwoFingerSwipeExecuted && otherSwipingPointer != null) {
+                                    isHoldTwoFingerSwipeExecuted = true
+                                    isHoldSwipeExecuted = true
+                                    strokeKeySet.clear()
+                                    clearAllHighlights()
+                                    handleHoldAndTwoFingerSwipe(dx, dy)
+                                }
+                            } else if (isHoldTwoFingerSwipeExecuted) {
+                                // 既に「1本指ホールド + 2本指スワイプ」を実行済みの2本目のスワイプ指が離れたケース
+                                isHoldTwoFingerSwipeExecuted = false
+                            } else {
+                                // 1本指ホールド + もう1本指スワイプが確定
+                                isHoldSwipeExecuted = true
+                                strokeKeySet.clear()
+                                handleHoldAndSwipe(dx, dy)
+                            }
                         } else {
                             // 2本指同時スワイプ等のため記録しておく
                             lastNonAnchorSwipeDx = dx
@@ -1358,6 +1444,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
                 cancelMultiFingerLongPress()
                 cancelOneFingerSwipeHold()
                 cancelHoldAndSwipeHold()
+                cancelHoldDoubleTapHold()
                 val pointerId = event.getPointerId(0)
                 val tp = activePointers[pointerId]
                 if (tp != null) {
@@ -1370,7 +1457,8 @@ class BrailleKeyboardView @JvmOverloads constructor(
                 val pointerCount = maxPointerCount
                 val now = System.currentTimeMillis()
                 val tapDuration = now - (tp?.startTime ?: now)
-                val isSecondHoldTapCompletedOnUp = isSecondHoldTapDown &&
+                val isSecondHoldTapCompletedOnUp = !isHoldDoubleTapHoldExecuted &&
+                    isSecondHoldTapDown &&
                     holdTapCount == 1 &&
                     tp != null &&
                     tp.pointerId != holdAnchorPointerId &&
@@ -1387,6 +1475,8 @@ class BrailleKeyboardView @JvmOverloads constructor(
                         updateUpperAreaExploration(tp.lastX, tp.lastY)
                     }
                     finishUpperAreaExploration()
+                } else if (isHoldDoubleTapHoldExecuted) {
+                    // 既に「1本指ホールド + もう1本でダブルタップしてホールド（全選択）」を実行済みの場合は何もしない
                 } else if (isSecondHoldTapCompletedOnUp) {
                     // 2回目のタップ時にホールド指とタップ指がほぼ同時に離れたケース
                     strokeKeySet.clear()
@@ -1397,14 +1487,18 @@ class BrailleKeyboardView @JvmOverloads constructor(
                 } else if (isHoldSwipeExecuted) {
                     // 既に ACTION_POINTER_UP でホールド＋スワイプを実行済み。
                     // ただし最後の指自体もスワイプしていて、かつ直前に離れた指が静止していた場合は追加判定
-                    if (hadAnchorAtPointerUp && (abs(dx) > swipeThresholdPx || abs(dy) > swipeThresholdPx)) {
+                    if (!isHoldTwoFingerSwipeExecuted && hadAnchorAtPointerUp && (abs(dx) > swipeThresholdPx || abs(dy) > swipeThresholdPx)) {
                         handleHoldAndSwipe(dx, dy)
                     }
                 } else if (pointerCount >= 2 && hadAnchorAtPointerUp &&
                     (abs(dx) > swipeThresholdPx || abs(dy) > swipeThresholdPx)
                 ) {
                     // ホールド指がわずかに先に離れ、直後にスワイプ指が離れたケース
-                    handleHoldAndSwipe(dx, dy)
+                    if (pointerCount == 3) {
+                        handleHoldAndTwoFingerSwipe(dx, dy)
+                    } else {
+                        handleHoldAndSwipe(dx, dy)
+                    }
                 } else if (isGestureRecognized || abs(dx) > swipeThresholdPx || abs(dy) > swipeThresholdPx) {
                     // 通常のジェスチャー処理（2本指同時スワイプで最後の指の移動量が小さい場合は先に離れた指の移動量を使用）
                     val gestureDx = if (abs(dx) > swipeThresholdPx || abs(dy) > swipeThresholdPx) dx else lastNonAnchorSwipeDx
@@ -1419,6 +1513,8 @@ class BrailleKeyboardView @JvmOverloads constructor(
                 strokeKeySet.clear()
                 isHoldSwipeExecuted = false
                 isCurrentHoldSwipeHoldExecuted = false
+                isHoldDoubleTapHoldExecuted = false
+                isHoldTwoFingerSwipeExecuted = false
                 isLongPressExecuted = false
                 isSwipeHoldExecuted = false
                 isExploringUpperArea = false
@@ -1434,12 +1530,15 @@ class BrailleKeyboardView @JvmOverloads constructor(
                 cancelMultiFingerLongPress()
                 cancelOneFingerSwipeHold()
                 cancelHoldAndSwipeHold()
+                cancelHoldDoubleTapHold()
                 finishUpperAreaExploration()
                 clearAllHighlights()
                 activePointers.clear()
                 strokeKeySet.clear()
                 isHoldSwipeExecuted = false
                 isCurrentHoldSwipeHoldExecuted = false
+                isHoldDoubleTapHoldExecuted = false
+                isHoldTwoFingerSwipeExecuted = false
                 isLongPressExecuted = false
                 isSwipeHoldExecuted = false
                 isExploringUpperArea = false
@@ -1482,6 +1581,29 @@ class BrailleKeyboardView @JvmOverloads constructor(
     }
 
     /**
+     * 1本指ホールド + 2本指スワイプ（切り取り・コピー・貼り付け）の判定と実行
+     */
+    private fun handleHoldAndTwoFingerSwipe(dx: Float, dy: Float) {
+        if (abs(dx) > abs(dy)) {
+            if (dx > swipeThresholdPx) {
+                // 右スワイプ: 貼り付け
+                vibrate(40)
+                listener?.onPaste()
+            }
+        } else {
+            if (dy < -swipeThresholdPx) {
+                // 上スワイプ: 切り取り
+                vibrate(40)
+                listener?.onCut()
+            } else if (dy > swipeThresholdPx) {
+                // 下スワイプ: コピー
+                vibrate(40)
+                listener?.onCopy()
+            }
+        }
+    }
+
+    /**
      * ジェスチャーの判定と実行
      */
     private fun handleGesture(dx: Float, dy: Float, pointerCount: Int) {
@@ -1489,17 +1611,27 @@ class BrailleKeyboardView @JvmOverloads constructor(
             // 水平スワイプ
             if (dx < -swipeThresholdPx) {
                 // 左スワイプ (←)
-                if (pointerCount >= 3) {
-                    // 3本指以上: 読み上げ左ジェスチャー（現在行の詳細読み上げ）
-                    vibrate(40)
-                    listener?.onReadAloudLeft()
-                } else {
-                    // 1〜2本指: 削除
-                    vibrate(30)
-                    val wasReset = inputProcessor.resetStroke()
-                    updatePreview()
-                    if (!wasReset) {
-                        listener?.onDelete()
+                when {
+                    pointerCount >= 3 -> {
+                        // 3本指以上: 読み上げ左ジェスチャー（現在行の詳細読み上げ）
+                        vibrate(40)
+                        listener?.onReadAloudLeft()
+                    }
+                    pointerCount == 2 -> {
+                        // 2本指: キーボードを閉じる
+                        vibrate(40)
+                        inputProcessor.resetStroke()
+                        updatePreview()
+                        listener?.onCloseKeyboard()
+                    }
+                    else -> {
+                        // 1本指: 削除
+                        vibrate(30)
+                        val wasReset = inputProcessor.resetStroke()
+                        updatePreview()
+                        if (!wasReset) {
+                            listener?.onDelete()
+                        }
                     }
                 }
             } else if (dx > swipeThresholdPx) {
@@ -1508,11 +1640,17 @@ class BrailleKeyboardView @JvmOverloads constructor(
                     1 -> {
                         // 1本指: スペース / 変換
                         vibrate(25)
+                        if (inputProcessor.resetStroke()) {
+                            updatePreview()
+                        }
                         listener?.onSpace()
                     }
                     2 -> {
                         // 2本指: エンター (確定 / 改行)
                         vibrate(40)
+                        if (inputProcessor.resetStroke()) {
+                            updatePreview()
+                        }
                         listener?.onEnter()
                     }
                     else -> {
@@ -1539,15 +1677,21 @@ class BrailleKeyboardView @JvmOverloads constructor(
                         updatePreview()
                         listener?.onSwitchMode(newMode)
                         val modeName = when (newMode) {
-                            BrailleInputMode.JAPANESE -> "日本語モード"
+                            BrailleInputMode.JAPANESE -> {
+                                val kanaState = if (isKatakanaMode) "カタカナ" else "ひらがな"
+                                "日本語モード $kanaState"
+                            }
                             BrailleInputMode.ENGLISH -> "英語モード"
                             BrailleInputMode.NUMBER -> "数字モード"
                         }
                         announceForAccessibility(modeName)
                     }
                     else -> {
-                        // 1本指: 変換候補を進める
+                        // 1本指: 予測変換 / 変換候補を進める
                         vibrate(20)
+                        if (inputProcessor.resetStroke()) {
+                            updatePreview()
+                        }
                         listener?.onNextCandidate()
                     }
                 }
@@ -1567,6 +1711,9 @@ class BrailleKeyboardView @JvmOverloads constructor(
                     else -> {
                         // 1本指: 変換候補を戻す
                         vibrate(20)
+                        if (inputProcessor.resetStroke()) {
+                            updatePreview()
+                        }
                         listener?.onPrevCandidate()
                     }
                 }
@@ -1590,8 +1737,15 @@ class BrailleKeyboardView @JvmOverloads constructor(
             }
             is BrailleInputResult.Character -> {
                 vibrate(35)
-                listener?.onInputText(result.text)
-                announceForAccessibility(result.text)
+                val outputText = if (inputProcessor.inputMode == BrailleInputMode.JAPANESE && isKatakanaMode) {
+                    result.text.map { c ->
+                        if (c in '\u3041'..'\u3096') (c.code + 0x60).toChar() else c
+                    }.joinToString("")
+                } else {
+                    result.text
+                }
+                listener?.onInputText(outputText)
+                announceForAccessibility(outputText)
             }
             is BrailleInputResult.Space -> {
                 vibrate(25)
@@ -1628,7 +1782,7 @@ class BrailleKeyboardView @JvmOverloads constructor(
 
         // モードバッジ
         binding.brailleModeBadge.text = when (state.mode) {
-            BrailleInputMode.JAPANESE -> "かな"
+            BrailleInputMode.JAPANESE -> if (isKatakanaMode) "カナ" else "かな"
             BrailleInputMode.ENGLISH -> "英語"
             BrailleInputMode.NUMBER -> "数字"
         }

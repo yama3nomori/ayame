@@ -4310,10 +4310,21 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     suggestionAdapter?.setUndoEnabled(false)
                     when (inputProcessor.inputMode) {
                         BrailleInputMode.JAPANESE -> {
-                            val insertString = inputString.value
-                            val sb = StringBuilder()
-                            sb.append(insertString).append(text)
-                            _inputString.update { sb.toString() }
+                            suggestionClickNum = 0
+                            if (isHenkan.get()) {
+                                finishComposingText()
+                                setComposingText("", 0)
+                                isHenkan.set(false)
+                                henkanPressedWithBunsetsuDetect = false
+                                suggestionAdapter?.updateHighlightPosition(RecyclerView.NO_POSITION)
+                                isFirstClickHasStringTail = false
+                                _inputString.update { text }
+                            } else {
+                                val insertString = inputString.value
+                                val sb = StringBuilder()
+                                sb.append(insertString).append(text)
+                                _inputString.update { sb.toString() }
+                            }
                         }
                         BrailleInputMode.ENGLISH, BrailleInputMode.NUMBER -> {
                             if (inputString.value.isNotEmpty()) {
@@ -4351,10 +4362,23 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     val insertString = inputString.value
                     val suggestions = suggestionAdapter?.suggestions ?: emptyList()
                     if (insertString.isNotEmpty()) {
+                        val finalSuggestions = if (!isHenkan.get() && suggestions.isNotEmpty()) {
+                            val filtered = suggestions.filter { it.length.toInt() == insertString.length }
+                            if (filtered.isNotEmpty()) {
+                                suggestionAdapter?.suggestions = filtered
+                                suggestionAdapterFull?.suggestions = filtered
+                                filteredCandidateList = filtered
+                                filtered
+                            } else {
+                                suggestions
+                            }
+                        } else {
+                            suggestions
+                        }
                         handleSpaceKeyClick(
                             isFlick = false,
                             insertString = insertString,
-                            suggestions = suggestions,
+                            suggestions = finalSuggestions,
                             mainView = mainView
                         )
                     } else {
@@ -4375,28 +4399,72 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 }
 
                 override fun onNextCandidate() {
+                    playSoundKeyInput()
+                    vibrateKeyInput()
                     val insertString = inputString.value
                     val suggestions = suggestionAdapter?.suggestions ?: emptyList()
                     if (insertString.isNotEmpty() && suggestions.isNotEmpty()) {
-                        handleJapaneseModeSpaceKey(mainView, suggestions, insertString)
+                        val finalSuggestions = if (!isHenkan.get()) {
+                            // 文字入力中の最初の1本指下スワイプは予測変換（入力文字数より長い読みの候補）に割り当てる
+                            val filtered = suggestions.filter { it.length.toInt() > insertString.length }
+                            if (filtered.isNotEmpty()) {
+                                suggestionAdapter?.suggestions = filtered
+                                suggestionAdapterFull?.suggestions = filtered
+                                filteredCandidateList = filtered
+                                filtered
+                            } else {
+                                suggestions
+                            }
+                        } else {
+                            suggestions
+                        }
+                        handleJapaneseModeSpaceKey(mainView, finalSuggestions, insertString)
                     }
                 }
 
                 override fun onPrevCandidate() {
+                    playSoundKeyInput()
+                    vibrateKeyInput()
                     val insertString = inputString.value
                     val suggestions = suggestionAdapter?.suggestions ?: emptyList()
-                    if (insertString.isNotEmpty() && suggestions.isNotEmpty()) {
-                        handleJapaneseModeSpaceKeyReverse(mainView, suggestions, insertString)
+                    if (inputProcessor.inputMode == BrailleInputMode.JAPANESE) {
+                        if (insertString.isEmpty()) {
+                            if (preInputKatakanaMode == 0) {
+                                preInputKatakanaMode = 1
+                                isKatakanaMode = true
+                                val message = "カタカナ"
+                                announceTextForce(message, allowSameText = true)
+                                Toast.makeText(this@IMEService, message, Toast.LENGTH_SHORT).show()
+                            } else {
+                                preInputKatakanaMode = 0
+                                isKatakanaMode = false
+                                val message = "ひらがな"
+                                announceTextForce(message, allowSameText = true)
+                                Toast.makeText(this@IMEService, message, Toast.LENGTH_SHORT).show()
+                            }
+                        } else if (!isHenkan.get()) {
+                            convertToZenkakuKatakana()
+                        } else if (suggestions.isNotEmpty()) {
+                            handleJapaneseModeSpaceKeyReverse(mainView, suggestions, insertString)
+                        }
+                    } else {
+                        if (insertString.isNotEmpty() && suggestions.isNotEmpty()) {
+                            handleJapaneseModeSpaceKeyReverse(mainView, suggestions, insertString)
+                        }
                     }
                 }
 
                 override fun onSwitchMode(mode: BrailleInputMode) {
                     val modeName = when (mode) {
-                        BrailleInputMode.JAPANESE -> "日本語モード"
+                        BrailleInputMode.JAPANESE -> {
+                            isKatakanaMode = (preInputKatakanaMode == 1)
+                            val kanaState = if (isKatakanaMode) "カタカナ" else "ひらがな"
+                            "日本語モード $kanaState"
+                        }
                         BrailleInputMode.ENGLISH -> "英語モード"
                         BrailleInputMode.NUMBER -> "数字モード"
                     }
-                    announceText(modeName)
+                    announceTextForce(modeName, allowSameText = true)
                 }
 
                 override fun onSwitchKeyboard() {
@@ -4495,6 +4563,93 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     val message = if (newSelectMode) "文字選択モード オン" else "文字選択モード オフ"
                     announceTextForce(message, allowSameText = true)
                     Toast.makeText(this@IMEService, message, Toast.LENGTH_SHORT).show()
+                }
+
+                override fun onCloseKeyboard() {
+                    playSoundKeyInput()
+                    vibrateKeyInput()
+                    announceTextForce("キーボードを閉じる", allowSameText = true)
+                    requestHideSelf(0)
+                }
+
+                override fun onSelectAll() {
+                    playSoundKeyInput()
+                    vibrateKeyInput()
+                    if (inputString.value.isNotEmpty() || stringInTail.get().isNotEmpty()) {
+                        finishComposingText()
+                        _inputString.update { "" }
+                        stringInTail.set("")
+                    }
+                    selectAllText()
+                    val selectedText = getSelectedText(0)?.toString() ?: ""
+                    if (selectedText.isNotEmpty()) {
+                        announceTextForce("全選択 $selectedText", allowSameText = true)
+                    } else {
+                        announceTextForce("全選択", allowSameText = true)
+                    }
+                }
+
+                override fun onCut() {
+                    playSoundKeyInput()
+                    vibrateKeyInput()
+                    if (inputString.value.isNotEmpty() || stringInTail.get().isNotEmpty()) {
+                        finishComposingText()
+                        _inputString.update { "" }
+                        stringInTail.set("")
+                    }
+                    val selectedText = getSelectedText(0)?.toString() ?: ""
+                    if (selectedText.isNotEmpty()) {
+                        cutAction()
+                        anchorPos = -1
+                        announceTextForce("切り取り $selectedText", allowSameText = true)
+                    } else {
+                        announceTextForce("選択範囲がありません", allowSameText = true)
+                    }
+                }
+
+                override fun onCopy() {
+                    playSoundKeyInput()
+                    vibrateKeyInput()
+                    if (inputString.value.isNotEmpty() || stringInTail.get().isNotEmpty()) {
+                        finishComposingText()
+                        _inputString.update { "" }
+                        stringInTail.set("")
+                    }
+                    val selectedText = getSelectedText(0)?.toString() ?: ""
+                    if (selectedText.isNotEmpty()) {
+                        copyAction()
+                        announceTextForce("コピー $selectedText", allowSameText = true)
+                    } else {
+                        announceTextForce("選択範囲がありません", allowSameText = true)
+                    }
+                }
+
+                override fun onPaste() {
+                    playSoundKeyInput()
+                    vibrateKeyInput()
+                    if (inputString.value.isNotEmpty() || stringInTail.get().isNotEmpty()) {
+                        finishComposingText()
+                        _inputString.update { "" }
+                        stringInTail.set("")
+                    }
+                    val clipItem = clipboardUtil.getPrimaryClipContent()
+                    pasteAction()
+                    anchorPos = -1
+                    when (clipItem) {
+                        is ClipboardItem.Text -> {
+                            if (clipItem.text.isNotEmpty()) {
+                                announceTextForce("貼り付け ${clipItem.text}", allowSameText = true)
+                            } else {
+                                announceTextForce("貼り付け", allowSameText = true)
+                            }
+                        }
+                        is ClipboardItem.Image -> {
+                            announceTextForce("画像を貼り付け", allowSameText = true)
+                        }
+                        is ClipboardItem.Empty -> {
+                            announceTextForce("クリップボードが空です", allowSameText = true)
+                        }
+                    }
                 }
             }
         }
@@ -6469,6 +6624,7 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 }
 
                 KeyboardType.BRAILLE -> {
+                    brailleView.isKatakanaMode = (preInputKatakanaMode == 1)
                     brailleView.isVisible = true
                     if (isIMEWindowShown) {
                         brailleView.post { brailleView.syncPassthroughRegion() }
@@ -6517,7 +6673,19 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 KeyboardType.AYAME_NUMERIC -> "アヤメ数字専用キーボード"
                 KeyboardType.TABLET_KANA -> "タブレット用かなレイアウト"
                 KeyboardType.AYAME_TABLET_KANA -> "アヤメタブレット用かなレイアウト"
-                KeyboardType.BRAILLE -> "点字キーボード"
+                KeyboardType.BRAILLE -> {
+                    if (brailleView.inputProcessor.inputMode == BrailleInputMode.JAPANESE) {
+                        val kanaState = if (preInputKatakanaMode == 1) "カタカナ" else "ひらがな"
+                        "点字キーボード $kanaState"
+                    } else {
+                        val subMode = when (brailleView.inputProcessor.inputMode) {
+                            BrailleInputMode.ENGLISH -> "英語モード"
+                            BrailleInputMode.NUMBER -> "数字モード"
+                            else -> ""
+                        }
+                        "点字キーボード $subMode"
+                    }
+                }
                 KeyboardType.TENKEY_BETA -> "テンキーベータ"
             }
             announceText(announcement, delayMs = 150)
