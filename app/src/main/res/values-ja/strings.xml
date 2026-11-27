@@ -490,4 +490,8 @@
 
     <string name="author_title">作者ホームページ</string>
     <string name="author_summary">やまさんの森 (https://yama3nomori.jp)</string>
+
+    <!-- ユーザー補助サービス -->
+    <string name="accessibility_service_summary">TalkBack使用時に、点字入力やフリックなどの直接タッチ操作を行えるようにします。</string>
+    <string name="accessibility_service_description">TalkBack使用時に、アヤメキーボードのジェスチャー操作や点字キーボードが使用できるようにします。\n適用されるのはキーボードの入力エリアのみで、それ以外の画面では通常のTalkBack操作がそのまま使えます。画面内容の読み取りや入力内容の収集・外部送信は一切行いません。</string>
 </resources>

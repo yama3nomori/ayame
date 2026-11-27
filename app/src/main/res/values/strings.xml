@@ -493,4 +493,8 @@
 
     <string name="author_title">Author\'s Website</string>
     <string name="author_summary">Yamasan no Mori (https://yama3nomori.jp)</string>
+
+    <!-- Accessibility service -->
+    <string name="accessibility_service_summary">Enables direct touch input such as Braille and flick gestures while using TalkBack.</string>
+    <string name="accessibility_service_description">Enables Ayame Keyboard gesture operations and the Braille keyboard while using TalkBack.\nThis applies only to the keyboard input area; normal TalkBack operations continue to work everywhere else on the screen. This service never reads screen content, nor does it collect or transmit your input data.</string>
 </resources>
