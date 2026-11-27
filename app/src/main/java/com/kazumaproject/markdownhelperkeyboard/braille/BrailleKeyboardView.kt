@@ -107,6 +107,42 @@ class BrailleKeyboardView @JvmOverloads constructor(
             }
         }
 
+    // 日本語カタカナモードの全角/半角状態: false = 全角(デフォルト), true = 半角
+    var isHankakuKatakanaMode: Boolean = false
+        set(value) {
+            if (field != value) {
+                field = value
+                updatePreview()
+            }
+        }
+
+    // 英語モードの大文字入力状態: 0 = 通常(小文字), 1 = キャプス(次の1文字のみ大文字), 2 = キャプスロック(連続大文字)
+    var englishCapsState: Int = 0
+        set(value) {
+            if (field != value) {
+                field = value
+                updatePreview()
+            }
+        }
+
+    // 英語モードの全角/半角状態: false = 半角(デフォルト), true = 全角
+    var isZenkakuEnglishMode: Boolean = false
+        set(value) {
+            if (field != value) {
+                field = value
+                updatePreview()
+            }
+        }
+
+    // 数字モードの全角/半角状態: false = 半角(デフォルト), true = 全角
+    var isZenkakuNumberMode: Boolean = false
+        set(value) {
+            if (field != value) {
+                field = value
+                updatePreview()
+            }
+        }
+
     private var customKeyBgColor: Int? = null
     private var customTextColor: Int? = null
     private var customBgColor: Int? = null
@@ -1674,15 +1710,29 @@ class BrailleKeyboardView @JvmOverloads constructor(
                         // 2本指: 入力モード切替
                         vibrate(40)
                         val newMode = inputProcessor.switchMode()
+                        if (newMode == BrailleInputMode.ENGLISH && englishCapsState == 1) {
+                            englishCapsState = 0
+                        }
                         updatePreview()
                         listener?.onSwitchMode(newMode)
                         val modeName = when (newMode) {
                             BrailleInputMode.JAPANESE -> {
-                                val kanaState = if (isKatakanaMode) "カタカナ" else "ひらがな"
-                                "日本語モード $kanaState"
+                                if (isKatakanaMode) {
+                                    val widthState = if (isHankakuKatakanaMode) "半角" else "全角"
+                                    "日本語モード カタカナ $widthState"
+                                } else {
+                                    "日本語モード ひらがな"
+                                }
                             }
-                            BrailleInputMode.ENGLISH -> "英語モード"
-                            BrailleInputMode.NUMBER -> "数字モード"
+                            BrailleInputMode.ENGLISH -> {
+                                val widthState = if (isZenkakuEnglishMode) "全角" else "半角"
+                                val capsState = if (englishCapsState == 2) " キャプスロック" else ""
+                                "英語モード $widthState$capsState"
+                            }
+                            BrailleInputMode.NUMBER -> {
+                                val widthState = if (isZenkakuNumberMode) "全角" else "半角"
+                                "数字モード $widthState"
+                            }
                         }
                         announceForAccessibility(modeName)
                     }
@@ -1737,12 +1787,47 @@ class BrailleKeyboardView @JvmOverloads constructor(
             }
             is BrailleInputResult.Character -> {
                 vibrate(35)
-                val outputText = if (inputProcessor.inputMode == BrailleInputMode.JAPANESE && isKatakanaMode) {
-                    result.text.map { c ->
-                        if (c in '\u3041'..'\u3096') (c.code + 0x60).toChar() else c
-                    }.joinToString("")
-                } else {
-                    result.text
+                val outputText = when (inputProcessor.inputMode) {
+                    BrailleInputMode.JAPANESE -> {
+                        if (isKatakanaMode) {
+                            val zenkakuKatakana = result.text.map { c ->
+                                if (c in '\u3041'..'\u3096') (c.code + 0x60).toChar() else c
+                            }.joinToString("")
+                            if (isHankakuKatakanaMode) {
+                                toHankakuKatakanaString(zenkakuKatakana)
+                            } else {
+                                zenkakuKatakana
+                            }
+                        } else {
+                            result.text
+                        }
+                    }
+                    BrailleInputMode.ENGLISH -> {
+                        val cased = when (englishCapsState) {
+                            1 -> {
+                                englishCapsState = 0
+                                result.text.uppercase()
+                            }
+                            2 -> result.text.uppercase()
+                            else -> result.text
+                        }
+                        if (isZenkakuEnglishMode) {
+                            cased.map { c ->
+                                if (c in '!'..'~') (c.code + 0xFEE0).toChar() else c
+                            }.joinToString("")
+                        } else {
+                            cased
+                        }
+                    }
+                    BrailleInputMode.NUMBER -> {
+                        if (isZenkakuNumberMode) {
+                            result.text.map { c ->
+                                if (c in '!'..'~') (c.code + 0xFEE0).toChar() else c
+                            }.joinToString("")
+                        } else {
+                            result.text
+                        }
+                    }
                 }
                 listener?.onInputText(outputText)
                 announceForAccessibility(outputText)
@@ -1760,8 +1845,18 @@ class BrailleKeyboardView @JvmOverloads constructor(
                     BraillePrefixState.YOUON -> "拗音"
                     BraillePrefixState.YOU_DAKUTEN -> "拗濁音"
                     BraillePrefixState.YOU_HANDAKUTEN -> "拗半濁音"
-                    BraillePrefixState.NUMBER_MODE -> "数字モード"
-                    BraillePrefixState.FOREIGN_MODE -> "外国語モード"
+                    BraillePrefixState.NUMBER_MODE -> {
+                        listener?.onSwitchMode(BrailleInputMode.NUMBER)
+                        val widthState = if (isZenkakuNumberMode) "全角" else "半角"
+                        "数字モード $widthState"
+                    }
+                    BraillePrefixState.FOREIGN_MODE -> {
+                        if (englishCapsState == 1) englishCapsState = 0
+                        listener?.onSwitchMode(BrailleInputMode.ENGLISH)
+                        val widthState = if (isZenkakuEnglishMode) "全角" else "半角"
+                        val capsState = if (englishCapsState == 2) " キャプスロック" else ""
+                        "外国語モード $widthState$capsState"
+                    }
                     else -> ""
                 }
                 if (prefixName.isNotEmpty()) {
@@ -1782,9 +1877,22 @@ class BrailleKeyboardView @JvmOverloads constructor(
 
         // モードバッジ
         binding.brailleModeBadge.text = when (state.mode) {
-            BrailleInputMode.JAPANESE -> if (isKatakanaMode) "カナ" else "かな"
-            BrailleInputMode.ENGLISH -> "英語"
-            BrailleInputMode.NUMBER -> "数字"
+            BrailleInputMode.JAPANESE -> {
+                if (isKatakanaMode) {
+                    if (isHankakuKatakanaMode) "カナ(半)" else "カナ(全)"
+                } else {
+                    "かな"
+                }
+            }
+            BrailleInputMode.ENGLISH -> {
+                val w = if (isZenkakuEnglishMode) "全" else "半"
+                when (englishCapsState) {
+                    1 -> "英語($w/Cap)"
+                    2 -> "英語($w/CAP)"
+                    else -> "英語($w)"
+                }
+            }
+            BrailleInputMode.NUMBER -> if (isZenkakuNumberMode) "数字(全)" else "数字(半)"
         }
 
         // ステータスバッジ
@@ -1825,6 +1933,36 @@ class BrailleKeyboardView @JvmOverloads constructor(
         binding.dot6.setBackgroundResource(R.drawable.braille_dot_off)
 
         binding.braillePreviewBar.contentDescription = "点字入力 ${binding.brailleModeBadge.text} $statusText"
+    }
+
+    private fun toHankakuKatakanaString(text: String): String {
+        val sb = StringBuilder()
+        for (c in text) {
+            val h = when (c) {
+                'ア' -> "ｱ"; 'イ' -> "ｲ"; 'ウ' -> "ｳ"; 'エ' -> "ｴ"; 'オ' -> "ｵ"
+                'カ' -> "ｶ"; 'キ' -> "ｷ"; 'ク' -> "ｸ"; 'ケ' -> "ｹ"; 'コ' -> "ｺ"
+                'サ' -> "ｻ"; 'シ' -> "ｼ"; 'ス' -> "ｽ"; 'セ' -> "ｾ"; 'ソ' -> "ｿ"
+                'タ' -> "ﾀ"; 'チ' -> "ﾁ"; 'ツ' -> "ﾂ"; 'テ' -> "ﾃ"; 'ト' -> "ﾄ"
+                'ナ' -> "ﾅ"; 'ニ' -> "ﾆ"; 'ヌ' -> "ﾇ"; 'ネ' -> "ﾈ"; 'ノ' -> "ﾉ"
+                'ハ' -> "ﾊ"; 'ヒ' -> "ﾋ"; 'フ' -> "ﾌ"; 'ヘ' -> "ﾍ"; 'ホ' -> "ﾎ"
+                'マ' -> "ﾏ"; 'ミ' -> "ﾐ"; 'ム' -> "ﾑ"; 'メ' -> "ﾒ"; 'モ' -> "ﾓ"
+                'ヤ' -> "ﾔ"; 'ユ' -> "ﾕ"; 'ヨ' -> "ﾖ"
+                'ラ' -> "ﾗ"; 'リ' -> "ﾘ"; 'ル' -> "ﾙ"; 'レ' -> "ﾚ"; 'ロ' -> "ﾛ"
+                'ワ' -> "ﾜ"; 'ヲ' -> "ｦ"; 'ン' -> "ﾝ"
+                'ガ' -> "ｶﾞ"; 'ギ' -> "ｷﾞ"; 'グ' -> "ｸﾞ"; 'ゲ' -> "ｹﾞ"; 'ゴ' -> "ｺﾞ"
+                'ザ' -> "ｻﾞ"; 'ジ' -> "ｼﾞ"; 'ズ' -> "ｽﾞ"; 'ゼ' -> "ｾﾞ"; 'ゾ' -> "ｿﾞ"
+                'ダ' -> "ﾀﾞ"; 'ヂ' -> "ﾁﾞ"; 'ヅ' -> "ﾂﾞ"; 'デ' -> "ﾃﾞ"; 'ド' -> "ﾄﾞ"
+                'バ' -> "ﾊﾞ"; 'ビ' -> "ﾋﾞ"; 'ブ' -> "ﾌﾞ"; 'ベ' -> "ﾍﾞ"; 'ボ' -> "ﾎﾞ"
+                'パ' -> "ﾊﾟ"; 'ピ' -> "ﾋﾟ"; 'プ' -> "ﾌﾟ"; 'ペ' -> "ﾍﾟ"; 'ポ' -> "ﾎﾟ"
+                'ヴ' -> "ｳﾞ"
+                'ァ' -> "ｧ"; 'ィ' -> "ｨ"; 'ゥ' -> "ｩ"; 'ェ' -> "ｪ"; 'ォ' -> "ｫ"
+                'ャ' -> "ｬ"; 'ュ' -> "ｭ"; 'ョ' -> "ｮ"; 'ッ' -> "ｯ"
+                'ー' -> "ｰ"; '。' -> "｡"; '、' -> "､"; '「' -> "｢"; '」' -> "｣"; '・' -> "･"
+                else -> c.toString()
+            }
+            sb.append(h)
+        }
+        return sb.toString()
     }
 
     private fun vibrate(durationMs: Long) {

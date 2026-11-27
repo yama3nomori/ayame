@@ -4403,22 +4403,46 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     vibrateKeyInput()
                     val insertString = inputString.value
                     val suggestions = suggestionAdapter?.suggestions ?: emptyList()
-                    if (insertString.isNotEmpty() && suggestions.isNotEmpty()) {
-                        val finalSuggestions = if (!isHenkan.get()) {
-                            // 文字入力中の最初の1本指下スワイプは予測変換（入力文字数より長い読みの候補）に割り当てる
-                            val filtered = suggestions.filter { it.length.toInt() > insertString.length }
-                            if (filtered.isNotEmpty()) {
-                                suggestionAdapter?.suggestions = filtered
-                                suggestionAdapterFull?.suggestions = filtered
-                                filteredCandidateList = filtered
-                                filtered
-                            } else {
-                                suggestions
+                    when (inputProcessor.inputMode) {
+                        BrailleInputMode.JAPANESE -> {
+                            if (insertString.isEmpty()) {
+                                if (isKatakanaMode) {
+                                    isHankakuKatakanaMode = !isHankakuKatakanaMode
+                                    preInputKatakanaMode = if (isHankakuKatakanaMode) 2 else 1
+                                    val message = if (isHankakuKatakanaMode) "半角" else "全角"
+                                    announceTextForce(message, allowSameText = true)
+                                    Toast.makeText(this@IMEService, message, Toast.LENGTH_SHORT).show()
+                                }
+                            } else if (suggestions.isNotEmpty()) {
+                                val finalSuggestions = if (!isHenkan.get()) {
+                                    // 文字入力中の最初の1本指下スワイプは予測変換（入力文字数より長い読みの候補）に割り当てる
+                                    val filtered = suggestions.filter { it.length.toInt() > insertString.length }
+                                    if (filtered.isNotEmpty()) {
+                                        suggestionAdapter?.suggestions = filtered
+                                        suggestionAdapterFull?.suggestions = filtered
+                                        filteredCandidateList = filtered
+                                        filtered
+                                    } else {
+                                        suggestions
+                                    }
+                                } else {
+                                    suggestions
+                                }
+                                handleJapaneseModeSpaceKey(mainView, finalSuggestions, insertString)
                             }
-                        } else {
-                            suggestions
                         }
-                        handleJapaneseModeSpaceKey(mainView, finalSuggestions, insertString)
+                        BrailleInputMode.ENGLISH -> {
+                            isZenkakuEnglishMode = !isZenkakuEnglishMode
+                            val message = if (isZenkakuEnglishMode) "全角" else "半角"
+                            announceTextForce(message, allowSameText = true)
+                            Toast.makeText(this@IMEService, message, Toast.LENGTH_SHORT).show()
+                        }
+                        BrailleInputMode.NUMBER -> {
+                            isZenkakuNumberMode = !isZenkakuNumberMode
+                            val message = if (isZenkakuNumberMode) "全角" else "半角"
+                            announceTextForce(message, allowSameText = true)
+                            Toast.makeText(this@IMEService, message, Toast.LENGTH_SHORT).show()
+                        }
                     }
                 }
 
@@ -4427,29 +4451,41 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                     vibrateKeyInput()
                     val insertString = inputString.value
                     val suggestions = suggestionAdapter?.suggestions ?: emptyList()
-                    if (inputProcessor.inputMode == BrailleInputMode.JAPANESE) {
-                        if (insertString.isEmpty()) {
-                            if (preInputKatakanaMode == 0) {
-                                preInputKatakanaMode = 1
-                                isKatakanaMode = true
-                                val message = "カタカナ"
-                                announceTextForce(message, allowSameText = true)
-                                Toast.makeText(this@IMEService, message, Toast.LENGTH_SHORT).show()
-                            } else {
-                                preInputKatakanaMode = 0
-                                isKatakanaMode = false
-                                val message = "ひらがな"
-                                announceTextForce(message, allowSameText = true)
-                                Toast.makeText(this@IMEService, message, Toast.LENGTH_SHORT).show()
+                    when (inputProcessor.inputMode) {
+                        BrailleInputMode.JAPANESE -> {
+                            if (insertString.isEmpty()) {
+                                if (!isKatakanaMode) {
+                                    isKatakanaMode = true
+                                    preInputKatakanaMode = if (isHankakuKatakanaMode) 2 else 1
+                                    val widthState = if (isHankakuKatakanaMode) "半角" else "全角"
+                                    val message = "カタカナ $widthState"
+                                    announceTextForce(message, allowSameText = true)
+                                    Toast.makeText(this@IMEService, message, Toast.LENGTH_SHORT).show()
+                                } else {
+                                    isKatakanaMode = false
+                                    preInputKatakanaMode = 0
+                                    val message = "ひらがな"
+                                    announceTextForce(message, allowSameText = true)
+                                    Toast.makeText(this@IMEService, message, Toast.LENGTH_SHORT).show()
+                                }
+                            } else if (!isHenkan.get()) {
+                                convertToZenkakuKatakana()
+                            } else if (suggestions.isNotEmpty()) {
+                                handleJapaneseModeSpaceKeyReverse(mainView, suggestions, insertString)
                             }
-                        } else if (!isHenkan.get()) {
-                            convertToZenkakuKatakana()
-                        } else if (suggestions.isNotEmpty()) {
-                            handleJapaneseModeSpaceKeyReverse(mainView, suggestions, insertString)
                         }
-                    } else {
-                        if (insertString.isNotEmpty() && suggestions.isNotEmpty()) {
-                            handleJapaneseModeSpaceKeyReverse(mainView, suggestions, insertString)
+                        BrailleInputMode.ENGLISH -> {
+                            englishCapsState = (englishCapsState + 1) % 3
+                            val message = when (englishCapsState) {
+                                1 -> "キャプス"
+                                2 -> "キャプスロック"
+                                else -> "キャプスロック解除"
+                            }
+                            announceTextForce(message, allowSameText = true)
+                            Toast.makeText(this@IMEService, message, Toast.LENGTH_SHORT).show()
+                        }
+                        BrailleInputMode.NUMBER -> {
+                            // 数字モードの上スワイプジェスチャーはなし
                         }
                     }
                 }
@@ -4457,12 +4493,24 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 override fun onSwitchMode(mode: BrailleInputMode) {
                     val modeName = when (mode) {
                         BrailleInputMode.JAPANESE -> {
-                            isKatakanaMode = (preInputKatakanaMode == 1)
-                            val kanaState = if (isKatakanaMode) "カタカナ" else "ひらがな"
-                            "日本語モード $kanaState"
+                            isKatakanaMode = (preInputKatakanaMode == 1 || preInputKatakanaMode == 2)
+                            if (isKatakanaMode) {
+                                isHankakuKatakanaMode = (preInputKatakanaMode == 2)
+                                val widthState = if (isHankakuKatakanaMode) "半角" else "全角"
+                                "日本語モード カタカナ $widthState"
+                            } else {
+                                "日本語モード ひらがな"
+                            }
                         }
-                        BrailleInputMode.ENGLISH -> "英語モード"
-                        BrailleInputMode.NUMBER -> "数字モード"
+                        BrailleInputMode.ENGLISH -> {
+                            val widthState = if (isZenkakuEnglishMode) "全角" else "半角"
+                            val capsState = if (englishCapsState == 2) " キャプスロック" else ""
+                            "英語モード $widthState$capsState"
+                        }
+                        BrailleInputMode.NUMBER -> {
+                            val widthState = if (isZenkakuNumberMode) "全角" else "半角"
+                            "数字モード $widthState"
+                        }
                     }
                     announceTextForce(modeName, allowSameText = true)
                 }
@@ -6624,7 +6672,8 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 }
 
                 KeyboardType.BRAILLE -> {
-                    brailleView.isKatakanaMode = (preInputKatakanaMode == 1)
+                    brailleView.isKatakanaMode = (preInputKatakanaMode == 1 || preInputKatakanaMode == 2)
+                    brailleView.isHankakuKatakanaMode = (preInputKatakanaMode == 2)
                     brailleView.isVisible = true
                     if (isIMEWindowShown) {
                         brailleView.post { brailleView.syncPassthroughRegion() }
@@ -6675,12 +6724,23 @@ class IMEService : InputMethodService(), LifecycleOwner, InputConnection,
                 KeyboardType.AYAME_TABLET_KANA -> "アヤメタブレット用かなレイアウト"
                 KeyboardType.BRAILLE -> {
                     if (brailleView.inputProcessor.inputMode == BrailleInputMode.JAPANESE) {
-                        val kanaState = if (preInputKatakanaMode == 1) "カタカナ" else "ひらがな"
-                        "点字キーボード $kanaState"
+                        if (preInputKatakanaMode == 1 || preInputKatakanaMode == 2) {
+                            val widthState = if (preInputKatakanaMode == 2) "半角" else "全角"
+                            "点字キーボード カタカナ $widthState"
+                        } else {
+                            "点字キーボード ひらがな"
+                        }
                     } else {
                         val subMode = when (brailleView.inputProcessor.inputMode) {
-                            BrailleInputMode.ENGLISH -> "英語モード"
-                            BrailleInputMode.NUMBER -> "数字モード"
+                            BrailleInputMode.ENGLISH -> {
+                                val widthState = if (brailleView.isZenkakuEnglishMode) "全角" else "半角"
+                                val capsState = if (brailleView.englishCapsState == 2) " キャプスロック" else ""
+                                "英語モード $widthState$capsState"
+                            }
+                            BrailleInputMode.NUMBER -> {
+                                val widthState = if (brailleView.isZenkakuNumberMode) "全角" else "半角"
+                                "数字モード $widthState"
+                            }
                             else -> ""
                         }
                         "点字キーボード $subMode"
